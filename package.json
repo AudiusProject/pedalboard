@@ -1,0 +1,28 @@
+{
+  "name": "pedalboard",
+  "version": "0.0.30",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "type-check": "turbo run lint --filter='[HEAD^1]'"
+  },
+  "devDependencies": {
+    "prettier": "2.8.8",
+    "turbo": "1.10.16",
+    "typescript": "4.5.3"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "packageManager": "npm@8.19.4"
+}

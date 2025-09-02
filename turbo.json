@@ -1,0 +1,32 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env.*local"],
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "env": ["audius_db_url", "identity_db_url"]
+    },
+    "lint": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "env": ["audius_db_url", "identity_db_url"]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**"],
+      "inputs": ["src/**/*.tsx", "src/**/*.ts", "test/**/*.ts", "test/**/*.tsx"]
+    },
+    "clean": {
+      "cache": false
+    },
+    "type-check": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    }
+  }
+}

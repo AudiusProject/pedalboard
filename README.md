@@ -53,37 +53,112 @@ cp ./apps/app-template ./apps/my-app
 npm i
 ```
 
-# Building and running apps in isolation
+# Development with Turborepo
 
-Inside `/dev-tools/compose` is a [docker compose for pedalboard](../../../../dev-tools/compose/docker-compose.pedalboard.dev.yml) file that houses all of the applications. Building and running your new application alongside the other is as simple as following the `app-template` example.
+This monorepo uses [Turborepo](https://turbo.build) for fast, efficient development. Turborepo provides caching, parallel execution, and dependency management.
 
-1. Add your new service by copying what the `app-template` does.
+## Running Applications
 
-```
-app-template:
-  extends:
-    file: docker-compose.pedalboard.prod.yml
-    service: app-template
-  build:
-    dockerfile: ${PROJECT_ROOT}/packages/discovery-provider/plugins/pedalboard/docker/Dockerfile.dev
-  volumes:
-    - ${PROJECT_ROOT}:/app
+**Run a single app for development (with hot reload):**
+```bash
+turbo run dev --filter=@pedalboard/app-template
+turbo run dev --filter=@pedalboard/relay
 ```
 
-2. Run the docker file with the build flag
-
+**Run with dependencies (builds packages first):**
+```bash
+turbo run dev --filter=@pedalboard/app-template...
 ```
-docker compose -f dev-tools/compose/docker-compose.pedalboard.dev.yml up app-template --build -d
+
+**Run multiple apps:**
+```bash
+turbo run dev --filter=@pedalboard/relay --filter=@pedalboard/staking
 ```
 
-3. In docker dashboard or `docker ps` you should find your running container
+## Building
 
+**Build everything:**
+```bash
+turbo run build
 ```
-docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
 
-NAMES                        IMAGE                                    STATUS
-trending-challenge-rewards   pedalboard-trending-challenge-rewards    Up 21 minutes
-app-template                 pedalboard-app-template                  Up 21 minutes
+**Build specific packages:**
+```bash
+turbo run build --filter=@pedalboard/logger
+```
+
+**Build with concurrency:**
+```bash
+turbo run build --concurrency=4
+```
+
+## Other Commands
+
+**Lint all packages:**
+```bash
+turbo run lint
+```
+
+**Run tests:**
+```bash
+turbo run test
+```
+
+**Clean build artifacts:**
+```bash
+turbo run clean
+```
+
+# Syncing from audius-protocol
+
+This repository was extracted from the main [audius-protocol](https://github.com/AudiusProject/audius-protocol) repository. To sync new changes from the main repo:
+
+## Setup (one-time)
+
+Add the main audius-protocol repo as a remote:
+```bash
+git remote add ap https://github.com/AudiusProject/audius-protocol.git
+git fetch ap
+```
+
+## Syncing Changes
+
+1. **Find pedalboard-related commits in the main repo:**
+```bash
+git log ap/main --oneline -- "*pedalboard*" "*/pedalboard/*"
+```
+
+2. **Cherry-pick specific commits:**
+```bash
+git cherry-pick <commit-hash>
+```
+
+3. **Test your changes:**
+```bash
+turbo run build
+turbo run dev --filter=@pedalboard/app-template
+```
+
+4. **Handle conflicts if they occur:**
+```bash
+# Fix conflicts manually, then:
+git add .
+git cherry-pick --continue
+```
+
+**Example workflow:**
+```bash
+# Fetch latest from main repo
+git fetch ap
+
+# Look for recent pedalboard changes
+git log ap/main --oneline -20 -- "*pedalboard*"
+
+# Cherry-pick a specific commit
+git cherry-pick abc1234
+
+# Test the changes
+turbo run build --filter=@pedalboard/relay
 ```
 
 # Tools

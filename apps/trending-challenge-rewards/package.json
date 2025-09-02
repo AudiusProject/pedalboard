@@ -15,7 +15,7 @@
     "preset": "jest-presets/jest/node"
   },
   "dependencies": {
-    "@audius/sdk": "*",
+    "@audius/sdk": "10.0.0",
     "@pedalboard/basekit": "*",
     "@pedalboard/logger": "*",
     "@pedalboard/storage": "*",
