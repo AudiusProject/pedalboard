@@ -161,6 +161,49 @@ git cherry-pick abc1234
 turbo run build --filter=@pedalboard/relay
 ```
 
+# Docker
+
+This repository uses Docker for containerized deployments with optimized builds for each app.
+
+## Building Docker Images
+
+**Build a specific app:**
+```bash
+npm run docker:build relay
+npm run docker:build solana-relay
+npm run docker:build mri
+```
+
+**Or use the build script directly:**
+```bash
+./scripts/build-docker.sh <app_name> [tag]
+./scripts/build-docker.sh relay latest
+```
+
+**Available apps:**
+- relay
+- solana-relay  
+- mri
+- archiver
+- anti-abuse-oracle
+- crm
+- staking
+- trending-challenge-rewards
+- verified-notifications
+
+## CI/CD
+
+GitHub Actions automatically builds and pushes Docker images to DockerHub:
+- **Change Detection**: Only builds apps that changed or when shared dependencies change
+- **Parallel Builds**: Each app builds independently - failures don't block others
+- **Smart Tagging**: Images tagged with `latest`, version tags, branch names, and commit SHAs
+
+Images are pushed as: `pedalboard-{app-name}:latest`
+
+**Required secrets for CI:**
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
+
 # Tools
 
 Turborepo

@@ -1,0 +1,477 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_PREFIX: pedalboard
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      relay: ${{ steps.changes.outputs.relay }}
+      solana-relay: ${{ steps.changes.outputs.solana-relay }}
+      mri: ${{ steps.changes.outputs.mri }}
+      archiver: ${{ steps.changes.outputs.archiver }}
+      anti-abuse-oracle: ${{ steps.changes.outputs.anti-abuse-oracle }}
+      crm: ${{ steps.changes.outputs.crm }}
+      staking: ${{ steps.changes.outputs.staking }}
+      trending-challenge-rewards: ${{ steps.changes.outputs.trending-challenge-rewards }}
+      verified-notifications: ${{ steps.changes.outputs.verified-notifications }}
+      shared: ${{ steps.changes.outputs.shared }}
+      
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changes
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            shared:
+              - 'package.json'
+              - 'turbo.json'
+              - 'packages/**'
+              - '.github/workflows/docker.yml'
+              - 'Dockerfile'
+              - '.dockerignore'
+              - 'scripts/build-docker.sh'
+            relay:
+              - 'apps/relay/**'
+            solana-relay:
+              - 'apps/solana-relay/**'
+            mri:
+              - 'apps/mri/**'
+            archiver:
+              - 'apps/archiver/**'
+            anti-abuse-oracle:
+              - 'apps/anti-abuse-oracle/**'
+            crm:
+              - 'apps/crm/**'
+            staking:
+              - 'apps/staking/**'
+            trending-challenge-rewards:
+              - 'apps/trending-challenge-rewards/**'
+            verified-notifications:
+              - 'apps/verified-notifications/**'
+
+  build-relay:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.relay == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-relay
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        run: |
+          ./scripts/build-docker.sh relay
+          
+          for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+            docker tag pedalboard-relay:latest $tag
+          done
+          
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+              docker push $tag
+            done
+          fi
+
+  build-solana-relay:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.solana-relay == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-solana-relay
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        run: |
+          ./scripts/build-docker.sh solana-relay
+          
+          for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+            docker tag pedalboard-solana-relay:latest $tag
+          done
+          
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+              docker push $tag
+            done
+          fi
+
+  build-mri:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.mri == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-mri
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        run: |
+          ./scripts/build-docker.sh mri
+          
+          for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+            docker tag pedalboard-mri:latest $tag
+          done
+          
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+              docker push $tag
+            done
+          fi
+
+  build-archiver:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.archiver == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-archiver
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        run: |
+          ./scripts/build-docker.sh archiver
+          
+          for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+            docker tag pedalboard-archiver:latest $tag
+          done
+          
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+              docker push $tag
+            done
+          fi
+
+  build-anti-abuse-oracle:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.anti-abuse-oracle == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-anti-abuse-oracle
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        run: |
+          ./scripts/build-docker.sh anti-abuse-oracle
+          
+          for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+            docker tag pedalboard-anti-abuse-oracle:latest $tag
+          done
+          
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+              docker push $tag
+            done
+          fi
+
+  build-crm:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.crm == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-crm
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        run: |
+          ./scripts/build-docker.sh crm
+          
+          for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+            docker tag pedalboard-crm:latest $tag
+          done
+          
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+              docker push $tag
+            done
+          fi
+
+  build-staking:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.staking == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-staking
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        run: |
+          ./scripts/build-docker.sh staking
+          
+          for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+            docker tag pedalboard-staking:latest $tag
+          done
+          
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+              docker push $tag
+            done
+          fi
+
+  build-trending-challenge-rewards:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.trending-challenge-rewards == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-trending-challenge-rewards
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        run: |
+          ./scripts/build-docker.sh trending-challenge-rewards
+          
+          for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+            docker tag pedalboard-trending-challenge-rewards:latest $tag
+          done
+          
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+              docker push $tag
+            done
+          fi
+
+  build-verified-notifications:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.verified-notifications == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-verified-notifications
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        run: |
+          ./scripts/build-docker.sh verified-notifications
+          
+          for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+            docker tag pedalboard-verified-notifications:latest $tag
+          done
+          
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            for tag in $(echo '${{ steps.meta.outputs.tags }}' | tr '\n' ' '); do
+              docker push $tag
+            done
+          fi
