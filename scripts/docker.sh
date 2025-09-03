@@ -92,7 +92,7 @@ if [[ ! -d "$PROJECT_ROOT/apps/$APP_NAME" ]]; then
 fi
 
 # Build docker command
-IMAGE_NAME="pedalboard/${APP_NAME}:${TAG}"
+IMAGE_NAME="audius/pedalboard:${APP_NAME}-${TAG}"
 
 DOCKER_ARGS=(
     "build"
