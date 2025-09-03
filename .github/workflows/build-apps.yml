@@ -22,7 +22,7 @@ jobs:
       
       - name: Build Docker image
         run: |
-          ./scripts/docker.sh verified-notifications --tag ${{ github.sha }}
+          ./scripts/docker.sh verified-notifications --tag ${{ github.sha }} --push
 
   build-crm:
     runs-on: ubuntu-latest
@@ -38,7 +38,7 @@ jobs:
       
       - name: Build Docker image
         run: |
-          ./scripts/docker.sh crm --tag ${{ github.sha }}
+          ./scripts/docker.sh crm --tag ${{ github.sha }} --push
 
   build-archiver:
     runs-on: ubuntu-latest
@@ -54,7 +54,7 @@ jobs:
       
       - name: Build Docker image
         run: |
-          ./scripts/docker.sh archiver --tag ${{ github.sha }}
+          ./scripts/docker.sh archiver --tag ${{ github.sha }} --push
 
   build-staking:
     runs-on: ubuntu-latest
@@ -70,7 +70,7 @@ jobs:
       
       - name: Build Docker image
         run: |
-          ./scripts/docker.sh staking --tag ${{ github.sha }}
+          ./scripts/docker.sh staking --tag ${{ github.sha }} --push
 
   build-trending-challenge-rewards:
     runs-on: ubuntu-latest
@@ -86,7 +86,7 @@ jobs:
       
       - name: Build Docker image
         run: |
-          ./scripts/docker.sh trending-challenge-rewards --tag ${{ github.sha }}
+          ./scripts/docker.sh trending-challenge-rewards --tag ${{ github.sha }} --push
 
   build-mri:
     runs-on: ubuntu-latest
@@ -102,7 +102,7 @@ jobs:
       
       - name: Build Docker image
         run: |
-          ./scripts/docker.sh mri --tag ${{ github.sha }}
+          ./scripts/docker.sh mri --tag ${{ github.sha }} --push
 
   build-relay:
     runs-on: ubuntu-latest
@@ -134,7 +134,7 @@ jobs:
       
       - name: Build Docker image
         run: |
-          ./scripts/docker.sh solana-relay --tag ${{ github.sha }}
+          ./scripts/docker.sh solana-relay --tag ${{ github.sha }} --push
 
   build-anti-abuse-oracle:
     runs-on: ubuntu-latest
@@ -150,4 +150,4 @@ jobs:
       
       - name: Build Docker image
         run: |
-          ./scripts/docker.sh anti-abuse-oracle --tag ${{ github.sha }}
+          ./scripts/docker.sh anti-abuse-oracle --tag ${{ github.sha }} --push
