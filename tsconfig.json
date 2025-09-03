@@ -15,13 +15,23 @@
     "preserveWatchOutput": true,
     "skipLibCheck": true,
     "strict": true,
-    "types": ["node"],
-    "baseUrl": "."
+    "types": [
+      "node"
+    ],
+    "baseUrl": ".",
   },
   "references": [
-    { "path": "./packages/storage" },
-    { "path": "./packages/basekit" },
-    { "path": "./packages/logger" }
+    {
+      "path": "./packages/storage"
+    },
+    {
+      "path": "./packages/basekit"
+    },
+    {
+      "path": "./packages/logger"
+    }
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }
