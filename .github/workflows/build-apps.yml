@@ -88,16 +88,6 @@ jobs:
         run: |
           ./scripts/docker.sh solana-relay --tag ${{ github.sha }}
 
-  build-app-template:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Build Docker image
-        run: |
-          ./scripts/docker.sh app-template --tag ${{ github.sha }}
-
   build-anti-abuse-oracle:
     runs-on: ubuntu-latest
     steps:
