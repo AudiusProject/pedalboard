@@ -31,7 +31,12 @@ usage() {
 APP_NAME=""
 TAG="latest"
 PUSH=false
-PLATFORM="linux/amd64"
+# Auto-detect platform: arm64 for Mac, amd64 for others (CI/runners)
+if [[ "$(uname)" == "Darwin" ]]; then
+    PLATFORM="linux/arm64"
+else
+    PLATFORM="linux/amd64"
+fi
 TURBO_TEAM=""
 TURBO_TOKEN=""
 

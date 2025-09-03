@@ -12,14 +12,13 @@ const formatters = {
 export type LogLevel = pino.LevelWithSilent
 
 const { logLevel } = readConfig()
-// set config for logger here
-export const logger = pino({
+
+export const httpLogger = pinoHttp({
   level: logLevel,
   name: `archiver`,
   formatters,
   errorKey: 'error'
 })
 
-export const httpLogger = pinoHttp({ logger })
-
+export const logger: typeof httpLogger.logger = httpLogger.logger
 export type Logger = typeof logger

@@ -4,12 +4,11 @@ import {
   SpaceManagerErrorCode,
   SpaceManagerError
 } from './spaceManager'
-import pino from 'pino'
+import { logger } from '../logger'
 
 describe('SpaceManager', () => {
   const maxSpaceBytes = 1000
   let spaceManager: ReturnType<typeof createSpaceManager>
-  const logger = pino()
 
   beforeEach(() => {
     spaceManager = createSpaceManager({ maxSpaceBytes, logger })
