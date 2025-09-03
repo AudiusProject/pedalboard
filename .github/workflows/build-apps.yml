@@ -118,7 +118,7 @@ jobs:
       
       - name: Build Docker image
         run: |
-          ./scripts/docker.sh relay --tag ${{ github.sha }}
+          ./scripts/docker.sh relay --tag ${{ github.sha }} --push
 
   build-solana-relay:
     runs-on: ubuntu-latest
