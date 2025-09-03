@@ -1,0 +1,109 @@
+name: Build Docker Images
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-verified-notifications:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: |
+          ./scripts/docker.sh verified-notifications --tag ${{ github.sha }}
+
+  build-crm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: |
+          ./scripts/docker.sh crm --tag ${{ github.sha }}
+
+  build-archiver:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: |
+          ./scripts/docker.sh archiver --tag ${{ github.sha }}
+
+  build-staking:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: |
+          ./scripts/docker.sh staking --tag ${{ github.sha }}
+
+  build-trending-challenge-rewards:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: |
+          ./scripts/docker.sh trending-challenge-rewards --tag ${{ github.sha }}
+
+  build-mri:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: |
+          ./scripts/docker.sh mri --tag ${{ github.sha }}
+
+  build-relay:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: |
+          ./scripts/docker.sh relay --tag ${{ github.sha }}
+
+  build-solana-relay:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: |
+          ./scripts/docker.sh solana-relay --tag ${{ github.sha }}
+
+  build-app-template:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: |
+          ./scripts/docker.sh app-template --tag ${{ github.sha }}
+
+  build-anti-abuse-oracle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: |
+          ./scripts/docker.sh anti-abuse-oracle --tag ${{ github.sha }}
