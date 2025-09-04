@@ -35,3 +35,4 @@ runs:
       shell: bash
       run: |
         ./scripts/docker.sh ${{ inputs.service_name }} --tag ${{ inputs.tag }} --platform ${{ inputs.platform }} --push
+        

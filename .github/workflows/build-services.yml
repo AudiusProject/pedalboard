@@ -42,3 +42,4 @@ jobs:
           platform: ${{ inputs.platform }}
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_password: ${{ secrets.DOCKER_PASSWORD }}
+          

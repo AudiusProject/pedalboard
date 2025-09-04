@@ -21,3 +21,4 @@ runs:
       run: |
         echo "Docker login successful!"
         echo "Current Docker user: $(docker system info | grep Username || echo 'Not available')"
+        

@@ -44,3 +44,4 @@ jobs:
           SOURCE_TAG="audius/pedalboard:${{ matrix.service }}-${{ inputs.commit_sha }}"
           LATEST_TAG="audius/pedalboard:${{ matrix.service }}-latest"
           docker buildx imagetools create "$SOURCE_TAG" --tag "$LATEST_TAG"
+          
