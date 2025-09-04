@@ -1,0 +1,45 @@
+name: Latest Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA to tag as latest'
+        required: true
+        type: string
+
+concurrency:
+  group: latest-release
+  cancel-in-progress: false
+
+jobs:
+  retag:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [
+          verified-notifications,
+          crm,
+          archiver,
+          staking,
+          trending-challenge-rewards,
+          mri,
+          relay,
+          solana-relay,
+          anti-abuse-oracle
+        ]
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Docker Login
+        uses: ./.github/actions/docker-login
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Retag as latest
+        run: |
+          SOURCE_TAG="audius/pedalboard:${{ matrix.service }}-${{ inputs.commit_sha }}"
+          LATEST_TAG="audius/pedalboard:${{ matrix.service }}-latest"
+          docker buildx imagetools create "$SOURCE_TAG" --tag "$LATEST_TAG"
