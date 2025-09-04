@@ -7,6 +7,11 @@ on:
         description: 'Tag to apply to images'
         required: true
         type: string
+      platform:
+        description: 'Platform to build for'
+        required: false
+        type: string
+        default: 'linux/amd64'
 
 jobs:
   build:
@@ -33,5 +38,6 @@ jobs:
         with:
           service_name: ${{ matrix.service }}
           tag: ${{ inputs.tag }}
+          platform: ${{ inputs.platform }}
           docker_username: ${{ secrets.DOCKER_USERNAME }}
           docker_password: ${{ secrets.DOCKER_PASSWORD }}

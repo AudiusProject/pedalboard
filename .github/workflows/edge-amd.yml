@@ -1,11 +1,11 @@
-name: Edge Release
+name: Edge Release (AMD)
 
 on:
   push:
     branches: [ main ]
 
 concurrency:
-  group: edge-release
+  group: edge-amd
   cancel-in-progress: false
 
 jobs:
@@ -13,4 +13,5 @@ jobs:
     uses: ./.github/workflows/build-services.yml
     with:
       tag: edge
+      platform: linux/amd64
     secrets: inherit
