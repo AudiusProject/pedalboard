@@ -31,12 +31,8 @@ usage() {
 APP_NAME=""
 TAG="latest"
 PUSH=false
-# Auto-detect platform: arm64 for Mac, amd64 for others (CI/runners)
-if [[ "$(uname)" == "Darwin" ]]; then
-    PLATFORM="linux/arm64"
-else
-    PLATFORM="linux/amd64"
-fi
+# Default to multi-platform build for both architectures
+PLATFORM="linux/amd64,linux/arm64"
 TURBO_TEAM=""
 TURBO_TOKEN=""
 
@@ -99,8 +95,9 @@ fi
 # Build docker command
 IMAGE_NAME="audius/pedalboard:${APP_NAME}-${TAG}"
 
+# Use buildx for multi-platform builds
 DOCKER_ARGS=(
-    "build"
+    "buildx" "build"
     "--platform" "$PLATFORM"
     "--build-arg" "app_name=$APP_NAME"
     "--tag" "$IMAGE_NAME"
@@ -122,12 +119,18 @@ echo "Building Docker image for app: $APP_NAME"
 echo "Image name: $IMAGE_NAME"
 echo "Platform: $PLATFORM"
 
+# For multi-platform builds with push, add --push to buildx command
+if [[ "$PUSH" == "true" ]] && [[ "$PLATFORM" == *","* ]]; then
+    DOCKER_ARGS+=("--push")
+fi
+
 # Execute docker build
 echo ""
 echo "Executing: docker ${DOCKER_ARGS[*]}"
 docker "${DOCKER_ARGS[@]}"
 
-if [[ "$PUSH" == "true" ]]; then
+# For single-platform builds, push separately
+if [[ "$PUSH" == "true" ]] && [[ "$PLATFORM" != *","* ]]; then
     echo ""
     echo "Pushing image: $IMAGE_NAME"
     docker push "$IMAGE_NAME"
