@@ -1,0 +1,16 @@
+name: Edge Release
+
+on:
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: edge-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-services.yml
+    with:
+      tag: edge
+    secrets: inherit

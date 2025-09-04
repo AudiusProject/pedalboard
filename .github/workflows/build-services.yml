@@ -1,0 +1,37 @@
+name: Build Services (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Tag to apply to images'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [
+          verified-notifications,
+          crm,
+          archiver,
+          staking,
+          trending-challenge-rewards,
+          mri,
+          relay,
+          solana-relay,
+          anti-abuse-oracle
+        ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build Docker Image
+        uses: ./.github/actions/build-docker-image
+        with:
+          service_name: ${{ matrix.service }}
+          tag: ${{ inputs.tag }}
+          docker_username: ${{ secrets.DOCKER_USERNAME }}
+          docker_password: ${{ secrets.DOCKER_PASSWORD }}
