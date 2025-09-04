@@ -119,8 +119,8 @@ echo "Building Docker image for app: $APP_NAME"
 echo "Image name: $IMAGE_NAME"
 echo "Platform: $PLATFORM"
 
-# For multi-platform builds with push, add --push to buildx command
-if [[ "$PUSH" == "true" ]] && [[ "$PLATFORM" == *","* ]]; then
+# For push builds, always add --push to buildx command (works for both single and multi-platform)
+if [[ "$PUSH" == "true" ]]; then
     DOCKER_ARGS+=("--push")
 fi
 
@@ -128,13 +128,6 @@ fi
 echo ""
 echo "Executing: docker ${DOCKER_ARGS[*]}"
 docker "${DOCKER_ARGS[@]}"
-
-# For single-platform builds, push separately
-if [[ "$PUSH" == "true" ]] && [[ "$PLATFORM" != *","* ]]; then
-    echo ""
-    echo "Pushing image: $IMAGE_NAME"
-    docker push "$IMAGE_NAME"
-fi
 
 echo ""
 echo "✅ Build completed successfully!"
