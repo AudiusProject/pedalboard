@@ -5,8 +5,9 @@ on:
     inputs:
       commit_sha:
         description: 'Commit SHA to tag as latest (must have successful edge build)'
-        required: true
+        required: false
         type: string
+        default: 'main'
 
 concurrency:
   group: latest-release
