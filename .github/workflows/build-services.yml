@@ -1,4 +1,4 @@
-name: Build Services (Reusable)
+name: Build Services
 
 on:
   workflow_call:
