@@ -19,6 +19,7 @@
     "@pedalboard/logger": "*",
     "@pedalboard/storage": "*",
     "archiver": "7.0.1",
+    "pino": "9.4.0",
     "bullmq": "5.41.7",
     "cors": "2.8.5",
     "envalid": "8.0.0",

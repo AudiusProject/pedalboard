@@ -1,0 +1,38 @@
+name: 'Build Docker Image'
+description: 'Build and push Docker image for a service'
+
+inputs:
+  service_name:
+    description: 'Name of the service to build'
+    required: true
+  tag:
+    description: 'Tag to apply to the image'
+    required: true
+  docker_username:
+    description: 'Docker registry username'
+    required: true
+  docker_password:
+    description: 'Docker registry password'
+    required: true
+  platform:
+    description: 'Platform to build for'
+    required: false
+    default: 'linux/amd64'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Docker Login
+      uses: ./.github/actions/docker-login
+      with:
+        username: ${{ inputs.docker_username }}
+        password: ${{ inputs.docker_password }}
+    
+    - name: Build Docker image
+      shell: bash
+      run: |
+        ./scripts/docker.sh ${{ inputs.service_name }} --tag ${{ inputs.tag }} --platform ${{ inputs.platform }} --push
+        

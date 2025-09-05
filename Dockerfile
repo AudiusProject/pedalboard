@@ -1,4 +1,4 @@
-FROM node:18-alpine AS base
+FROM node:22-alpine AS base
 
 ARG app_name
 
@@ -19,7 +19,7 @@ RUN apk add --no-cache libc6-compat
 RUN apk update
 
 WORKDIR /app
-RUN npm install turbo@1.10.14 --global
+RUN npm install turbo@1.10.16 --global
 
 COPY . .
 RUN turbo prune "--scope=@pedalboard/${APP_NAME}" --docker
@@ -29,7 +29,7 @@ FROM base AS installer
 
 WORKDIR /app
 
-RUN npm install turbo@1.10.14 --global
+RUN npm install turbo@1.10.16 --global
 RUN apk add --no-cache libc6-compat git
 RUN apk update
 RUN apk add --no-cache python3 py3-pip make g++ bash
@@ -38,7 +38,6 @@ RUN apk add --no-cache python3 py3-pip make g++ bash
 COPY .gitignore .gitignore
 COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/package-lock.json ./package-lock.json
-COPY --from=builder /app/scripts ./scripts
 
 RUN echo "installing deps for ${APP_NAME}"
 RUN CI=true npm i --maxsockets 1
@@ -56,7 +55,7 @@ WORKDIR /app
 
 COPY --from=installer /app .
 
-WORKDIR /app/packages/discovery-provider/plugins/pedalboard/apps/${APP_NAME}
+WORKDIR /app/apps/${APP_NAME}
 
 RUN apk add --no-cache curl
 
