@@ -40,7 +40,8 @@ jobs:
       matrix:
         service: ${{ fromJson(needs.setup.outputs.services) }}
     steps:
-      
+      - name: Checkout
+        uses: actions/checkout@v4
       
       - name: Docker Login
         uses: ./.github/actions/docker-login
