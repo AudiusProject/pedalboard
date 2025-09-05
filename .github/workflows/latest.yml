@@ -4,10 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       commit_sha:
-        description: 'Commit SHA to tag as latest (must have successful edge build)'
+        description: 'Commit SHA to tag as latest (defaults to main)'
         required: false
         type: string
-        default: 'main'
 
 concurrency:
   group: latest-release
@@ -48,9 +47,10 @@ jobs:
       
       - name: Verify source image exists
         run: |
-          SOURCE_TAG="audius/pedalboard:${{ matrix.service }}-${{ inputs.commit_sha }}"
+          COMMIT_SHA="${{ inputs.commit_sha || github.sha }}"
+          SOURCE_TAG="audius/pedalboard:${{ matrix.service }}-$COMMIT_SHA"
           if ! docker manifest inspect "$SOURCE_TAG" > /dev/null 2>&1; then
-            echo "Error: Image $SOURCE_TAG does not exist. Make sure the edge build completed successfully for commit ${{ inputs.commit_sha }}"
+            echo "Error: Image $SOURCE_TAG does not exist. Make sure the edge build completed successfully for commit $COMMIT_SHA"
             exit 1
           fi
           echo "✅ Verified $SOURCE_TAG exists"
@@ -75,7 +75,8 @@ jobs:
       
       - name: Retag as latest
         run: |
-          SOURCE_TAG="audius/pedalboard:${{ matrix.service }}-${{ inputs.commit_sha }}"
+          COMMIT_SHA="${{ inputs.commit_sha || github.sha }}"
+          SOURCE_TAG="audius/pedalboard:${{ matrix.service }}-$COMMIT_SHA"
           LATEST_TAG="audius/pedalboard:${{ matrix.service }}-latest"
           docker buildx imagetools create "$SOURCE_TAG" --tag "$LATEST_TAG"
           echo "✅ Tagged $SOURCE_TAG as $LATEST_TAG"
