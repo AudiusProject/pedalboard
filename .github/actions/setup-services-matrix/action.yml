@@ -1,0 +1,17 @@
+name: 'Setup Services Matrix'
+description: 'Load services configuration and output as matrix for workflows'
+
+outputs:
+  services:
+    description: 'JSON array of services for matrix strategy'
+    value: ${{ steps.load-services.outputs.services }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Load services configuration
+      id: load-services
+      shell: bash
+      run: |
+        SERVICES=$(cat .github/config/services.json | jq -c .)
+        echo "services=$SERVICES" >> $GITHUB_OUTPUT
