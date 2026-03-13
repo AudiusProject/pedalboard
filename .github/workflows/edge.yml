@@ -51,7 +51,12 @@ jobs:
       
       - name: Retag as edge
         run: |
-          SOURCE_TAG="audius/pedalboard:${{ matrix.service }}-${{ github.sha }}"
-          EDGE_TAG="audius/pedalboard:${{ matrix.service }}-edge"
+          if [[ "${{ matrix.service }}" == "notifications" ]]; then
+            SOURCE_TAG="audius/notifications:${{ github.sha }}"
+            EDGE_TAG="audius/notifications:edge"
+          else
+            SOURCE_TAG="audius/pedalboard:${{ matrix.service }}-${{ github.sha }}"
+            EDGE_TAG="audius/pedalboard:${{ matrix.service }}-edge"
+          fi
           docker buildx imagetools create "$SOURCE_TAG" --tag "$EDGE_TAG"
           

@@ -161,6 +161,10 @@ git cherry-pick abc1234
 turbo run build --filter=@pedalboard/relay
 ```
 
+# Notifications plugin and git history
+
+The **notifications** app was migrated from the apps repo (`packages/discovery-provider/plugins/notifications`). To preserve that path’s git history in this repo, see [docs/NOTIFICATIONS-HISTORY-PRESERVATION.md](docs/NOTIFICATIONS-HISTORY-PRESERVATION.md) and run `./scripts/preserve-notifications-history.sh ../apps` (or your path to the apps repo).
+
 # Tools
 
 Turborepo

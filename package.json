@@ -24,7 +24,8 @@
     "docker:relay": "./scripts/docker.sh relay",
     "docker:solana-relay": "./scripts/docker.sh solana-relay",
     "docker:app-template": "./scripts/docker.sh app-template",
-    "docker:anti-abuse-oracle": "./scripts/docker.sh anti-abuse-oracle"
+    "docker:anti-abuse-oracle": "./scripts/docker.sh anti-abuse-oracle",
+    "docker:notifications": "./scripts/docker.sh notifications"
   },
   "devDependencies": {
     "prettier": "2.8.8",

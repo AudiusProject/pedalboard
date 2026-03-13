@@ -85,9 +85,16 @@ jobs:
       
       - name: Create multiarch manifest
         run: |
-          AMD64_TAG="audius/pedalboard:${{ matrix.service }}-${{ inputs.tag }}-amd64"
-          ARM64_TAG="audius/pedalboard:${{ matrix.service }}-${{ inputs.tag }}-arm64"
-          MULTIARCH_TAG="audius/pedalboard:${{ matrix.service }}-${{ inputs.tag }}"
+          if [[ "${{ matrix.service }}" == "notifications" ]]; then
+            REPO="audius/notifications"
+            TAG_SUFFIX="${{ inputs.tag }}"
+          else
+            REPO="audius/pedalboard"
+            TAG_SUFFIX="${{ matrix.service }}-${{ inputs.tag }}"
+          fi
+          AMD64_TAG="${REPO}:${TAG_SUFFIX}-amd64"
+          ARM64_TAG="${REPO}:${TAG_SUFFIX}-arm64"
+          MULTIARCH_TAG="${REPO}:${TAG_SUFFIX}"
           
           docker buildx imagetools create \
             "$AMD64_TAG" \

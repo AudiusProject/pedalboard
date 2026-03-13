@@ -62,6 +62,7 @@ npm run docker:archiver            # Build archiver
 
 ## Available Apps
 
+- `notifications`
 - `verified-notifications`
 - `crm`
 - `archiver`
