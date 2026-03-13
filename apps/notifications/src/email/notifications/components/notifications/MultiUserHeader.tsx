@@ -15,7 +15,8 @@ const MultiUserHeader = ({ users }: { users: User[] }) => {
       width="100%"
       cellPadding="0"
       cellSpacing="0"
-      style={{ margin: '0px', padding: '0px' }}>
+      style={{ margin: '0px', padding: '0px' }}
+    >
       <tr>
         <td
           valign="top"
@@ -25,7 +26,8 @@ const MultiUserHeader = ({ users }: { users: User[] }) => {
           style={{
             padding: '0px 0px 12px 0px',
             borderBottom: '1px solid #F2F2F4'
-          }}>
+          }}
+        >
           <table
             align="center"
             border="0"
@@ -34,7 +36,8 @@ const MultiUserHeader = ({ users }: { users: User[] }) => {
             style={{
               margin: '0px',
               padding: '0px'
-            }}>
+            }}
+          >
             <tr>
               {users.slice(0, MAX_USERS).map((user) => (
                 <td colSpan="1" key={user.imageUrl}>
@@ -67,7 +70,8 @@ const MultiUserHeader = ({ users }: { users: User[] }) => {
                       borderCollapse: 'separate',
                       borderRadius: '50%',
                       border: '1px solid #C2C0CC'
-                    }}>
+                    }}
+                  >
                     <tr>
                       <td
                         className={'avenir'}
@@ -76,7 +80,8 @@ const MultiUserHeader = ({ users }: { users: User[] }) => {
                           color: '#AAA7B8',
                           fontSize: '11px',
                           fontWeight: 'bold'
-                        }}>
+                        }}
+                      >
                         {`+${formatCount(users.length - MAX_USERS)}`}
                       </td>
                     </tr>

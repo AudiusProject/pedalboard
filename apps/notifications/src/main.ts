@@ -1,11 +1,26 @@
 import { Knex } from 'knex'
 import moment from 'moment-timezone'
+import { log } from '@pedalboard/logger'
+import {
+  App,
+  initializeDiscoveryDb,
+  initializeIdentityDb
+} from '@pedalboard/basekit'
+
 import { config } from './config'
-import { Listener } from './listener'
 import { logger } from './logger'
 import { setupTriggers } from './setup'
 import { getDB } from './conn'
-
+import {
+  PendingUpdates,
+  Listener,
+  getNotificationById,
+  type ListenerAdapter
+} from './listener'
+import {
+  updateBadgeCount,
+  NotificationSeenListener
+} from './notificationSeenListener'
 import { AppNotificationsProcessor } from './processNotifications/indexAppNotifications'
 import { sendDMNotifications } from './tasks/dmNotifications'
 import { processEmailNotifications } from './email/notifications/index'
@@ -21,8 +36,8 @@ import { Server } from './server'
 import { configureWebPush } from './web'
 import { configureAnnouncement } from './processNotifications/mappers/announcement'
 import { logMemStats } from './utils/memStats'
-import { NotificationSeenListener } from './notificationSeenListener'
 
+/** Legacy Processor class for test harness (init/start/close + discoveryDB, listener, server, etc.). */
 export class Processor {
   discoveryDB: Knex
   identityDB: Knex
@@ -41,6 +56,12 @@ export class Processor {
     this.lastWeeklyEmailSent = null
     this.remoteConfig = new RemoteConfig()
     this.server = new Server()
+    this.discoveryDB = null as unknown as Knex
+    this.identityDB = null as unknown as Knex
+    this.appNotificationsProcessor =
+      null as unknown as AppNotificationsProcessor
+    this.listener = null as unknown as Listener
+    this.notificationSeenListener = null as unknown as NotificationSeenListener
   }
 
   init = async ({
@@ -54,28 +75,23 @@ export class Processor {
 
     logger.info('starting up!!!')
 
-    // setup postgres listener
-    await this.setupDB({ discoveryDBUrl, identityDBUrl })
+    const discoveryDBConnection = discoveryDBUrl ?? process.env.DN_DB_URL
+    const identityDBConnection = identityDBUrl ?? process.env.IDENTITY_DB_URL
+    this.discoveryDB = getDB(discoveryDBConnection!)
+    this.identityDB = getDB(identityDBConnection!)
 
-    // setup browser push
     configureWebPush()
-
-    // setup announcements
     configureAnnouncement()
-
-    // log memory stats on startup
     logMemStats()
 
-    // Comment out to prevent app notifications until complete
     this.listener = new Listener()
-    await this.listener.start(discoveryDBUrl || process.env.DN_DB_URL)
+    await this.listener.start(discoveryDBConnection ?? process.env.DN_DB_URL!)
 
-    // Start notification seen listener
     this.notificationSeenListener = new NotificationSeenListener(
       this.identityDB
     )
     await this.notificationSeenListener.start(
-      discoveryDBUrl || process.env.DN_DB_URL
+      discoveryDBConnection ?? process.env.DN_DB_URL!
     )
 
     await setupTriggers(this.discoveryDB)
@@ -87,26 +103,11 @@ export class Processor {
     await this.server.init()
   }
 
-  setupDB = async ({
-    discoveryDBUrl,
-    identityDBUrl
-  }: {
-    discoveryDBUrl?: string
-    identityDBUrl?: string
-  } = {}) => {
-    const discoveryDBConnection = discoveryDBUrl || process.env.DN_DB_URL
-    const identityDBConnection = identityDBUrl || process.env.IDENTITY_DB_URL
-    this.discoveryDB = await getDB(discoveryDBConnection)
-    this.identityDB = await getDB(identityDBConnection)
-  }
-
   getIsScheduledEmailEnabled() {
     const isEnabled = this.remoteConfig.getFeatureVariableEnabled(
       NotificationsEmailPlugin,
       EmailPluginMappings.Scheduled
     )
-    // If the feature does not exist in remote config, then it returns null
-    // In that case, set to false bc we want to explicitly set to true
     return Boolean(isEnabled)
   }
 
@@ -118,11 +119,7 @@ export class Processor {
     return Boolean(isEnabled)
   }
 
-  /**
-   * Starts the app push notifications
-   */
   start = async () => {
-    // process events
     logger.info('processing events')
     this.isRunning = true
     while (this.isRunning) {
@@ -159,7 +156,6 @@ export class Processor {
           this.lastWeeklyEmailSent < moment.utc().subtract(7, 'days'))
       ) {
         logger.info('Processing weekly emails')
-        // fire and forget so other notifs can process
         processEmailNotifications(
           this.discoveryDB,
           this.identityDB,
@@ -168,7 +164,6 @@ export class Processor {
         )
         this.lastWeeklyEmailSent = moment.utc()
       }
-      // free up event loop + batch queries to postgres
       await new Promise((r) => setTimeout(r, config.pollInterval))
     }
   }
@@ -187,19 +182,161 @@ export class Processor {
   }
 }
 
+export type NotificationsAppData = {
+  remoteConfig: RemoteConfig
+  appNotificationsProcessor: AppNotificationsProcessor
+  listenerPending: PendingUpdates
+  lastDailyEmailSent: moment.Moment | null
+  lastWeeklyEmailSent: moment.Moment | null
+}
+
+function getIsScheduledEmailEnabled(remoteConfig: RemoteConfig): boolean {
+  const isEnabled = remoteConfig.getFeatureVariableEnabled(
+    NotificationsEmailPlugin,
+    EmailPluginMappings.Scheduled
+  )
+  return Boolean(isEnabled)
+}
+
+function getIsBrowserPushEnabled(remoteConfig: RemoteConfig): boolean {
+  const isEnabled = remoteConfig.getFeatureVariableEnabled(
+    BrowserPushPlugin,
+    BrowserPluginMappings.Enabled
+  )
+  return Boolean(isEnabled)
+}
+
 async function main() {
-  try {
-    const processor = new Processor()
-    await processor.init()
-    await processor.start()
-  } catch (e) {
-    logger.fatal(e, 'save me pm2')
-    process.exit(1)
+  const discoveryDbUrl = process.env.DN_DB_URL
+  const identityDbUrl = process.env.IDENTITY_DB_URL
+
+  const discoveryDb = initializeDiscoveryDb(discoveryDbUrl)
+  const identityDb = initializeIdentityDb(identityDbUrl)
+
+  const remoteConfig = new RemoteConfig()
+  await remoteConfig.init()
+
+  logger.info('starting up!!!')
+
+  configureWebPush()
+  configureAnnouncement()
+  logMemStats()
+
+  await setupTriggers(discoveryDb)
+
+  const appNotificationsProcessor = new AppNotificationsProcessor(
+    discoveryDb,
+    identityDb,
+    remoteConfig
+  )
+
+  const listenerPending = new PendingUpdates()
+  const appData: NotificationsAppData = {
+    remoteConfig,
+    appNotificationsProcessor,
+    listenerPending,
+    lastDailyEmailSent: null,
+    lastWeeklyEmailSent: null
   }
+
+  const server = new Server()
+
+  const app = new App<NotificationsAppData>({
+    discoveryDb,
+    identityDb,
+    appData
+  })
+
+  app
+    .listen('notification', async (self, msg: { notification_id: number }) => {
+      const row = await getNotificationById(self.getDnDb(), msg.notification_id)
+      if (row !== null) {
+        const data = self.viewAppData()
+        data.listenerPending.appNotifications.push(row)
+      }
+    })
+    .listen('notification_seen', async (self, msg: { user_id: number }) => {
+      await updateBadgeCount(self.getIdDb(), msg.user_id)
+    })
+    .tick({ milliseconds: config.pollInterval }, async (self) => {
+      const listenerAdapter: ListenerAdapter = {
+        takePending: () => {
+          let result: PendingUpdates | undefined
+          self.updateAppData((d) => {
+            if (d.listenerPending.isEmpty()) {
+              result = undefined
+              return d
+            }
+            result = d.listenerPending
+            return { ...d, listenerPending: new PendingUpdates() }
+          })
+          return result
+        }
+      }
+
+      const data = self.viewAppData()
+      logger.debug('Processing app notifications (new)')
+      await sendAppNotifications(
+        listenerAdapter,
+        data.appNotificationsProcessor
+      )
+      logger.debug('Processing app notifications (needs reprocessing)')
+      await data.appNotificationsProcessor.reprocess()
+
+      logger.debug('Processing DM notifications')
+      await sendDMNotifications(
+        self.getDnDb(),
+        self.getIdDb(),
+        getIsBrowserPushEnabled(data.remoteConfig)
+      )
+
+      if (
+        getIsScheduledEmailEnabled(data.remoteConfig) &&
+        (!data.lastDailyEmailSent ||
+          data.lastDailyEmailSent < moment.utc().subtract(1, 'days'))
+      ) {
+        logger.info('Processing daily emails...')
+        processEmailNotifications(
+          self.getDnDb(),
+          self.getIdDb(),
+          'daily',
+          data.remoteConfig
+        )
+        self.updateAppData((d) => ({ ...d, lastDailyEmailSent: moment.utc() }))
+      }
+
+      if (
+        getIsScheduledEmailEnabled(data.remoteConfig) &&
+        (!data.lastWeeklyEmailSent ||
+          data.lastWeeklyEmailSent < moment.utc().subtract(7, 'days'))
+      ) {
+        logger.info('Processing weekly emails')
+        processEmailNotifications(
+          self.getDnDb(),
+          self.getIdDb(),
+          'weekly',
+          data.remoteConfig
+        )
+        self.updateAppData((d) => ({
+          ...d,
+          lastWeeklyEmailSent: moment.utc()
+        }))
+      }
+    })
+    .task(async () => {
+      await server.init()
+    })
+
+  logger.info('processing events')
+  await app.run()
 }
 
 if (require.main === module) {
-  main()
+  main().catch((e) => {
+    logger.fatal(e, 'save me pm2')
+    log(e)
+    process.exit(1)
+  })
 }
 
 process

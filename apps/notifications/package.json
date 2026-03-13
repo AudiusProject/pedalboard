@@ -14,6 +14,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@pedalboard/basekit": "*",
+    "@pedalboard/logger": "*",
     "@aws-sdk/client-sns": "3.245.0",
     "@optimizely/optimizely-sdk": "^4.9.2",
     "@sendgrid/mail": "7.7.0",

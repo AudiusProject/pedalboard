@@ -86,7 +86,8 @@ export const HighlightText = ({ text }: { text: string }) => (
       color: '#7E1BCC',
       fontSize: '14px',
       fontWeight: '500'
-    }}>
+    }}
+  >
     {text}
   </span>
 )
@@ -104,7 +105,8 @@ export const BodyText = ({
       color: '#858199',
       fontSize: '14px',
       fontWeight: '500'
-    }}>
+    }}
+  >
     {text}
   </span>
 )

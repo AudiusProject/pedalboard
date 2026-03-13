@@ -1,4 +1,5 @@
-import { Client, Notification } from 'pg'
+import { Client } from 'pg'
+import { Knex } from 'knex'
 import { logger } from './logger'
 import { NotificationRow } from './types/dn'
 
@@ -6,17 +7,39 @@ export class PendingUpdates {
   appNotifications: Array<NotificationRow> = []
 
   isEmpty(): boolean {
-    return this.appNotifications.length == 0
+    return this.appNotifications.length === 0
   }
 }
 
+/** Fetch a notification row by id (for use in basekit listen callback). */
+export async function getNotificationById(
+  db: Knex,
+  notificationId: number
+): Promise<NotificationRow | null> {
+  try {
+    const row = await db<NotificationRow>('notification')
+      .where('id', notificationId)
+      .first()
+    return row ?? null
+  } catch (e) {
+    logger.error(`could not get notification ${notificationId} ${e}`)
+    return null
+  }
+}
+
+/** Adapter type for sendAppNotifications: something that can take pending notifications. */
+export interface ListenerAdapter {
+  takePending(): PendingUpdates | undefined
+}
+
+/** Legacy Listener class for test harness (pg LISTEN + takePending). */
 export class Listener {
   pending: PendingUpdates = new PendingUpdates()
   connectionString: string
-  client: Client
+  client: Client | null = null
 
-  takePending = () => {
-    if (this.pending.isEmpty()) return
+  takePending = (): PendingUpdates | undefined => {
+    if (this.pending.isEmpty()) return undefined
     const p = this.pending
     this.pending = new PendingUpdates()
     return p
@@ -28,8 +51,8 @@ export class Listener {
 
   start = async (connectionString: string) => {
     this.connectionString = connectionString
-
-    this.client = new Client({
+    const { Client: PgClient } = await import('pg')
+    this.client = new PgClient({
       connectionString,
       application_name: 'notifications'
     })
@@ -37,38 +60,45 @@ export class Listener {
     await this.client.connect()
     logger.info('did connect')
 
-    this.client.on('notification', async (msg: Notification) => {
-      // Only process events from notification table
-      if (msg.channel !== 'notification') return
-      const { notification_id }: { notification_id: number } = JSON.parse(
-        msg.payload
-      )
-      const notification = await getNotification(this.client, notification_id)
-      if (notification !== null) {
-        this.handler(notification)
+    this.client.on(
+      'notification',
+      async (msg: { channel: string; payload?: string }) => {
+        if (msg.channel !== 'notification') return
+        const { notification_id }: { notification_id: number } = JSON.parse(
+          msg.payload ?? '{}'
+        )
+        const notification = await getNotificationWithClient(
+          this.client!,
+          notification_id
+        )
+        if (notification !== null) {
+          this.handler(notification)
+        }
       }
-    })
+    )
 
-    const sql = 'LISTEN notification;'
-    await this.client.query(sql)
+    await this.client.query('LISTEN notification;')
     logger.info('LISTENER Started')
   }
 
   close = async () => {
-    await this.client?.end()
-    this.client = null
+    if (this.client) {
+      await this.client.end()
+      this.client = null
+    }
   }
 }
 
-const getNotification = async (
+async function getNotificationWithClient(
   client: Client,
   notificationId: number
-): Promise<NotificationRow | null> => {
-  const query = 'SELECT * FROM notification WHERE id = $1 limit 1;'
-  const values = [notificationId] // parameterized query
+): Promise<NotificationRow | null> {
   try {
-    const res = await client.query<NotificationRow>(query, values)
-    return res.rows[0]
+    const res = await client.query<NotificationRow>(
+      'SELECT * FROM notification WHERE id = $1 limit 1;',
+      [notificationId]
+    )
+    return res.rows[0] ?? null
   } catch (e) {
     logger.error(`could not get notification ${notificationId} ${e}`)
     return null

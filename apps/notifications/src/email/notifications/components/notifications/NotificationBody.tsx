@@ -31,7 +31,8 @@ const AnnouncementHeader = () => (
       valign="center"
       style={{
         padding: '16px 16px 0px 16px'
-      }}>
+      }}
+    >
       <img
         src={
           'https://download.audius.co/static-resources/email/announcement.png'
@@ -51,14 +52,16 @@ const AnnouncementHeader = () => (
       style={{
         width: '100%',
         padding: '16px 0px 0px'
-      }}>
+      }}
+    >
       <span
         className={'avenir'}
         style={{
           color: '#858199',
           fontSize: '16px',
           fontWeight: 'bold'
-        }}>
+        }}
+      >
         {'Announcement'}
       </span>
     </td>
@@ -74,7 +77,8 @@ const OpenAudiusLink = () => (
       fontSize: '12px',
       fontWeight: 600,
       lineHeight: '10px'
-    }}>
+    }}
+  >
     {'Open Audius'}
     <img
       src="https://download.audius.co/static-resources/email/iconArrow.png"
@@ -95,7 +99,8 @@ const WrapLink = (props) => {
   return (
     <a
       href="https://audius.co/feed?openNotifications=true"
-      style={{ textDecoration: 'none' }}>
+      style={{ textDecoration: 'none' }}
+    >
       {props.children}
     </a>
   )
@@ -118,7 +123,8 @@ const Body = (props) => {
         width: '100%',
         maxWidth: '396px',
         marginBottom: '8px'
-      }}>
+      }}
+    >
       <tr>
         <td>
           <WrapLink>
@@ -130,7 +136,8 @@ const Body = (props) => {
                 borderCollapse: 'separate',
                 height: 'auto',
                 width: '100%'
-              }}>
+              }}
+            >
               {props.type === 'Announcement' && (
                 <tr>
                   <AnnouncementHeader />
@@ -145,7 +152,8 @@ const Body = (props) => {
                       padding: '16px 16px 0px',
                       paddingTop: '16px',
                       borderRadius: '4px'
-                    }}>
+                    }}
+                  >
                     {props.title}
                   </td>
                 </tr>
@@ -162,7 +170,8 @@ const Body = (props) => {
                           ? '8px'
                           : '16px',
                       borderRadius: '4px'
-                    }}>
+                    }}
+                  >
                     <MultiUserHeader users={props.users} />
                   </td>
                 </tr>
@@ -175,7 +184,8 @@ const Body = (props) => {
                     style={{
                       padding: '12px 0px 8px 16px',
                       width: '60px'
-                    }}>
+                    }}
+                  >
                     <UserImage user={props.users[0]} />
                   </td>
                 )}
@@ -191,7 +201,8 @@ const Body = (props) => {
                       ? '12px'
                       : '16px',
                     width: '100%'
-                  }}>
+                  }}
+                >
                   {props.message}
                 </td>
               </tr>
@@ -203,7 +214,8 @@ const Body = (props) => {
                     style={{
                       padding: '6px 0px 8px 16px',
                       width: '60px'
-                    }}>
+                    }}
+                  >
                     <TrackImage track={props.track} />
                   </td>
                   <td
@@ -213,7 +225,8 @@ const Body = (props) => {
                       padding: '6px 16px 8px',
                       paddingLeft: '12px',
                       width: '100%'
-                    }}>
+                    }}
+                  >
                     {props.trackMessage}
                   </td>
                 </tr>
@@ -225,17 +238,20 @@ const Body = (props) => {
                     style={{
                       padding: '4px 0px 16px 16px',
                       borderRadius: '4px'
-                    }}>
+                    }}
+                  >
                     <a
                       href={props.twitter.href}
                       target="_blank"
                       style={{
                         textDecoration: 'none'
-                      }}>
+                      }}
+                    >
                       <table
                         cellSpacing="0"
                         cellPadding="0"
-                        style={{ margin: '0px' }}>
+                        style={{ margin: '0px' }}
+                      >
                         <tr>
                           <td
                             style={{
@@ -243,17 +259,20 @@ const Body = (props) => {
                               padding: '4px 8px',
                               margin: '0px'
                             }}
-                            bgcolor="#1BA1F1">
+                            bgcolor="#1BA1F1"
+                          >
                             <table
                               cellSpacing="0"
                               cellPadding="0"
-                              style={{ margin: '0px' }}>
+                              style={{ margin: '0px' }}
+                            >
                               <tr>
                                 <td
                                   valign="center"
                                   style={{
                                     margin: '0px'
-                                  }}>
+                                  }}
+                                >
                                   <img
                                     src="https://download.audius.co/static-resources/email/iconTwitterWhite.png"
                                     alt="twitter"
@@ -274,7 +293,8 @@ const Body = (props) => {
                                     fontWeight: '500',
                                     color: '#ffffff',
                                     textDecoration: 'none'
-                                  }}>
+                                  }}
+                                >
                                   {props.twitter.message}
                                 </td>
                               </tr>
@@ -297,7 +317,8 @@ const Body = (props) => {
                       color: '#7E1BCC',
                       fontSize: '14px',
                       fontWeight: '500'
-                    }}>
+                    }}
+                  >
                     {'Read More'}
                   </td>
                 </tr>
@@ -306,7 +327,8 @@ const Body = (props) => {
                 <td
                   valign="center"
                   colSpan={'12'}
-                  style={{ padding: '0px 16px 14px' }}>
+                  style={{ padding: '0px 16px 14px' }}
+                >
                   <OpenAudiusLink />
                 </td>
               </tr>

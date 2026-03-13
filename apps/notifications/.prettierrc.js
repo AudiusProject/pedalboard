@@ -1,1 +1,6 @@
-module.exports = require('prettier-config-standard')
+module.exports = {
+  semi: false,
+  singleQuote: true,
+  trailingComma: 'none',
+  printWidth: 80
+}

@@ -1,13 +1,13 @@
 import { logger } from './../logger'
-import { Listener } from './../listener'
+import type { ListenerAdapter } from './../listener'
 import { AppNotificationsProcessor } from './../processNotifications/indexAppNotifications'
 
 export async function sendAppNotifications(
-  listener: Listener,
+  listener: ListenerAdapter,
   appNotificationsProcessor: AppNotificationsProcessor
 ) {
   const pending = listener.takePending()
-  if (pending) {
+  if (pending !== undefined) {
     logger.info(
       `Processing ${pending.appNotifications.length} app notifications`
     )

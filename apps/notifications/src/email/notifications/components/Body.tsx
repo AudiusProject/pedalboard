@@ -37,7 +37,8 @@ const UnreadNotifications = ({ message }) => (
       letterSpacing: '0.02px',
       textAlign: 'center',
       margin: '0px auto 24px'
-    }}>
+    }}
+  >
     {message}
   </p>
 )
@@ -292,7 +293,8 @@ const Body = (props) => {
           width="100%"
           id="bodyTable"
           bgcolor="#FFFFFF"
-          style={{ backgroundColor: '#FFFFFF' }}>
+          style={{ backgroundColor: '#FFFFFF' }}
+        >
           <tr>
             <td align="center" valign="top" id="bodyCell">
               <AudiusImage />
@@ -317,7 +319,8 @@ const Body = (props) => {
                 borderRadius: '4px',
                 maxWidth: '396px',
                 marginBottom: '32px'
-              }}>
+              }}
+            >
               {props.notifications.map((notification, ind) => (
                 <Notification key={ind} {...mapNotification(notification)} />
               ))}
@@ -328,15 +331,18 @@ const Body = (props) => {
               align="center"
               valign="top"
               id="bodyCell"
-              style={{ padding: '24px 0px 32px', width: '100%' }}>
+              style={{ padding: '24px 0px 32px', width: '100%' }}
+            >
               <table
                 cellSpacing="0"
                 cellPadding="0"
-                style={{ margin: '0px auto' }}>
+                style={{ margin: '0px auto' }}
+              >
                 <tr>
                   <td
                     style={{ borderRadius: '17px', margin: '0px auto' }}
-                    bgcolor="#7E1BCC">
+                    bgcolor="#7E1BCC"
+                  >
                     <a
                       href="https://audius.co/feed?openNotifications=true"
                       target="_blank"
@@ -347,7 +353,8 @@ const Body = (props) => {
                         textDecoration: 'none',
                         fontWeight: 'bold',
                         display: 'inline-block'
-                      }}>
+                      }}
+                    >
                       See more on Audius
                     </a>
                   </td>
