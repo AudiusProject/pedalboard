@@ -1,13 +1,20 @@
 {
   "compilerOptions": {
+    "target": "es2020",
     "lib": ["es2020"],
     "module": "commonjs",
+    "moduleResolution": "node",
     "outDir": "./dist",
     "rootDir": "./src",
     "jsx": "react",
-    "strict": false
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "downlevelIteration": true,
+    "declaration": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true
   },
-  "exclude": ["node_modules", "dist", "src/__tests__"],
-  "extends": "../../packages/tsconfig/base.json",
+  "exclude": ["node_modules", "dist", "src/__tests__", "src/utils/populateDB.ts"],
   "include": ["src"]
 }
