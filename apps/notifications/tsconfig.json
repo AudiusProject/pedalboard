@@ -1,9 +1,13 @@
 {
-  "extends": "@tsconfig/node14/tsconfig.json",
   "compilerOptions": {
-    "outDir": "build",
+    "lib": ["es2020"],
+    "module": "commonjs",
+    "outDir": "./dist",
+    "rootDir": "./src",
     "jsx": "react",
-    "isolatedModules": true,
     "strict": false
-  }
+  },
+  "exclude": ["node_modules", "dist", "src/__tests__"],
+  "extends": "../../packages/tsconfig/base.json",
+  "include": ["src"]
 }

@@ -1,52 +1,36 @@
-# Discovery Node Notifications Plugin
+# Notifications (Discovery Node)
 
----
+Service that sends push notifications, indexes DMs for notifications, and sends email (SendGrid). Listens to discovery DB for new notification rows and processes them (push, email, etc.).
 
-## Summary
+## Run locally
 
-The Notifications Plugin is designed to send push notifications
-
-## How To Run
-
-```
-audius-compose up discovery-provider-notifications
-```
-
-## Regenerate sql-ts types
-
-See [sql-ts](https://github.com/AudiusProject/apps/tree/main/packages/sql-ts)
-
-## Sending a test sns push
-
-Run: `npx ts-node scripts/test-push-notification.ts`
-Follow the prompts.
-To find the targetARN, look at identity's db and query the table `NotificationDeviceTokens`
-ie `select * from "NotificationDeviceTokens" where "userId"=<YOUR_USER_ID>;`
-
-### Environment Variables
-
-The Notifications Plugin is configured with a set of environment variables.
-Before running the service, these need to be configured appropriately.
-
-```sh
-
-# AWS values for sending push notifications
-AWS_REGION=""
-AWS_ACCESS_KEY_ID=""
-AWS_SECRET_ACCESS_KEY=""
-
-# Discovery DB Connection String
-DN_DB_URL=""
-
-# Discovery Redis Conection string
-AUDIUS_REDIS_URL=""
-
-# Identity DB Connection String
-IDENTITY_DB_URL=""
-
-# Email sending API Key
-SENDGRID_API_KEY="
-
+```bash
+# From pedalboard repo root
+turbo run dev --filter=@pedalboard/notifications
+# or
+cd apps/notifications && npm run dev
 ```
 
-`docker run --env-file StageDiscoveryNotificationPlugin.env jwolee/discovery-notificatino-plugin`
+## Docker
+
+Image is built and pushed as **`audius/notifications:<tag>`** by the pedalboard repo’s Docker build (same name as before migration), so k8s and other consumers can keep using `audius/notifications` with no config change.
+
+## Test push (SNS)
+
+```bash
+npx ts-node scripts/test-push-notification.ts
+```
+
+To find `targetARN`: query identity DB table `NotificationDeviceTokens`, e.g. `select * from "NotificationDeviceTokens" where "userId"=<YOUR_USER_ID>;`
+
+## Environment variables
+
+- `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` – push (SNS)
+- `DN_DB_URL` – discovery DB
+- `AUDIUS_REDIS_URL` – Redis (cursors, retry queue)
+- `IDENTITY_DB_URL` – identity DB
+- `SENDGRID_API_KEY` – email
+
+## sql-ts types
+
+If you need to regenerate types from discovery/identity DB schemas, see [sql-ts](https://github.com/AudiusProject/apps/tree/main/packages/sql-ts) in the apps repo.
