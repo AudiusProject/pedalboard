@@ -2,6 +2,17 @@
 
 Service that sends push notifications, indexes DMs for notifications, and sends email (SendGrid). Listens to discovery DB for new notification rows and processes them (push, email, etc.).
 
+## Install
+
+Install from the **pedalboard repo root** so workspace deps (`@pedalboard/basekit`, `@pedalboard/logger`) resolve from the monorepo:
+
+```bash
+cd /path/to/pedalboard
+npm install
+```
+
+Do not run `npm install` only inside `apps/notifications` — those packages are not published to npm.
+
 ## Run locally
 
 ```bash
@@ -13,7 +24,7 @@ cd apps/notifications && npm run dev
 
 ## Docker
 
-Image is built and pushed as **`audius/notifications:<tag>`** by the pedalboard repo’s Docker build (same name as before migration), so k8s and other consumers can keep using `audius/notifications` with no config change.
+Image is built and pushed as **`audius/notifications:<tag>`** by the pedalboard repo’s Docker build (same name as before migration), From this app directory run `./build-and-push.sh [version]` (builds from monorepo root so workspace deps are included). Or from repo root: `./scripts/docker.sh notifications --tag <tag>`.
 
 ## Test push (SNS)
 
