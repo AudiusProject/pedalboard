@@ -1,16 +1,3 @@
-import pino, { stdTimeFunctions } from 'pino'
+import { createLogger } from '@pedalboard/logger'
 
-const formatters = {
-  level(label: string) {
-    // Set level to string format
-    return { level: label.toUpperCase() }
-  }
-}
-
-export const logger = pino({
-  name: `notifications`,
-  base: undefined,
-  timestamp: stdTimeFunctions.isoTime,
-  level: process.env.NODE_ENV === 'test' ? 'error' : 'info',
-  formatters
-})
+export const logger = createLogger('notifications')

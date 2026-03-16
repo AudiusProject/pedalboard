@@ -23,8 +23,10 @@
     "docker:mri": "./scripts/docker.sh mri",
     "docker:relay": "./scripts/docker.sh relay",
     "docker:solana-relay": "./scripts/docker.sh solana-relay",
+    "docker:sla-auditor": "./scripts/docker.sh sla-auditor",
     "docker:app-template": "./scripts/docker.sh app-template",
     "docker:anti-abuse-oracle": "./scripts/docker.sh anti-abuse-oracle",
+    "docker:backfill-audio-analyses": "./scripts/docker.sh backfill-audio-analyses",
     "docker:notifications": "./scripts/docker.sh notifications"
   },
   "devDependencies": {

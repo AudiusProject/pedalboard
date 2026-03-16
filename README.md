@@ -92,6 +92,71 @@ turbo run build --filter=@pedalboard/logger
 turbo run build --concurrency=4
 ```
 
+## Testing the apps
+
+**One-time setup (from repo root):**
+```bash
+npm install
+turbo run build
+```
+
+Then test each app as follows. Use a `.env` in the app directory or export vars in your shell; see each app’s README for required env.
+
+### Notifications
+
+Needs: discovery DB, identity DB, Redis; optional AWS/SendGrid for push/email.
+
+```bash
+# Option A: dev with hot reload
+turbo run dev --filter=@pedalboard/notifications
+
+# Option B: build then run
+turbo run build --filter=@pedalboard/notifications
+node apps/notifications/dist/main.js
+```
+
+**Success:** Process stays running, logs “processing events” and “LISTENER Started”. Hit `http://localhost:6000/health_check` for a JSON health response.
+
+Set `DN_DB_URL`, `IDENTITY_DB_URL`, `AUDIUS_REDIS_URL` (and optionally AWS/SendGrid) in env or `apps/notifications/.env`.
+
+### Backfill-audio-analyses
+
+One-shot job. Needs: discovery DB, Redis, delegate private key. Exits unless `audius_discprov_env=prod` (or use `test_run=true` for one batch on any env).
+
+```bash
+turbo run build --filter=@pedalboard/backfill-audio-analyses
+# With test_run so it does one batch and exits (no prod required)
+audius_db_url=<DISCOVERY_DB> audius_redis_url=<REDIS_URL> audius_delegate_private_key=<KEY> \
+  test_run=true audius_discprov_env=dev node apps/backfill-audio-analyses/dist/index.js
+```
+
+**Success:** Logs “running on dev network”, batch progress, then “backfill_discovery.ts | No more tracks to backfill. Goodbye!” (or “[TEST RUN] Saved audio analyses…” and exit).
+
+### SLA Auditor
+
+Needs: discovery DB, Ethereum RPC, delegate wallet/key, and chain contract env. Use `dryRun=true` to avoid submitting real governance proposals.
+
+```bash
+turbo run build --filter=@pedalboard/sla-auditor
+# Dry run: only logs what it would do
+dryRun=true audius_db_url=<DISCOVERY_DB> audius_web3_eth_provider_url=<RPC> \
+  audius_delegate_owner_wallet=<WALLET> audius_delegate_private_key=<KEY> \
+  audius_eth_token_address=<ADDR> audius_eth_contracts_registry=<REGISTRY> \
+  node apps/sla-auditor/dist/index.js
+```
+
+**Success:** Process stays running, logs “Dry run: true”, creates table if needed, then every 10 minutes logs “[PASS]” or “[FAILED]” per node and “=======DRY RUN=======” when it would propose.
+
+### Unit tests
+
+```bash
+turbo run test
+# Or for one app (e.g. notifications)
+npm run test --workspace=@pedalboard/notifications
+```
+
+Notifications has Jest tests (may require `DN_DB_URL` / `IDENTITY_DB_URL` for integration tests).
+
 ## Other Commands
 
 **Lint all packages:**

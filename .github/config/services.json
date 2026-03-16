@@ -1,4 +1,5 @@
 [
+  "backfill-audio-analyses",
   "notifications",
   "verified-notifications",
   "crm", 
@@ -8,5 +9,6 @@
   "mri",
   "relay",
   "solana-relay",
+  "sla-auditor",
   "anti-abuse-oracle"
 ]

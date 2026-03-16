@@ -18,6 +18,9 @@
   "jest": {
     "preset": "jest-presets/jest/node"
   },
+  "dependencies": {
+    "pino": "^8.0.0"
+  },
   "devDependencies": {
     "@types/jest": "^26.0.22",
     "eslint": "8.56.0",

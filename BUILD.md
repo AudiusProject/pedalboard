@@ -62,6 +62,7 @@ npm run docker:archiver            # Build archiver
 
 ## Available Apps
 
+- `backfill-audio-analyses`
 - `notifications`
 - `verified-notifications`
 - `crm`
@@ -71,6 +72,7 @@ npm run docker:archiver            # Build archiver
 - `mri`
 - `relay`
 - `solana-relay`
+- `sla-auditor`
 - `app-template`
 - `anti-abuse-oracle`
 
