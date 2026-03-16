@@ -1,9 +1,12 @@
 import cron from 'node-cron'
 import { App } from '@pedalboard/basekit'
+import { createLogger } from '@pedalboard/logger'
 import { SharedData, initSharedData } from './config'
 import { disburseTrendingRewards } from './rewards'
 import { establishSlackConnection } from './slack'
 import { announceTopFiveTrending } from './trending'
+
+const logger = createLogger('trending-challenge-rewards')
 
 const onDemandRun = async (app: App<SharedData>) => {
   // Run on demand only if runNow is true
@@ -36,10 +39,10 @@ cron.schedule(
         return data
       })
       announceTopFiveTrending(appData).catch((e) =>
-        console.error('Announcement failed: ', e)
+        logger.error({ err: e }, 'Announcement failed')
       )
       disburseTrendingRewards(appData).catch((e) =>
-        console.error('Disbursment failed: ', e)
+        logger.error({ err: e }, 'Disbursment failed')
       )
     })
   },

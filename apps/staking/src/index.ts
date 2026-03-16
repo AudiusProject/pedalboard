@@ -1,7 +1,8 @@
-import { log } from '@pedalboard/logger'
+import { createLogger, log } from '@pedalboard/logger'
 import { App } from '@pedalboard/basekit'
 import { webServer } from './server'
-import { logger } from './logger'
+
+const logger = createLogger('staking')
 import { createPublicClient, http, HttpTransport, PublicClient } from 'viem'
 import { mainnet } from 'viem/chains'
 import { Connection } from '@solana/web3.js'
