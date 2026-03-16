@@ -14,7 +14,7 @@ usage() {
     echo "Options:"
     echo "  --tag TAG         Docker image tag (default: latest)"
     echo "  --push            Push image after building"
-    echo "  --platform ARCH   Target platform (default: linux/amd64)"
+    echo "  --platform ARCH   Target platform (default: linux/amd64). Use linux/amd64,linux/arm64 for multi-arch (requires buildx container driver)."
     echo "  --turbo-team      Turbo team (for remote caching)"
     echo "  --turbo-token     Turbo token (for remote caching)"
     echo ""
@@ -31,8 +31,8 @@ usage() {
 APP_NAME=""
 TAG="latest"
 PUSH=false
-# Default to multi-platform build for both architectures
-PLATFORM="linux/amd64,linux/arm64"
+# Default single platform so it works with default docker driver (multi-platform needs buildx container driver)
+PLATFORM="linux/amd64"
 TURBO_TEAM=""
 TURBO_TOKEN=""
 

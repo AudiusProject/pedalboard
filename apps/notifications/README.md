@@ -24,7 +24,15 @@ cd apps/notifications && npm run dev
 
 ## Docker
 
-Image is built and pushed as **`audius/notifications:<tag>`** by the pedalboard repo’s Docker build (same name as before migration), From this app directory run `./build-and-push.sh [version]` (builds from monorepo root so workspace deps are included). Or from repo root: `./scripts/docker.sh notifications --tag <tag>`.
+Same publish flow as other apps: from **repo root** use the shared script. Image is tagged **`audius/notifications:<tag>`** (legacy name for k8s):
+
+```bash
+# Build only
+./scripts/docker.sh notifications --tag latest
+
+# Build and push
+./scripts/docker.sh notifications --tag latest --push
+```
 
 ## Test push (SNS)
 
