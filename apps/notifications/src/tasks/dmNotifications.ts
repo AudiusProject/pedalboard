@@ -355,8 +355,27 @@ export async function sendDMNotifications(
     notifications.sort(notificationTimestampComparator)
     timer.logMessage(DMPhase.PUSH_NOTIFICATIONS)
 
+    // Only send notifications that are not too old (avoids flood after plugin downtime).
+    // Cursor still advances for all so we don't reprocess old ones next tick.
+    const maxAgeMs = config.dmNotificationMaxAgeMs
+    const sendCutoff =
+      maxAgeMs > 0 ? new Date(Date.now() - maxAgeMs) : null
+    const toSend =
+      sendCutoff === null
+        ? notifications
+        : notifications.filter(
+            (n) => n.notification.timestamp >= sendCutoff
+          )
+    const skipped = notifications.length - toSend.length
+    if (skipped > 0) {
+      logger.info(
+        { skipped, maxAgeMs, total: notifications.length },
+        'dmNotifications: skipping push for too-old DM/reaction notifications (cursor still advanced)'
+      )
+    }
+
     // Send push notifications in batches
-    const batches = chunk(notifications, config.notificationBatchSize)
+    const batches = chunk(toSend, config.notificationBatchSize)
     for (const batch of batches) {
       await Promise.all(
         batch.map(async (notification) => {
@@ -388,7 +407,8 @@ export async function sendDMNotifications(
       logger.info(
         {
           ...timer.getContext(),
-          numberNotifications: notifications.length
+          numberNotifications: toSend.length,
+          numberSkippedTooOld: skipped > 0 ? skipped : undefined
         },
         'dmNotifications task: processed new DM push notifications'
       )
