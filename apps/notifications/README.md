@@ -48,6 +48,7 @@ To find `targetARN`: query identity DB table `NotificationDeviceTokens`, e.g. `s
 - `DN_DB_URL` – discovery DB
 - `AUDIUS_REDIS_URL` – Redis (cursors, retry queue)
 - `IDENTITY_DB_URL` – identity DB
+- `IDENTITY_DB_POOL_MAX` – (optional) max identity DB pool size; default 30 to avoid connection timeouts under load
 - `SENDGRID_API_KEY` – email
 
 ## sql-ts types

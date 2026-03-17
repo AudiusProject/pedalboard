@@ -1,11 +1,7 @@
-import { Knex } from 'knex'
+import { Knex, knex } from 'knex'
 import moment from 'moment-timezone'
 import { log } from '@pedalboard/logger'
-import {
-  App,
-  initializeDiscoveryDb,
-  initializeIdentityDb
-} from '@pedalboard/basekit'
+import { App, initializeDiscoveryDb } from '@pedalboard/basekit'
 
 import { config } from './config'
 import { logger } from './logger'
@@ -208,10 +204,23 @@ function getIsBrowserPushEnabled(remoteConfig: RemoteConfig): boolean {
 
 async function main() {
   const discoveryDbUrl = process.env.DN_DB_URL
-  const identityDbUrl = process.env.IDENTITY_DB_URL
+  const identityDbUrl =
+    process.env.IDENTITY_DB_URL ??
+    process.env.identity_db_url ??
+    'postgresql://postgres:postgres@db:5432/audius_identity_service'
 
   const discoveryDb = initializeDiscoveryDb(discoveryDbUrl)
-  const identityDb = initializeIdentityDb(identityDbUrl)
+  // Identity DB with larger pool to avoid KnexTimeoutError when many
+  // notification_seen events (badge updates) run alongside tick-loop work.
+  const identityDb: Knex = knex({
+    client: 'pg',
+    connection: identityDbUrl,
+    pool: {
+      min: 2,
+      max: Number(process.env.IDENTITY_DB_POOL_MAX) || 30,
+      acquireTimeoutMillis: 30000
+    }
+  })
 
   const remoteConfig = new RemoteConfig()
   await remoteConfig.init()
