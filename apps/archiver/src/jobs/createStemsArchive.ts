@@ -46,11 +46,9 @@ export const getStemsArchiveQueue = () => {
           url: config.redisUrl
         },
         defaultJobOptions: {
-          // Automatically remove jobs that haven't been downloaded after the orphan period
           removeOnComplete: {
             age: config.orphanedJobsLifetimeSeconds
           },
-          // Allow failed jobs to stick around for a little bit so clients can fetch the status
           removeOnFail: {
             age: 60
           }
@@ -86,19 +84,15 @@ export const getOrCreateStemsArchiveJob = async (
   const queue = getStemsArchiveQueue()
   const jobId = generateJobId(data)
 
-  // Check if job already exists
   const existingJob = await queue.getJob(jobId)
   if (existingJob) {
-    // Check if the existing job failed
     const state = await existingJob.getState()
     if (state !== 'failed') {
       return getJobStatus(jobId, existingJob)
     }
-    // If job failed, remove it so we can create a new one
     await existingJob.remove()
   }
 
-  // Create new job
   const job = await queue.add(
     STEMS_ARCHIVE_QUEUE_NAME,
     { ...data, jobId },

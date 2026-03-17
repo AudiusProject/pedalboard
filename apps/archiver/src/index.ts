@@ -1,6 +1,5 @@
 import cors from 'cors'
 import express from 'express'
-
 import { readConfig } from './config'
 import { stemsRouter } from './routes/stems'
 import { startStemsArchiveWorker } from './workers/createStemsArchive/createStemsArchive'
@@ -11,7 +10,7 @@ import { getCleanupOrphanedFilesQueue } from './jobs/cleanupOrphanedFiles'
 import { logger, httpLogger } from './logger'
 import { createDefaultWorkerServices } from './workers/services'
 import { ensureTempDirectory } from './workers/ensureTempDirectory'
-// Basic health check endpoint
+
 const health = (_req: express.Request, res: express.Response) => {
   res.json({ status: 'healthy' })
 }
@@ -19,7 +18,6 @@ const health = (_req: express.Request, res: express.Response) => {
 const main = async () => {
   const config = readConfig()
 
-  // Clear queues before starting
   try {
     await getStemsArchiveQueue().obliterate({ force: true })
     await getCleanupOrphanedFilesQueue().obliterate({ force: true })
@@ -27,10 +25,7 @@ const main = async () => {
     logger.error({ error }, 'Error clearing queues')
   }
 
-  // Start the workers
   const services = createDefaultWorkerServices()
-
-  // Ensure the temp directory exists
   await ensureTempDirectory(services)
 
   const {
@@ -40,14 +35,11 @@ const main = async () => {
   } = startStemsArchiveWorker(services)
   const cleanupWorker = startCleanupOrphanedFilesWorker(services)
 
-  // Schedule the cleanup job
   await scheduleCleanupOrphanedFilesJob()
 
-  // Initialize express app
   const app = express()
   app.use(cors())
 
-  // Add routes
   app.get('/archive/health_check', health)
   app.use(httpLogger)
   app.use(
@@ -55,14 +47,13 @@ const main = async () => {
     stemsRouter({ removeStemsArchiveJob, cancelStemsArchiveJob })
   )
 
-  // Start the server
   app.listen(config.serverPort, config.serverHost, () => {
     logger.info(
-      `Server initialized on ${config.serverHost}:${config.serverPort}`
+      { serverHost: config.serverHost, serverPort: config.serverPort },
+      'Server initialized'
     )
   })
 
-  // Graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down gracefully...')
     await Promise.all([stemsWorker.close(), cleanupWorker.close()])
@@ -74,10 +65,10 @@ const main = async () => {
 }
 
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error(`Unhandled promise rejection: ${reason}, promise: ${promise}`)
+  logger.error({ reason, promise }, 'Unhandled promise rejection')
 })
 
-main().catch((error) => {
+main().catch((error: unknown) => {
   logger.error({ error }, 'Error starting archiver')
   process.exit(1)
 })

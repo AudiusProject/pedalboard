@@ -13,7 +13,6 @@ import { OptionalHashId } from '@audius/sdk'
 import { queryParamToBoolean } from './utils'
 
 const removeInternalStatusFields = (jobStatus: JobStatus) => {
-  // Don't return the job returnvalue to the client, that's used internally
   const { returnvalue: _, ...rest } = jobStatus
   return rest
 }
@@ -79,8 +78,6 @@ export const stemsRouter = ({
     } catch (error) {
       logger.error({ error }, 'Failed to cancel stems archive job')
     } finally {
-      // This endpoint is best effort, so we don't want to fail the request
-      // The job will eventually be orphaned and cleaned up
       res.status(204).send()
     }
   })
@@ -112,7 +109,6 @@ export const stemsRouter = ({
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
       res.setHeader('Content-Length', stats.size)
 
-      // Set up cleanup after download finishes
       res.on('finish', async () => {
         try {
           await removeStemsArchiveJob(jobId)

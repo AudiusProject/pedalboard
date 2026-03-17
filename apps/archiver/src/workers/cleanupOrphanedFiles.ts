@@ -16,7 +16,6 @@ const createCleanupOrphanedFilesWorker = (services: WorkerServices) => {
     const tempDir = path.join(config.archiverTmpDir)
 
     try {
-      // Get all files in the temp directory
       const files = await fs.readdir(tempDir)
 
       const jobs = await getStemsArchiveQueue().getJobs()
@@ -24,7 +23,6 @@ const createCleanupOrphanedFilesWorker = (services: WorkerServices) => {
         jobs.map((job) => job.id).filter((id): id is string => id !== undefined)
       )
 
-      // Check each file
       for (const file of files) {
         const filePath = path.join(tempDir, file)
         try {

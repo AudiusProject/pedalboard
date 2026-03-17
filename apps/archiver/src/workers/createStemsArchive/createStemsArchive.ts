@@ -120,18 +120,18 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
         throw new Error('No stems found for track')
       }
 
-      const filesToDownload = includeParentTrack
-        ? [
-            ...stems,
-            { ...track, origFilename: track.origFilename ?? track.title }
-          ]
-        : stems
+      const filesToDownload =
+        includeParentTrack && track.isDownloadable
+          ? [
+              ...stems,
+              { ...track, origFilename: track.origFilename ?? track.title }
+            ]
+          : stems
 
       logger.debug({ files: filesToDownload }, 'Getting file sizes')
 
-      // Check file sizes before downloading
       const fileSizes = await Promise.all(
-        filesToDownload.map(async (file) => {
+        filesToDownload.map(async (file: { id: string }) => {
           const inspection = await sdk.tracks.inspectTrack(
             {
               trackId: file.id,
@@ -158,15 +158,13 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
         signal: abortController.signal
       })
 
-      // Create job-specific temp directory
       const jobTempDir = path.join(config.archiverTmpDir, jobId)
       if (!(await fileExists(jobTempDir))) {
         await fs.mkdir(jobTempDir, { recursive: true })
       }
 
-      // Download each stem
       const downloadedFiles = await Promise.all(
-        filesToDownload.map(async (stem) => {
+        filesToDownload.map(async (stem: { id: string; origFilename?: string }) => {
           let url
 
           const downloadUrl = await sdk.tracks.getTrackDownloadUrl({
@@ -174,7 +172,7 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
             userId: hashedUserId,
             userSignature: signatureHeader,
             userData: messageHeader,
-            filename: stem.origFilename
+            filename: stem.origFilename ?? ''
           })
 
           if (config.environment === 'prod') {
@@ -187,7 +185,7 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
             url = downloadUrl
           }
 
-          const filePath = path.join(jobTempDir, stem.origFilename)
+          const filePath = path.join(jobTempDir, stem.origFilename ?? 'file')
           return downloadFile({
             url,
             filePath,
@@ -203,7 +201,6 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
       )
 
       logger.debug({ files: downloadedFiles }, 'Creating archive')
-      // Create archive from downloaded files
       const outputFile = await createArchive({
         files: downloadedFiles,
         jobId,
@@ -211,7 +208,6 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
         signal: abortController.signal
       })
 
-      // Clean up temp files except the output archive
       for (const file of downloadedFiles) {
         if (file !== outputFile && (await fileExists(file))) {
           await fs.unlink(file)
@@ -273,7 +269,6 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
     }
   }
 
-  // Abort all active jobs when the worker is closing
   const onClosing: StemsArchiveWorkerListener['closing'] = () => {
     workerLogger.info('Worker closing, aborting all active jobs')
     for (const abortController of abortControllers.values()) {

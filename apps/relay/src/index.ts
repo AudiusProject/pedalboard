@@ -1,6 +1,7 @@
 import { chainId, Config, readConfig } from './config/config'
 import { ethers, providers } from 'ethers'
 import { WalletManager } from './walletManager'
+import { log } from '@pedalboard/logger'
 import { logger } from './logger'
 import { initializeDiscoveryDb } from '@pedalboard/basekit'
 import { connectWeb3 } from './web3'
@@ -58,4 +59,4 @@ const main = async () => {
   )
 }
 
-main().catch(logger.error.bind(logger))
+main().catch(log)

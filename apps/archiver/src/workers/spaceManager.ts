@@ -1,5 +1,6 @@
 import { Mutex } from 'async-mutex'
 import { Logger } from '../logger'
+
 type SpaceManagerOptions = {
   maxSpaceBytes: number
   logger: Logger
@@ -8,7 +9,7 @@ type SpaceManagerOptions = {
 type SpaceState = {
   usedSpace: number
   allocations: Map<string, number>
-  queue: string[] // Array of tokens in order of request
+  queue: string[]
 }
 
 export enum SpaceManagerErrorCode {
@@ -47,7 +48,6 @@ export function createSpaceManager(options: SpaceManagerOptions) {
   }): Promise<boolean> => {
     const release = await mutex.acquire()
     try {
-      // Check if space is already allocated
       if (state.allocations.has(token)) {
         throw new SpaceManagerError(
           `Space already allocated for ${token}`,
@@ -55,7 +55,6 @@ export function createSpaceManager(options: SpaceManagerOptions) {
         )
       }
 
-      // Validate requested space
       if (bytes > options.maxSpaceBytes) {
         throw new SpaceManagerError(
           `Requested ${bytes} bytes exceeds maximum space of ${options.maxSpaceBytes}`,
@@ -65,7 +64,6 @@ export function createSpaceManager(options: SpaceManagerOptions) {
 
       const availableSpace = options.maxSpaceBytes - state.usedSpace
 
-      // Check if we can claim space
       const canClaim =
         bytes <= availableSpace &&
         (state.queue.length === 0 || state.queue[0] === token)
@@ -73,12 +71,10 @@ export function createSpaceManager(options: SpaceManagerOptions) {
       if (canClaim) {
         state.usedSpace += bytes
         state.allocations.set(token, bytes)
-        // Remove from queue if present
         state.queue = state.queue.filter((t) => t !== token)
         return true
       }
 
-      // Add to queue if not already present
       if (!state.queue.includes(token)) {
         state.queue.push(token)
       }
@@ -89,10 +85,6 @@ export function createSpaceManager(options: SpaceManagerOptions) {
     }
   }
 
-  /** Wait for space to be available. Requires a timeout to prevent stalling
-   * the queue.
-   * @returns A promise that resolves when space is available
-   */
   const waitForSpace = ({
     token,
     bytes,
@@ -109,7 +101,6 @@ export function createSpaceManager(options: SpaceManagerOptions) {
     const claimSpacePromise = (async () => {
       try {
         while (shouldContinue) {
-          // Check if cancelled
           if (signal?.aborted) {
             throw new SpaceManagerError(
               'Space claim cancelled',
@@ -158,7 +149,7 @@ export function createSpaceManager(options: SpaceManagerOptions) {
         state.usedSpace -= bytes
         state.allocations.delete(token)
       } else {
-        logger.warn(`releaseSpace: No space allocated for ${token}`)
+        logger.warn({ token }, 'releaseSpace: No space allocated')
       }
       return bytes
     } finally {

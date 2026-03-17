@@ -71,35 +71,28 @@ export const createUtils = (services: WorkerServices) => {
     })
 
     try {
-      // Set up cancellation handler
       if (signal) {
         signal.addEventListener('abort', () => {
           archive.abort()
         })
       }
 
-      // Listen for archive errors
       archive.on('error', (error: Error) => {
         throw error
       })
 
-      // Pipe archive data to the output file
       archive.pipe(output)
 
-      // Add each file to the archive with a flattened filename
       for (const file of files) {
         const filename = path.basename(file)
         archive.file(file, { name: filename })
       }
 
-      // Wait for the output stream to finish
-      // Archiver docs recommend attaching these listeners before calling finalize
       const finishPromise = new Promise((resolve, reject) => {
         output.on('close', resolve)
         output.on('error', reject)
       })
 
-      // Finalize the archive
       await archive.finalize()
       await finishPromise
 

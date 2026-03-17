@@ -1,8 +1,16 @@
 import 'dotenv/config'
 import { cleanEnv, str, num } from 'envalid'
-import { LogLevel } from './logger'
 
-export type Environment = 'dev' | 'stage' | 'prod'
+export type Environment = 'dev' | 'prod'
+
+export type LogLevel =
+  | 'fatal'
+  | 'error'
+  | 'warn'
+  | 'info'
+  | 'debug'
+  | 'trace'
+  | 'silent'
 
 export type Config = {
   environment: Environment
@@ -14,14 +22,12 @@ export type Config = {
   concurrentJobs: number
   /** How many attempts to make to create a stems archive (default: 3) */
   maxStemsArchiveAttempts: number
-  /** List of discovery nodes to use for fetching track info and downloading tracks (default: undefined, will use SDK defaults) */
-  discoveryNodeAllowlist: string[] | undefined
   redisUrl: string
   serverHost: string
   serverPort: number
   /** Temporary directory for storing stems archive files (default: '/tmp/audius-archiver') */
   archiverTmpDir: string
-  /** Maximum disk space to use for processing archives. NOTE: This limit will not affect temporary space used to zip files, so the actual used space may exceed it temporarily until the source files for the zip are deleted. (default: 32GB) */
+  /** Maximum disk space to use for processing archives (default: 32GB) */
   maxDiskSpaceBytes: number
   /** Maximum time to wait for disk space to be available (default: 60 seconds) */
   maxDiskSpaceWaitSeconds: number
@@ -39,7 +45,7 @@ export const readConfig = (): Config => {
       default: 'dev'
     }),
     audius_redis_url: str({
-      default: 'redis://audius-protocol-discovery-provider-redis-1:6379/0'
+      default: 'redis://audius-discovery-provider-redis-1:6379/0'
     }),
     archiver_server_host: str({ default: '0.0.0.0' }),
     archiver_server_port: num({ default: 6004 }),
@@ -51,15 +57,15 @@ export const readConfig = (): Config => {
     archiver_orphaned_jobs_lifetime_seconds: num({ default: 60 * 10 }),
     archiver_log_level: str<LogLevel>({ default: 'info' }),
     archiver_max_stems_archive_attempts: num({ default: 3 }),
-    archiver_max_disk_space_bytes: num({ default: 32 * 1024 * 1024 * 1024 }), // 32GB
+    archiver_max_disk_space_bytes: num({
+      default: 32 * 1024 * 1024 * 1024
+    }), // 32GB
     archiver_max_disk_space_wait_seconds: num({ default: 60 })
   })
 
   config = {
     environment: env.audius_discprov_env,
     concurrentJobs: env.archiver_concurrent_jobs,
-    discoveryNodeAllowlist:
-      process.env.archiver_discovery_node_allowlist?.split(',') ?? undefined,
     redisUrl: env.audius_redis_url,
     serverHost: env.archiver_server_host,
     serverPort: env.archiver_server_port,

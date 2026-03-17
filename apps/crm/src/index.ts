@@ -1,5 +1,7 @@
-import { log } from '@pedalboard/logger'
+import { createLogger, log } from '@pedalboard/logger'
 import { App } from '@pedalboard/basekit'
+
+const logger = createLogger('crm')
 import fetch from 'cross-fetch'
 import { initializeDiscoveryDb } from '@pedalboard/basekit'
 import { Table, UsdcPurchases, Users } from '@pedalboard/storage'
@@ -39,7 +41,7 @@ const getZohoAccessToken = async () => {
     const data = await response.json()
     return data.access_token
   } catch (error) {
-    console.error('Failed to refresh access token:', error)
+    logger.error({ err: error }, 'Failed to refresh access token')
     return null
   }
 }
@@ -62,7 +64,7 @@ const findDealByHandle = async (handle: string): Promise<string | null> => {
     }
     return null
   } catch (error) {
-    console.error('Failed to find deal:', error)
+    logger.error({ err: error }, 'Failed to find deal')
     return null
   }
 }
@@ -92,17 +94,17 @@ const updateDealRevenue = async (
     })
 
     if (response.ok) {
-      console.log(`Deal with ID ${dealId} updated successfully.`)
+      logger.info({ dealId }, 'Deal updated successfully')
     } else {
-      console.error('Failed to update deal:', await response.text())
+      logger.error({ dealId, body: await response.text() }, 'Failed to update deal')
     }
   } catch (error) {
-    console.error('Failed to update deal:', error)
+    logger.error({ err: error }, 'Failed to update deal')
   }
 }
 
 const handler = async (_: SharedData, purchase: UsdcPurchases) => {
-  console.log(`Found new purchase ${JSON.stringify(purchase, null, 2)}`)
+  logger.info({ purchase }, 'Found new purchase')
   const { seller_user_id } = purchase
   const totalRes = await discoveryDb<UsdcPurchases>(Table.UsdcPurchases)
     .where('seller_user_id', seller_user_id)
@@ -117,22 +119,22 @@ const handler = async (_: SharedData, purchase: UsdcPurchases) => {
     .first()
   const handle = handleRes?.handle
 
-  console.log(`Purchase was for ${handle}, total revenue: ${revenue}`)
+  logger.info({ handle, revenue }, 'Purchase was for handle, total revenue')
   if (!handle) {
-    console.error(`Could not find handle for seller: ${seller_user_id}`)
+    logger.error({ seller_user_id }, 'Could not find handle for seller')
     return
   }
   const dealId = await findDealByHandle(`${handle}`)
   if (dealId) {
-    console.log(`Found Deal ${dealId}`)
+    logger.info({ dealId }, 'Found Deal')
     await updateDealRevenue(dealId, revenue)
   } else {
-    console.error(`No deal found for ${handle}`)
+    logger.error({ handle }, 'No deal found for handle')
   }
 }
 
 const main = async () => {
-  console.log('Starting up')
+  logger.info('Starting up')
   await new App<SharedData>().listen('usdc_purchases', handler).run()
 }
 

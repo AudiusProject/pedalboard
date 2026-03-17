@@ -18,7 +18,6 @@ export const getCleanupOrphanedFilesQueue = () => {
         connection: {
           url: config.redisUrl
         },
-        // Repeating job, so we don't want to keep them around after they are finalized
         defaultJobOptions: {
           removeOnComplete: true,
           removeOnFail: true
@@ -33,7 +32,6 @@ export const scheduleCleanupOrphanedFilesJob = async () => {
   const config = readConfig()
   const queue = getCleanupOrphanedFilesQueue()
 
-  // Add repeatable job that runs every 5 minutes
   await queue.add(
     CLEANUP_ORPHANED_FILES_QUEUE_NAME,
     { timestamp: Date.now() },
@@ -45,6 +43,9 @@ export const scheduleCleanupOrphanedFilesJob = async () => {
   )
 
   logger.info(
-    `Scheduled cleanup orphaned files job to run every ${config.cleanupOrphanedFilesIntervalSeconds} seconds`
+    {
+      intervalSeconds: config.cleanupOrphanedFilesIntervalSeconds
+    },
+    'Scheduled cleanup orphaned files job'
   )
 }
