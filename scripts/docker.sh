@@ -92,13 +92,8 @@ if [[ ! -d "$PROJECT_ROOT/apps/$APP_NAME" ]]; then
     exit 1
 fi
 
-# Build docker command
-# Notifications keeps legacy image name for k8s compatibility
-if [[ "$APP_NAME" == "notifications" ]]; then
-    IMAGE_NAME="audius/notifications:${TAG}"
-else
-    IMAGE_NAME="audius/pedalboard:${APP_NAME}-${TAG}"
-fi
+# Build docker command — standard image name: audius/{app_name}:{tag}
+IMAGE_NAME="audius/${APP_NAME}:${TAG}"
 
 # Use buildx for multi-platform builds
 DOCKER_ARGS=(
