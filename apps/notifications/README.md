@@ -50,6 +50,7 @@ To find `targetARN`: query identity DB table `NotificationDeviceTokens`, e.g. `s
 - `IDENTITY_DB_URL` – identity DB
 - `IDENTITY_DB_POOL_MAX` – (optional) max identity DB pool size; default 30 to avoid connection timeouts under load
 - `SENDGRID_API_KEY` – email
+- `ANNOUNCEMENT_SEND_SECRET` – (optional) if set, `POST /internal/send-announcement` requires `Authorization: Bearer <this value>` (used by notifications-dashboard)
 
 ## sql-ts types
 

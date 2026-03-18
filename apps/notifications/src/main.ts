@@ -30,7 +30,6 @@ import {
 } from './remoteConfig'
 import { Server } from './server'
 import { configureWebPush } from './web'
-import { configureAnnouncement } from './processNotifications/mappers/announcement'
 import { logMemStats } from './utils/memStats'
 
 /** Legacy Processor class for test harness (init/start/close + discoveryDB, listener, server, etc.). */
@@ -77,7 +76,6 @@ export class Processor {
     this.identityDB = getDB(identityDBConnection!)
 
     configureWebPush()
-    configureAnnouncement()
     logMemStats()
 
     this.listener = new Listener()
@@ -96,7 +94,7 @@ export class Processor {
       this.identityDB,
       this.remoteConfig
     )
-    await this.server.init()
+    await this.server.init(this.identityDB)
   }
 
   getIsScheduledEmailEnabled() {
@@ -228,7 +226,6 @@ async function main() {
   logger.info('starting up!!!')
 
   configureWebPush()
-  configureAnnouncement()
   logMemStats()
 
   await setupTriggers(discoveryDb)
@@ -333,7 +330,7 @@ async function main() {
       }
     })
     .task(async () => {
-      await server.init()
+      await server.init(identityDb)
     })
 
   logger.info('processing events')

@@ -358,14 +358,11 @@ export async function sendDMNotifications(
     // Only send notifications that are not too old (avoids flood after plugin downtime).
     // Cursor still advances for all so we don't reprocess old ones next tick.
     const maxAgeMs = config.dmNotificationMaxAgeMs
-    const sendCutoff =
-      maxAgeMs > 0 ? new Date(Date.now() - maxAgeMs) : null
+    const sendCutoff = maxAgeMs > 0 ? new Date(Date.now() - maxAgeMs) : null
     const toSend =
       sendCutoff === null
         ? notifications
-        : notifications.filter(
-            (n) => n.notification.timestamp >= sendCutoff
-          )
+        : notifications.filter((n) => n.notification.timestamp >= sendCutoff)
     const skipped = notifications.length - toSend.length
     if (skipped > 0) {
       logger.info(

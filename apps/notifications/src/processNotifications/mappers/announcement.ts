@@ -17,23 +17,6 @@ import { logger } from '../../logger'
 import { disableDeviceArns } from '../../utils/disableArnEndpoint'
 import { sendBrowserNotification } from '../../web'
 
-const getEnv = (envVar: string | undefined, defaultVal?: boolean): boolean => {
-  if (envVar === undefined && defaultVal === undefined) return true
-  if (envVar === undefined) return defaultVal
-  return envVar.toLowerCase() === 'true'
-}
-
-export const configureAnnouncement = () => {
-  const dryRun = getEnv(process.env.ANNOUNCEMENTS_DRY_RUN)
-  const announcementEmailEnabled = getEnv(
-    process.env.ANNOUNCEMENTS_EMAIL_ENABLED,
-    false
-  )
-  logger.info(`announcements configured ${dryRun ? '' : 'not'} for dry run`)
-  globalThis.announcementDryRun = dryRun
-  globalThis.announcementEmailEnabled = announcementEmailEnabled
-}
-
 type AnnouncementNotificationRow = Omit<NotificationRow, 'data'> & {
   data: AnnouncementNotification
 }
@@ -53,7 +36,6 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
     isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
   }) {
-    const isDryRun: boolean = globalThis.announcementDryRun
     const totalUsers = await this.dnDB('users')
       .max('user_id')
       .where('is_current', true)
@@ -97,13 +79,11 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
       }
       lastUser = lastUserFromPage.user_id
 
-      if (!isDryRun) {
-        await this.broadcastAnnouncement(
-          validReceiverUserIds,
-          isLiveEmailEnabled,
-          isBrowserPushEnabled
-        )
-      }
+      await this.broadcastAnnouncement(
+        validReceiverUserIds,
+        isLiveEmailEnabled,
+        isBrowserPushEnabled
+      )
 
       if (validReceiverUserIds.includes(maxUserId)) {
         logger.info(`reached highest user id ${maxUserId}`)
@@ -212,8 +192,7 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
       userNotificationSettings.shouldSendEmailAtFrequency({
         receiverUserId: userId,
         frequency: 'live'
-      }) &&
-      globalThis.announcementEmailEnabled
+      })
     ) {
       const notification: AppEmailNotification = {
         receiver_user_id: userId,
