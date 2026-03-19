@@ -94,7 +94,7 @@ export class Processor {
       this.identityDB,
       this.remoteConfig
     )
-    await this.server.init(this.identityDB)
+    await this.server.init(this.identityDB, this.discoveryDB)
   }
 
   getIsScheduledEmailEnabled() {
@@ -330,7 +330,7 @@ async function main() {
       }
     })
     .task(async () => {
-      await server.init(identityDb)
+      await server.init(identityDb, discoveryDb)
     })
 
   logger.info('processing events')

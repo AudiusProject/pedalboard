@@ -253,6 +253,7 @@ export type AnnouncementNotification = {
   short_description: string
   long_description?: string
   push_body?: string
+  route?: string
 }
 
 export type USDCPurchaseBuyerNotification = {

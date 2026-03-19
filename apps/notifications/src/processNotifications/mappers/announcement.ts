@@ -1,5 +1,5 @@
 import { Knex } from 'knex'
-import { NotificationRow, UserRow } from '../../types/dn'
+import { NotificationRow } from '../../types/dn'
 import {
   AnnouncementNotification,
   AppEmailNotification
@@ -16,6 +16,8 @@ import { UserNotificationSettings } from './userNotificationSettings'
 import { logger } from '../../logger'
 import { disableDeviceArns } from '../../utils/disableArnEndpoint'
 import { sendBrowserNotification } from '../../web'
+
+const containsHtml = (value: string): boolean => /<[^>]*>/.test(value)
 
 type AnnouncementNotificationRow = Omit<NotificationRow, 'data'> & {
   data: AnnouncementNotification
@@ -36,62 +38,32 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
     isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
   }) {
-    const totalUsers = await this.dnDB('users')
-      .max('user_id')
-      .where('is_current', true)
-      .andWhere('is_deactivated', false)
+    const explicitUserIds = Array.isArray(this.notification.user_ids)
+      ? this.notification.user_ids.filter(
+          (id): id is number => Number.isInteger(id) && id > 0
+        )
+      : null
 
-    // convert to number
-    const totalCurrentUsers = parseInt(totalUsers[0].max as string)
-
-    logger.info(`total users ${totalUsers}`)
-    let offset = 0 // let binding because we re-assign
-    // set initial user to very far in past
-    const pageCount = 1000 // only pull this many users into mem at a time
-
-    const total_start = new Date().getTime()
-
-    // use user_id and created_at index for perf
-    let lastUser = 0
-    const maxUserId = totalCurrentUsers + pageCount
-
-    while (offset < maxUserId) {
-      const start = new Date().getTime()
-      // query next page
-      const res = await fetchUsersPage(this.dnDB, lastUser, pageCount)
-      const elapsed = new Date().getTime() - start
-      logger.info(
-        `offset: ${offset} last user: ${lastUser} to: ${maxUserId} queried in ${elapsed} ms`
+    if (!explicitUserIds || explicitUserIds.length === 0) {
+      logger.warn(
+        {
+          groupId: this.notification.group_id,
+          notificationId: this.notification.id
+        },
+        'Skipping announcement with no explicit user_ids'
       )
-      offset = offset + pageCount
-
-      const validReceiverUserIds = res.map((user) => user.user_id)
-      logger.info(
-        `received until user ${
-          validReceiverUserIds[validReceiverUserIds.length - 1]
-        }`
-      )
-
-      const lastUserFromPage = res[res.length - 1]
-      if (lastUserFromPage === undefined) {
-        logger.info('no last user found')
-        break
-      }
-      lastUser = lastUserFromPage.user_id
-
-      await this.broadcastAnnouncement(
-        validReceiverUserIds,
-        isLiveEmailEnabled,
-        isBrowserPushEnabled
-      )
-
-      if (validReceiverUserIds.includes(maxUserId)) {
-        logger.info(`reached highest user id ${maxUserId}`)
-        break
-      }
+      return
     }
-    const total_elapsed = new Date().getTime() - total_start
-    logger.info(`announcement complete in ${total_elapsed} ms`)
+
+    await this.broadcastAnnouncement(
+      explicitUserIds,
+      isLiveEmailEnabled,
+      isBrowserPushEnabled
+    )
+    logger.info(
+      { userCount: explicitUserIds.length },
+      'announcement complete for explicit user_ids'
+    )
   }
 
   getResourcesForEmail(): ResourceIds {
@@ -140,8 +112,21 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
         receiverUserId: userId
       })
     ) {
-      const title = this.notification.data.title
-      const body = this.notification.data.short_description
+      const title = this.notification.data.title ?? ''
+      const body = this.notification.data.short_description ?? ''
+      const pushBody = this.notification.data.push_body || body
+      const route = this.notification.data.route
+      if (containsHtml(title) || containsHtml(body) || containsHtml(pushBody)) {
+        logger.warn(
+          {
+            userId,
+            groupId: this.notification.group_id,
+            notificationId: this.notification.id
+          },
+          'Skipping announcement push with HTML content'
+        )
+        return
+      }
       // purposefully leaving this without await,
       // so we don't have to wait for each user's to be sent
       // before the next's.
@@ -164,14 +149,18 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
               targetARN: device.awsARN
             },
             {
-              title: this.notification.data.title,
-              body: this.notification.data.push_body,
+              title,
+              body: pushBody,
               data: {
                 id: `timestamp:${this.getNotificationTimestamp()}:group_id:${
                   this.notification.group_id
                 }`,
                 type: 'Announcement',
-                ...this.notification.data
+                ...this.notification.data,
+                title,
+                short_description: body,
+                push_body: pushBody,
+                ...(route ? { route } : {})
               }
             }
           )
@@ -209,27 +198,3 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
     }
   }
 }
-
-/**
- * fetches user rows based on pagination parameters, control over which page is elevated to
- * the caller
- * @param dnDb discovery node db
- * @param offset the start of this "window" of user ids, user ids aren't created
- * in order anymore but they're still numeric and unique and thus can be paginated through
- * in this way
- * @param page_count how many records are returned in (default) ascending order after the offset
- * @returns a minified version of UserRow for usage in announcements
- */
-export const fetchUsersPage = async (
-  dnDb: Knex,
-  lastUser: number,
-  pageCount: number
-): Promise<{ user_id: number; name: string; is_deactivated: boolean }[]> =>
-  await dnDb
-    .select('name', 'is_deactivated', 'user_id')
-    .from<UserRow>('users')
-    .where('user_id', '>', lastUser)
-    .andWhere('is_current', true)
-    .andWhere('is_deactivated', false)
-    .limit(pageCount)
-    .orderBy('user_id')

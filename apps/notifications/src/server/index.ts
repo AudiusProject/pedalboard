@@ -18,14 +18,14 @@ export class Server {
     this.port = port
   }
 
-  init = async (identityDb?: Knex) => {
+  init = async (identityDb?: Knex, discoveryDb?: Knex) => {
     this.app.use('/health_check', healthCheckRouter)
     this.app.use('/mem_stats', memStatsRouter)
-    if (identityDb) {
+    if (identityDb && discoveryDb) {
       this.app.use(express.json())
       this.app.use(
         '/internal/send-announcement',
-        createSendAnnouncementRouter(identityDb)
+        createSendAnnouncementRouter(discoveryDb)
       )
     }
 

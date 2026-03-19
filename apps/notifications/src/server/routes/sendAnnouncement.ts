@@ -1,29 +1,24 @@
 import { Router, Request, Response } from 'express'
 import { Knex } from 'knex'
-import { buildUserNotificationSettings } from '../../processNotifications/mappers/userNotificationSettings'
-import { sendPushNotification } from '../../sns'
-import { disableDeviceArns } from '../../utils/disableArnEndpoint'
 import { logger } from '../../logger'
 
-async function incrementBadgeCount(identityDb: Knex, userId: number) {
-  await identityDb('PushNotificationBadgeCounts')
-    .insert({
-      userId,
-      iosBadgeCount: 1,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    })
-    .onConflict('userId')
-    .merge({
-      iosBadgeCount: identityDb.raw('?? + ?', [
-        'PushNotificationBadgeCounts.iosBadgeCount',
-        1
-      ]),
-      updatedAt: new Date()
-    })
+const containsHtml = (value: string): boolean => /<[^>]*>/.test(value)
+const normalizeRoute = (value: string): string | null => {
+  const input = value.trim()
+  if (!input) return null
+  if (input.startsWith('/')) return input
+  try {
+    const url = new URL(input)
+    const isAudiusDomain =
+      url.hostname === 'audius.co' || url.hostname.endsWith('.audius.co')
+    if (!isAudiusDomain) return null
+    return `${url.pathname}${url.search}${url.hash}` || '/'
+  } catch {
+    return null
+  }
 }
 
-export function createSendAnnouncementRouter(identityDb: Knex): Router {
+export function createSendAnnouncementRouter(discoveryDb: Knex): Router {
   const router = Router()
   router.post('/', async (req: Request, res: Response) => {
     const secret = process.env.ANNOUNCEMENT_SEND_SECRET
@@ -39,7 +34,7 @@ export function createSendAnnouncementRouter(identityDb: Knex): Router {
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
-    const { title, body, imageUrl, ctaLink, userIds } = req.body
+    const { title, body, imageUrl, route, userIds } = req.body
     if (!title || !body || !Array.isArray(userIds) || userIds.length === 0) {
       res.status(400).json({
         error: 'Missing required fields: title, body, userIds (non-empty array)'
@@ -48,52 +43,64 @@ export function createSendAnnouncementRouter(identityDb: Knex): Router {
     }
 
     try {
-      const userNotificationSettings = await buildUserNotificationSettings(
-        identityDb,
-        userIds
-      )
-      let sent = 0
-      for (const userId of userIds) {
-        if (
-          !userNotificationSettings.shouldSendPushNotification({
-            receiverUserId: userId
-          })
-        ) {
-          continue
-        }
-        const devices = userNotificationSettings.getDevices(userId) ?? []
-        if (devices.length === 0) continue
-        const badgeCount = userNotificationSettings.getBadgeCount(userId) + 1
-        const pushes = await Promise.all(
-          devices.map((device) =>
-            sendPushNotification(
-              {
-                type: device.type,
-                badgeCount,
-                targetARN: device.awsARN
-              },
-              {
-                title,
-                body,
-                data: {
-                  type: 'Announcement',
-                  ...(ctaLink ? { ctaLink } : {}),
-                  ...(imageUrl ? { imageUrl: imageUrl } : {})
-                },
-                imageUrl: imageUrl
-              }
-            )
-          )
-        )
-        await disableDeviceArns(identityDb, pushes)
-        await incrementBadgeCount(identityDb, userId)
-        sent += 1
+      const titleText = String(title).trim()
+      const bodyText = String(body).trim()
+      if (containsHtml(titleText) || containsHtml(bodyText)) {
+        res.status(400).json({
+          error:
+            'HTML is not allowed in announcement title/body. Send plain text only.'
+        })
+        return
       }
-      logger.info(
-        { totalRequested: userIds.length, sent },
-        'send-announcement completed'
+      const normalizedRoute =
+        route != null ? normalizeRoute(String(route)) : undefined
+      if (route != null && !normalizedRoute) {
+        res.status(400).json({
+          error:
+            'Invalid route. Use an app path like /feed or an audius.co URL.'
+        })
+        return
+      }
+      const sanitizedUserIds = Array.from(
+        new Set(
+          userIds
+            .map((id: unknown) =>
+              Number.isFinite(Number(id)) ? Number(id) : NaN
+            )
+            .filter((id: number) => Number.isInteger(id) && id > 0)
+        )
       )
-      res.json({ sent, total: userIds.length })
+
+      if (sanitizedUserIds.length === 0) {
+        res.status(400).json({
+          error: 'userIds must contain at least one positive integer'
+        })
+        return
+      }
+
+      await discoveryDb('notification').insert({
+        specifier: '',
+        group_id: `announcement:manual:${Date.now()}`,
+        type: 'announcement',
+        timestamp: new Date(),
+        user_ids: sanitizedUserIds,
+        data: {
+          title: titleText,
+          short_description: bodyText,
+          push_body: bodyText,
+          ...(normalizedRoute ? { route: normalizedRoute } : {}),
+          ...(imageUrl ? { imageUrl } : {})
+        }
+      })
+      logger.info(
+        { totalRequested: sanitizedUserIds.length },
+        'send-announcement queued'
+      )
+      // Return "sent" for compatibility with existing dashboard batching logic.
+      res.json({
+        sent: sanitizedUserIds.length,
+        total: sanitizedUserIds.length
+      })
     } catch (e) {
       logger.error(e, 'send-announcement failed')
       res.status(500).json({
