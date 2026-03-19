@@ -254,6 +254,8 @@ export type AnnouncementNotification = {
   long_description?: string
   push_body?: string
   route?: string
+  /** Rich push attachment (public HTTPS URL). */
+  image_url?: string
 }
 
 export type USDCPurchaseBuyerNotification = {

@@ -102,6 +102,51 @@ describe('Announcement Notification', () => {
     )
   })
 
+  test('Passes image_url to rich push payload', async () => {
+    await createUsers(processor.discoveryDB, [{ user_id: 1 }])
+    await insertMobileSettings(processor.identityDB, [{ userId: 1 }])
+    await insertMobileDevices(processor.identityDB, [{ userId: 1 }])
+
+    const imageUrl = 'https://example.com/announcement.png'
+    await insertNotifications(processor.discoveryDB, [
+      {
+        specifier: '',
+        group_id: 'announcement:blocknumber:img',
+        type: 'announcement',
+        blocknumber: 2,
+        timestamp: new Date(Date.now()),
+        data: {
+          title: 'With image',
+          push_body: 'Body',
+          short_description: 'Body',
+          image_url: imageUrl
+        },
+        user_ids: [1]
+      }
+    ])
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    const pending = processor.listener.takePending()
+    expect(pending?.appNotifications).toHaveLength(1)
+    await processor.appNotificationsProcessor.process(pending.appNotifications)
+
+    expect(sendPushNotificationSpy).toHaveBeenCalledWith(
+      {
+        type: 'ios',
+        targetARN: 'arn:1',
+        badgeCount: 1
+      },
+      expect.objectContaining({
+        title: 'With image',
+        body: 'Body',
+        imageUrl,
+        data: expect.objectContaining({
+          type: 'Announcement',
+          image_url: imageUrl
+        })
+      })
+    )
+  })
+
   test('Render a single announcement email', async () => {
     const data: AnnouncementNotification = {
       title: 'This is an announcement',

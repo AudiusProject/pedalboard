@@ -138,6 +138,11 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
         body
       )
       const devices: Device[] = userNotificationSettings.getDevices(userId)
+      const rawImage = this.notification.data.image_url
+      const imageUrlForPush =
+        typeof rawImage === 'string' && rawImage.trim().length > 0
+          ? rawImage.trim()
+          : undefined
       // If the user's settings for the follow notification is set to true, proceed
       const pushes = await Promise.all(
         devices.map((device) => {
@@ -151,6 +156,7 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
             {
               title,
               body: pushBody,
+              ...(imageUrlForPush ? { imageUrl: imageUrlForPush } : {}),
               data: {
                 id: `timestamp:${this.getNotificationTimestamp()}:group_id:${
                   this.notification.group_id

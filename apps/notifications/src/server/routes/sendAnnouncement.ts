@@ -34,7 +34,7 @@ export function createSendAnnouncementRouter(discoveryDb: Knex): Router {
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
-    const { title, body, imageUrl, route, userIds } = req.body
+    const { title, body, image_url, route, userIds } = req.body
     if (!title || !body || !Array.isArray(userIds) || userIds.length === 0) {
       res.status(400).json({
         error: 'Missing required fields: title, body, userIds (non-empty array)'
@@ -78,6 +78,11 @@ export function createSendAnnouncementRouter(discoveryDb: Knex): Router {
         return
       }
 
+      const imageUrlText =
+        image_url != null && String(image_url).trim().length > 0
+          ? String(image_url).trim()
+          : undefined
+
       await discoveryDb('notification').insert({
         specifier: '',
         group_id: `announcement:manual:${Date.now()}`,
@@ -89,7 +94,7 @@ export function createSendAnnouncementRouter(discoveryDb: Knex): Router {
           short_description: bodyText,
           push_body: bodyText,
           ...(normalizedRoute ? { route: normalizedRoute } : {}),
-          ...(imageUrl ? { imageUrl } : {})
+          ...(imageUrlText ? { image_url: imageUrlText } : {})
         }
       })
       logger.info(
