@@ -1,3 +1,5 @@
+import { getEmailCopyrightYear } from '../../getEmailCopyrightYear'
+
 export const email = ({
   name,
   handle,
@@ -17,7 +19,7 @@ export const email = ({
   challengeDescription: string
   challengeImage: string
 }) => {
-  const copyrightYear = new Date().getFullYear().toString()
+  const copyrightYear = getEmailCopyrightYear()
 
   return `
   <!doctype html>

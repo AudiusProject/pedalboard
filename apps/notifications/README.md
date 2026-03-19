@@ -13,6 +13,39 @@ npm install
 
 Do not run `npm install` only inside `apps/notifications` — those packages are not published to npm.
 
+## Tests
+
+### Via apps (audius-compose) — easiest if you use protocol Docker
+
+From the **Audius `apps` monorepo** (where `dev-tools/audius-compose` lives), with **pedalboard** checked out next to it by default (`../pedalboard`):
+
+```bash
+cd /path/to/apps
+./dev-tools/audius-compose test run notifications
+```
+
+Optional: `export PEDALBOARD_ROOT=/absolute/path/to/pedalboard` if your clone is not at `apps/../pedalboard`.
+
+This builds a small test image (Python + `make`/`g++` for optional native deps like `bufferutil`) and starts `test-notifications` (see `dev-tools/compose/docker-compose.test.yml` and `Dockerfile.notifications-test`): migrations + Postgres + Redis from the test stack, then `npm ci` at pedalboard root and `npm test` in `apps/notifications`.
+
+Email HTML snapshots use a fixed footer year in Jest (`NOTIFICATIONS_EMAIL_COPYRIGHT_YEAR`, set in `src/__tests__/jest.setup-env.js`) so they don’t need yearly updates. Production still uses the real calendar year.
+
+### Locally (Postgres + Redis already running)
+
+You need **template** DBs (last path segment of each URL is cloned per test):
+
+```bash
+export DN_DB_URL='postgresql://USER:PASS@HOST:PORT/discovery_provider'
+export IDENTITY_DB_URL='postgresql://USER:PASS@HOST:PORT/identity_service'
+# optional if not redis://localhost:6379/0
+# export AUDIUS_REDIS_URL='redis://...'
+
+cd /path/to/pedalboard
+npm install
+npm run test:notifications
+# or: cd apps/notifications && npm test
+```
+
 ## Run locally
 
 ```bash

@@ -1,5 +1,7 @@
 import { getHostname } from '../../../utils/env'
 
+import { getEmailCopyrightYear } from '../../getEmailCopyrightYear'
+
 type PurchaseEmailConfig = {
   purchaserEmail: string
   purchaserName: string
@@ -31,7 +33,7 @@ export const email = ({
   total,
   vendor
 }: PurchaseEmailConfig) => {
-  const copyrightYear = new Date().getFullYear().toString()
+  const copyrightYear = getEmailCopyrightYear()
   const isGuestCheckout = !purchaserName && !purchaserHandle
   contentLink = isGuestCheckout
     ? `${contentLink}?guestEmail=${encodeURIComponent(purchaserEmail)}`

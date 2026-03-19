@@ -1,5 +1,7 @@
 import { getHostname } from '../../../utils/env'
 
+import { getEmailCopyrightYear } from '../../getEmailCopyrightYear'
+
 export const email = ({
   name,
   handle,
@@ -13,7 +15,7 @@ export const email = ({
   profileLink: string
   email: string
 }) => {
-  const copyrightYear = new Date().getFullYear().toString()
+  const copyrightYear = getEmailCopyrightYear()
   const isGuestCheckout = !name && !handle
 
   const signUpLink = `${getHostname()}/signup?guestEmail=${encodeURIComponent(

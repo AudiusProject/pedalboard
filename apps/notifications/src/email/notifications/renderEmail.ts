@@ -12,6 +12,7 @@ import { mapNotifications } from '../../processNotifications/mappers/mapNotifica
 import { BaseNotification } from '../../processNotifications/mappers/base'
 import { EmailFrequency } from '../../processNotifications/mappers/userNotificationSettings'
 import { getContentNode } from '../../utils/env'
+import { getEmailCopyrightYear } from '../getEmailCopyrightYear'
 
 type RenderEmailProps = {
   userId: number
@@ -392,7 +393,7 @@ export const renderEmail = async ({
     groupedNotifications
   )
   const renderProps = {
-    copyrightYear: new Date().getFullYear().toString(),
+    copyrightYear: getEmailCopyrightYear(),
     notifications: notificationProps,
     title: getEmailTitle(frequency, email),
     subject: getEmailSubject(frequency, notificationCount, timezone)

@@ -1,3 +1,5 @@
+import { getEmailCopyrightYear } from '../../getEmailCopyrightYear'
+
 export const email = ({
   managerName,
   managerHandle,
@@ -687,9 +689,7 @@ export const email = ({
   <table cellspacing="0" cellpadding="0" border="0">
   <tr>
   <td style="vertical-align: middle;" align="center">
-  <div style="line-height:14px;text-align:center;"><span style="color:#a5a4ad;font-family:Inter,Arial,sans-serif;font-size:12px;line-height:14px;text-align:center;">© ${
-    new Date().getFullYear
-  } Audius, Inc. All Rights Reserved.</span></div>
+  <div style="line-height:14px;text-align:center;"><span style="color:#a5a4ad;font-family:Inter,Arial,sans-serif;font-size:12px;line-height:14px;text-align:center;">© ${getEmailCopyrightYear()} Audius, Inc. All Rights Reserved.</span></div>
   </td>
   </tr>
   </table>

@@ -1,3 +1,5 @@
+import { getEmailCopyrightYear } from '../../getEmailCopyrightYear'
+
 export const email = ({
   purchaserName,
   purchaserLink,
@@ -27,7 +29,7 @@ export const email = ({
   payExtra: string
   total: string
 }) => {
-  const copyrightYear = new Date().getFullYear().toString()
+  const copyrightYear = getEmailCopyrightYear()
 
   const isGuestCheckout = !purchaserName
 
