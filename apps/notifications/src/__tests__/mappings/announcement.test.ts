@@ -147,6 +147,48 @@ describe('Announcement Notification', () => {
     )
   })
 
+  test('Passes notification_campaign_id through to push payload when present', async () => {
+    await createUsers(processor.discoveryDB, [{ user_id: 1 }])
+    await insertMobileSettings(processor.identityDB, [{ userId: 1 }])
+    await insertMobileDevices(processor.identityDB, [{ userId: 1 }])
+
+    const campaignId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+    await insertNotifications(processor.discoveryDB, [
+      {
+        specifier: '',
+        group_id: 'announcement:blocknumber:campaign-id',
+        type: 'announcement',
+        blocknumber: 2,
+        timestamp: new Date(Date.now()),
+        data: {
+          title: 'Campaign id',
+          push_body: 'Body',
+          short_description: 'Body',
+          notification_campaign_id: campaignId
+        },
+        user_ids: [1]
+      }
+    ])
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    const pending = processor.listener.takePending()
+    expect(pending?.appNotifications).toHaveLength(1)
+    await processor.appNotificationsProcessor.process(pending.appNotifications)
+
+    expect(sendPushNotificationSpy).toHaveBeenCalledWith(
+      {
+        type: 'ios',
+        targetARN: 'arn:1',
+        badgeCount: 1
+      },
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: 'Announcement',
+          notification_campaign_id: campaignId
+        })
+      })
+    )
+  })
+
   test('Render a single announcement email', async () => {
     const data: AnnouncementNotification = {
       title: 'This is an announcement',

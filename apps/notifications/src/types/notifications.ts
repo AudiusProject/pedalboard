@@ -256,6 +256,8 @@ export type AnnouncementNotification = {
   route?: string
   /** Rich push attachment (public HTTPS URL). */
   image_url?: string
+  /** First-party campaign id (e.g. notifications-dashboard `announcements.id`). */
+  notification_campaign_id?: string
 }
 
 export type USDCPurchaseBuyerNotification = {
