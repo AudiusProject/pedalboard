@@ -2,7 +2,7 @@
 
 Service that listens to discovery DB `NOTIFY` (tracks, users, usdc_purchases, artist_coins) and posts to Slack for verified uploads, user verification changes, USDC purchases, and artist coin launches.
 
-Migrated from **apps/packages/discovery-provider/plugins/pedalboard/apps/verified-notifications**. Uses **@pedalboard/basekit** (App, `.listen()`, `.task()`, discovery DB) and **@pedalboard/logger**.
+Source of truth for code and Docker image is this **pedalboard** repo. Production runs on **Kubernetes** via the **audius-k8s** Pulumi stack (`verified-notifications` app; see `Pulumi.prod-verified-notifications.yaml`). Uses **@pedalboard/basekit** (App, `.listen()`, `.task()`, discovery DB) and **@pedalboard/logger**.
 
 ## Run
 
@@ -25,4 +25,10 @@ Or from this directory: `npm run build && npm start`.
 
 ## Docker
 
-From pedalboard root: `./scripts/docker.sh verified-notifications --tag <tag> [--push]`. Image: `audius/pedalboard:verified-notifications-<tag>`.
+From **pedalboard** repo root:
+
+```bash
+npm run docker:verified-notifications
+```
+
+Equivalent to `./scripts/docker.sh verified-notifications`. Optional args after `--`, e.g. `npm run docker:verified-notifications -- --tag v1.2.3 --push`. Image: `audius/verified-notifications:<tag>` (default tag `latest`). See root [BUILD.md](../../BUILD.md).
