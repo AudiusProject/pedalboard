@@ -11,7 +11,6 @@ import type {
 import { getRedisConnection } from './../utils/redisConnection'
 import { Timer } from '../utils/timer'
 import { makeChatId } from '../utils/chatId'
-import { chunk } from 'lodash'
 
 // Sort notifications in ascending order according to timestamp
 function notificationTimestampComparator(
@@ -371,16 +370,19 @@ export async function sendDMNotifications(
       )
     }
 
-    // Send push notifications in batches
-    const batches = chunk(toSend, config.notificationBatchSize)
-    for (const batch of batches) {
+    // Cap parallel processNotification calls: each holds discovery + identity
+    // queries (and per-device work). Unbounded Promise.all easily exceeds
+    // Knex pool max and causes timeouts.
+    const concurrency = config.dmPushConcurrency
+    for (let i = 0; i < toSend.length; i += concurrency) {
+      const slice = toSend.slice(i, i + concurrency)
       await Promise.all(
-        batch.map(async (notification) => {
-          await notification.processNotification({
+        slice.map((notification) =>
+          notification.processNotification({
             isLiveEmailEnabled: false,
             isBrowserPushEnabled
           })
-        })
+        )
       )
     }
 

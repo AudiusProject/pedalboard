@@ -1,6 +1,6 @@
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
-import { Knex, knex } from 'knex'
+import { Knex } from 'knex'
 import { setIntervalAsync } from 'set-interval-async'
 import { Table } from '@pedalboard/storage'
 import { initializeDiscoveryDb } from './db'
@@ -150,23 +150,102 @@ export default class App<AppData = Map<string, string>> {
   private async initListenHandlers(): Promise<(() => Promise<void>)[]> {
     const db = this.discoveryDb
     if (db === undefined) return []
-    const func = async () => {
-      const conn = await db.client.acquireConnection().catch(console.error)
-      conn.on('notification', async (msg: any) => {
-        console.log(JSON.stringify(msg, null, 2))
-        const { channel, payload } = msg
-        const handlers = this.listeners.get(channel)
-        if (handlers !== undefined) {
-          await Promise.allSettled(
-            handlers.map((handler) => handler(this, JSON.parse(payload)))
-          ).catch(console.error)
+    const listenKeys = Array.from(this.listeners.keys())
+    if (listenKeys.length === 0) return []
+
+    const reconnectDelayMs = Math.max(
+      1000,
+      parseInt(process.env.DISCOVERY_LISTEN_RECONNECT_MS ?? '3000', 10)
+    )
+
+    const func = async (): Promise<void> => {
+      // pg LISTEN must stay on one connection; drivers and poolers often drop
+      // idle/long sessions. Loop forever with backoff instead of exiting.
+      while (true) {
+        let conn: Awaited<ReturnType<Knex['client']['acquireConnection']>>
+        try {
+          conn = await db.client.acquireConnection()
+        } catch (err) {
+          console.error('discovery LISTEN could not acquire connection', err)
+          await new Promise((r) => setTimeout(r, reconnectDelayMs))
+          continue
         }
-      })
-      await Promise.allSettled(
-        Array.from(this.listeners).map(([key, _val]) =>
-          conn.query(`LISTEN ${key}`)
-        )
-      ).catch(console.error)
+
+        const disconnected = new Promise<void>((resolve) => {
+          let resolved = false
+          const finish = (label: string): void => {
+            if (resolved) return
+            resolved = true
+            console.warn(`discovery LISTEN ${label}`)
+            resolve()
+          }
+          conn.once('end', () => {
+            finish('client connection ended')
+          })
+          conn.once('error', (err: unknown) => {
+            console.error('discovery LISTEN client error', err)
+            finish('client connection ended after error')
+          })
+        })
+
+        conn.on('notification', (msg: any) => {
+          void (async () => {
+            try {
+              console.log(JSON.stringify(msg, null, 2))
+              const { channel, payload } = msg
+              const handlers = this.listeners.get(channel)
+              if (handlers === undefined) return
+              let parsed: unknown
+              try {
+                if (typeof payload !== 'string' || payload.length === 0) {
+                  console.error(
+                    'discovery LISTEN missing NOTIFY payload',
+                    channel,
+                    msg
+                  )
+                  return
+                }
+                parsed = JSON.parse(payload)
+              } catch (parseErr) {
+                console.error(
+                  'discovery LISTEN invalid NOTIFY payload',
+                  parseErr,
+                  payload
+                )
+                return
+              }
+              await Promise.allSettled(
+                handlers.map((handler) => handler(this, parsed))
+              ).catch(console.error)
+            } catch (e) {
+              console.error('discovery LISTEN notification handler error', e)
+            }
+          })()
+        })
+
+        try {
+          await Promise.all(
+            listenKeys.map((key) => conn.query(`LISTEN ${key}`))
+          )
+        } catch (err) {
+          console.error('discovery LISTEN query failed', err)
+          try {
+            await db.client.releaseConnection(conn)
+          } catch {
+            /* pool may already have disposed the resource */
+          }
+          await new Promise((r) => setTimeout(r, reconnectDelayMs))
+          continue
+        }
+
+        await disconnected
+        try {
+          await db.client.releaseConnection(conn)
+        } catch {
+          /* ignore */
+        }
+        await new Promise((r) => setTimeout(r, reconnectDelayMs))
+      }
     }
     return [func]
   }
@@ -174,12 +253,16 @@ export default class App<AppData = Map<string, string>> {
   private initTickerHandlers(): (() => Promise<void>)[] {
     const tickers = []
     for (const [interval, callback] of this.tickers) {
-      // Dispatch single tick so that we trigger on the "leading edge"
-      callback(this).catch(console.error)
       const func = async () => {
-        setIntervalAsync(async () => {
+        const runTick = async () => {
           await callback(this).catch(console.error)
-        }, interval)
+        }
+        // Avoid overlapping with setIntervalAsync's first run: dynamic
+        // setIntervalAsync waits `interval` before the first execution, so a
+        // separate leading callback() would run two ticks in parallel whenever
+        // one tick lasts longer than `interval` (500ms for notifications).
+        await runTick()
+        setIntervalAsync(runTick, interval)
       }
       tickers.push(func)
     }

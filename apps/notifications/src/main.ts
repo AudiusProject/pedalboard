@@ -10,7 +10,7 @@ import { getDB } from './conn'
 import {
   PendingUpdates,
   Listener,
-  getNotificationById,
+  fetchNotificationsByIds,
   type ListenerAdapter
 } from './listener'
 import {
@@ -180,6 +180,8 @@ export type NotificationsAppData = {
   remoteConfig: RemoteConfig
   appNotificationsProcessor: AppNotificationsProcessor
   listenerPending: PendingUpdates
+  /** IDs from pg NOTIFY; hydrated into listenerPending on each tick (one batch query). */
+  listenerPendingNotificationIds: number[]
   lastDailyEmailSent: moment.Moment | null
   lastWeeklyEmailSent: moment.Moment | null
 }
@@ -252,6 +254,7 @@ async function main() {
     remoteConfig,
     appNotificationsProcessor,
     listenerPending,
+    listenerPendingNotificationIds: [],
     lastDailyEmailSent: null,
     lastWeeklyEmailSent: null
   }
@@ -266,16 +269,51 @@ async function main() {
 
   app
     .listen('notification', async (self, msg: { notification_id: number }) => {
-      const row = await getNotificationById(self.getDnDb(), msg.notification_id)
-      if (row !== null) {
-        const data = self.viewAppData()
-        data.listenerPending.appNotifications.push(row)
-      }
+      // Do not call Knex here: each NOTIFY would acquire a pool connection; bursts
+      // exhaust the pool while reposts/DMs run. IDs are batch-loaded at tick start.
+      self.updateAppData((d) => {
+        d.listenerPendingNotificationIds.push(msg.notification_id)
+        return d
+      })
     })
     .listen('notification_seen', async (self, msg: { user_id: number }) => {
       await updateBadgeCount(self.getIdDb(), msg.user_id)
     })
     .tick({ milliseconds: config.pollInterval }, async (self) => {
+      let pendingIds: number[] = []
+      self.updateAppData((d) => {
+        pendingIds = d.listenerPendingNotificationIds
+        d.listenerPendingNotificationIds = []
+        return d
+      })
+      if (pendingIds.length > 0) {
+        const rows = await fetchNotificationsByIds(self.getDnDb(), pendingIds)
+        const byId = new Map<number, (typeof rows)[0]>()
+        for (const row of rows) {
+          const id = row.id
+          if (id !== undefined && !byId.has(id)) {
+            byId.set(id, row)
+          }
+        }
+        // Preserve order of first-seen ids from NOTIFYs (stable for same tick).
+        const orderedIds: number[] = []
+        const seenId = new Set<number>()
+        for (const id of pendingIds) {
+          if (seenId.has(id)) continue
+          seenId.add(id)
+          orderedIds.push(id)
+        }
+        self.updateAppData((d) => {
+          for (const id of orderedIds) {
+            const row = byId.get(id)
+            if (row !== undefined) {
+              d.listenerPending.appNotifications.push(row)
+            }
+          }
+          return d
+        })
+      }
+
       const listenerAdapter: ListenerAdapter = {
         takePending: () => {
           let result: PendingUpdates | undefined

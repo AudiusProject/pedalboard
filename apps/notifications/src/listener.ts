@@ -27,6 +27,24 @@ export async function getNotificationById(
   }
 }
 
+const NOTIFICATION_ID_IN_CHUNK = 500
+
+/** Load many notification rows in few queries (avoids one Knex checkout per NOTIFY). */
+export async function fetchNotificationsByIds(
+  db: Knex,
+  ids: number[]
+): Promise<NotificationRow[]> {
+  if (ids.length === 0) return []
+  const unique = [...new Set(ids)]
+  const rows: NotificationRow[] = []
+  for (let i = 0; i < unique.length; i += NOTIFICATION_ID_IN_CHUNK) {
+    const slice = unique.slice(i, i + NOTIFICATION_ID_IN_CHUNK)
+    const batch = await db<NotificationRow>('notification').whereIn('id', slice)
+    rows.push(...batch)
+  }
+  return rows
+}
+
 /** Adapter type for sendAppNotifications: something that can take pending notifications. */
 export interface ListenerAdapter {
   takePending(): PendingUpdates | undefined
