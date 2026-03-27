@@ -17,6 +17,7 @@
     "type-check": "turbo run lint --filter='[HEAD^1]'",
     "docker": "./scripts/docker.sh",
     "docker:verified-notifications": "./scripts/docker.sh verified-notifications",
+    "docker:publish-scheduled-releases": "./scripts/docker.sh publish-scheduled-releases",
     "docker:crm": "./scripts/docker.sh crm",
     "docker:archiver": "./scripts/docker.sh archiver",
     "docker:staking": "./scripts/docker.sh staking",

@@ -65,6 +65,7 @@ npm run docker:archiver            # Build archiver
 - `backfill-audio-analyses`
 - `notifications`
 - `verified-notifications`
+- `publish-scheduled-releases`
 - `crm`
 - `archiver`
 - `staking`

@@ -1,0 +1,28 @@
+{
+  "name": "@pedalboard/publish-scheduled-releases",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Publishes scheduled tracks and albums when release_date passes (migrated from discovery-provider Celery)",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "dev": "ts-node-dev --respawn ./src/index.ts",
+    "lint": "tsc --noEmit",
+    "start": "node ./dist/index.js"
+  },
+  "dependencies": {
+    "@pedalboard/basekit": "*",
+    "@pedalboard/logger": "*",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.2",
+    "knex": "^2.4.2",
+    "pg": "8.10.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/node": "^18.0.0",
+    "ts-node-dev": "^2.0.0",
+    "tsconfig": "*",
+    "typescript": "5.0.4"
+  }
+}

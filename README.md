@@ -147,6 +147,17 @@ dryRun=true audius_db_url=<DISCOVERY_DB> audius_web3_eth_provider_url=<RPC> \
 
 **Success:** Process stays running, logs “Dry run: true”, creates table if needed, then every 10 minutes logs “[PASS]” or “[FAILED]” per node and “=======DRY RUN=======” when it would propose.
 
+### Publish scheduled releases
+
+Needs: discovery DB only. Every minute, lists eligible scheduled tracks/albums and publishes them; creates fan remix contest notifications when applicable. Run a **single** replica if you want to avoid overlapping publishers during deploys.
+
+```bash
+turbo run build --filter=@pedalboard/publish-scheduled-releases
+audius_db_url=<DISCOVERY_DB> node apps/publish-scheduled-releases/dist/index.js
+```
+
+**Success:** Process stays running; `http://localhost:6000/health_check` returns JSON. Logs when tracks/albums are published.
+
 ### Unit tests
 
 ```bash
