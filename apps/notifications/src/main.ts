@@ -202,12 +202,23 @@ function getIsBrowserPushEnabled(remoteConfig: RemoteConfig): boolean {
 
 async function main() {
   const discoveryDbUrl = process.env.DN_DB_URL
+  if (discoveryDbUrl === undefined || discoveryDbUrl === '') {
+    throw new Error('DN_DB_URL must be set')
+  }
   const identityDbUrl =
     process.env.IDENTITY_DB_URL ??
     process.env.identity_db_url ??
     'postgresql://postgres:postgres@db:5432/audius_identity_service'
 
-  const discoveryDb = initializeDiscoveryDb(discoveryDbUrl)
+  // LISTEN holds one discovery pool connection indefinitely; default Knex max
+  // is 10, which is too small for NOTIFY bursts + tick work.
+  const discoveryDb = initializeDiscoveryDb(discoveryDbUrl, {
+    pool: {
+      min: 2,
+      max: Number(process.env.DISCOVERY_DB_POOL_MAX) || 25,
+      acquireTimeoutMillis: 30000
+    }
+  })
   // Identity DB with larger pool to avoid KnexTimeoutError when many
   // notification_seen events (badge updates) run alongside tick-loop work.
   const identityDb: Knex = knex({

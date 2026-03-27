@@ -102,9 +102,7 @@ export function createSendAnnouncementRouter(discoveryDb: Knex): Router {
           push_body: bodyText,
           ...(normalizedRoute ? { route: normalizedRoute } : {}),
           ...(imageUrlText ? { image_url: imageUrlText } : {}),
-          ...(campaignIdRaw
-            ? { notification_campaign_id: campaignIdRaw }
-            : {})
+          ...(campaignIdRaw ? { notification_campaign_id: campaignIdRaw } : {})
         }
       })
       logger.info(

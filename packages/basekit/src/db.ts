@@ -4,21 +4,29 @@
 
 import knex, { Knex } from 'knex'
 
+export type InitializeDiscoveryDbOptions = {
+  pool?: Knex.Config['pool']
+}
+
 /**
- * Establishes a connection to the discovery database. Starts out using the passed in connection string,
- * then attempts to use `audius_db_url` env var, and lastly defaults to 'postgresql://postgres:postgres@db:5432/audius_discovery'.
- * @param connectionString optional param to pass in a specific database url
- * @returns knex object that's connected to the configured url
+ * Establishes a connection to the discovery database. Resolution order for the URL:
+ * `connectionString` → `DN_DB_URL` → `audius_db_url` → local docker default.
+ * @param connectionString optional explicit database URL
+ * @param options optional Knex settings (e.g. larger `pool` when using LISTEN + high concurrency)
  */
-export const initializeDiscoveryDb = (connectionString?: string): Knex => {
-  // will first use connection string, next try env var, third default to local pg string
+export const initializeDiscoveryDb = (
+  connectionString?: string,
+  options?: InitializeDiscoveryDbOptions
+): Knex => {
   const connection =
     connectionString ||
+    process.env.DN_DB_URL ||
     process.env.audius_db_url ||
     'postgresql://postgres:postgres@db:5432/audius_discovery'
   return knex({
     client: 'pg',
-    connection
+    connection,
+    ...(options?.pool !== undefined ? { pool: options.pool } : {})
   })
 }
 
