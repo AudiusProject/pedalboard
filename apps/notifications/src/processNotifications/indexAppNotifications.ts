@@ -27,6 +27,7 @@ import {
   NotificationsEmailPlugin,
   RemoteConfig
 } from '../remoteConfig'
+import { config } from '../config'
 import { Timer } from '../utils/timer'
 import { getRedisConnection } from '../utils/redisConnection'
 import { RequiresRetry } from '../types/notifications'
@@ -35,6 +36,14 @@ import { CommentMention } from './mappers/commentMention'
 import { CommentReaction } from './mappers/commentReaction'
 
 const NOTIFICATION_RETRY_QUEUE_REDIS_KEY = 'notification_retry'
+
+export type ProcessNotificationsOptions = {
+  /**
+   * Items were LPOP'd from the retry queue. On skip or non-retry error, push
+   * back so we match old "stays on the list" behavior; successes stay popped.
+   */
+  requeuePoppedRetries?: boolean
+}
 
 export type NotificationProcessor =
   | Follow
@@ -149,7 +158,10 @@ export class AppNotificationsProcessor {
   /**
    * Processes an array of notification rows, delivering them incrementally.
    */
-  async process(notifications: NotificationRow[]) {
+  async process(
+    notifications: NotificationRow[],
+    options?: ProcessNotificationsOptions
+  ) {
     if (notifications.length == 0) return
 
     const redis = await getRedisConnection()
@@ -157,7 +169,7 @@ export class AppNotificationsProcessor {
     logger.info(`Processing ${notifications.length} push notifications`)
     const timer = new Timer('Processing notifications duration')
     const blocknumber = notifications[0].blocknumber
-    const blockhash = this.dnDB
+    const blockhash = await this.dnDB
       .select('blockhash')
       .from('blocks')
       .where('number', blocknumber)
@@ -218,14 +230,17 @@ export class AppNotificationsProcessor {
           await notification.processNotification({
             isLiveEmailEnabled,
             isBrowserPushEnabled,
-            getIsPushNotificationEnabled: this.getIsPushNotificationEnabled
+            // Must bind: passing `this.getIsPushNotificationEnabled` drops the
+            // receiver and breaks `this.remoteConfig` inside the processor.
+            getIsPushNotificationEnabled: (type: string) =>
+              this.getIsPushNotificationEnabled(type)
           })
           status.processed += 1
         } catch (e) {
           if (e instanceof RequiresRetry) {
             status.needsRetry += 1
             // enqueue in redis
-            redis.lPush(
+            await redis.lPush(
               NOTIFICATION_RETRY_QUEUE_REDIS_KEY,
               JSON.stringify(notification.notification)
             )
@@ -238,6 +253,12 @@ export class AppNotificationsProcessor {
               `Error processing push notification`
             )
             status.errored += 1
+            if (options?.requeuePoppedRetries) {
+              await redis.lPush(
+                NOTIFICATION_RETRY_QUEUE_REDIS_KEY,
+                JSON.stringify(notification.notification)
+              )
+            }
           }
         }
       } else {
@@ -245,6 +266,12 @@ export class AppNotificationsProcessor {
         logger.info(
           `Skipping push notification of type ${notification.notification.type}`
         )
+        if (options?.requeuePoppedRetries) {
+          await redis.lPush(
+            NOTIFICATION_RETRY_QUEUE_REDIS_KEY,
+            JSON.stringify(notification.notification)
+          )
+        }
       }
     }
 
@@ -258,19 +285,28 @@ export class AppNotificationsProcessor {
   }
 
   /**
-   * Reprocesses the queued notifications in redis that are in need retry
+   * Reprocesses notifications from the Redis retry queue (USDC-gated create, etc.).
+   * LPOPs a bounded batch per tick so we do not re-run the entire list every
+   * pollInterval (that duplicated work and exhausted Knex pools).
    */
   async reprocess() {
     const redis = await getRedisConnection()
-    // Get all notifications in redis
-    const notificationsStrings = await redis.lRange(
-      NOTIFICATION_RETRY_QUEUE_REDIS_KEY,
-      0,
-      -1
-    )
-    const notifications: NotificationRow[] = notificationsStrings.map((n) =>
-      JSON.parse(n)
-    )
-    await this.process(notifications)
+    const max = config.notificationRetryBatchMax
+    const notifications: NotificationRow[] = []
+    for (let i = 0; i < max; i++) {
+      const raw = await redis.lPop(NOTIFICATION_RETRY_QUEUE_REDIS_KEY)
+      if (raw === null || raw === undefined) {
+        break
+      }
+      try {
+        notifications.push(JSON.parse(raw as string) as NotificationRow)
+      } catch (e) {
+        logger.error(
+          { err: e, raw: String(raw).slice(0, 200) },
+          'notification_retry: invalid JSON, dropping entry'
+        )
+      }
+    }
+    await this.process(notifications, { requeuePoppedRetries: true })
   }
 }

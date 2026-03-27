@@ -228,7 +228,7 @@ async function main() {
     connection: identityDbUrl,
     pool: {
       min: 2,
-      max: Number(process.env.IDENTITY_DB_POOL_MAX) || 30,
+      max: Number(process.env.IDENTITY_DB_POOL_MAX) || 50,
       acquireTimeoutMillis: 30000
     }
   })
