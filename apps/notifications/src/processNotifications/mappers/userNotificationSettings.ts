@@ -81,16 +81,17 @@ export class UserNotificationSettings {
    * @returns
    */
   async initializeUserNotificationSettings(userIds: number[]) {
-    // Sequential (not Promise.all): parallel fan-out here × many concurrent DM
-    // processors was exhausting the identity Knex pool (4 × dmPushConcurrency
-    // checkouts vs max 30).
-    const userMobileNotificationSettings =
-      await this.getUserMobileNotificationSettings(userIds)
-    const userBrowserNotificationSettings = await this.getUserBrowserSettings(
-      userIds
-    )
-    const userEmailSettings = await this.getUserEmailSettings(userIds)
-    const userAbusiveSettings = await this.getUserAbusiveSettings(userIds)
+    const [
+      userMobileNotificationSettings,
+      userBrowserNotificationSettings,
+      userEmailSettings,
+      userAbusiveSettings
+    ] = await Promise.all([
+      this.getUserMobileNotificationSettings(userIds),
+      this.getUserBrowserSettings(userIds),
+      this.getUserEmailSettings(userIds),
+      this.getUserAbusiveSettings(userIds)
+    ])
     this.mobile = userMobileNotificationSettings
     this.browser = userBrowserNotificationSettings
     this.email = userEmailSettings

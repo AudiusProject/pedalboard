@@ -134,11 +134,13 @@ export class RemoteConfig {
       })
     })
     await optimizelyPromise
-    this.logStartupDiagnostics()
+    if (process.env.NOTIFICATIONS_LOG_REMOTE_CONFIG_SNAPSHOT === '1') {
+      this.logStartupDiagnostics()
+    }
   }
 
   /**
-   * One-shot INFO log after onReady so operators can see effective flags.
+   * Large structured log: enable with NOTIFICATIONS_LOG_REMOTE_CONFIG_SNAPSHOT=1.
    * `optimizelyRaw: null` means the variable was not in the datafile → code defaults apply for push mapping.
    */
   logStartupDiagnostics(): void {

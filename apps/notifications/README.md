@@ -81,22 +81,21 @@ To find `targetARN`: query identity DB table `NotificationDeviceTokens`, e.g. `s
 - `DN_DB_URL` – discovery DB
 - `AUDIUS_REDIS_URL` – Redis (cursors, retry queue)
 - `IDENTITY_DB_URL` – identity DB
-- `DISCOVERY_DB_POOL_MAX` – (optional) max discovery Knex pool; default **50** (`LISTEN` uses one connection)
-- `IDENTITY_DB_POOL_MAX` – (optional) max identity Knex pool; default **120**
-- `IDENTITY_BADGE_POOL_MAX` – (optional) dedicated pool for `notification_seen` badge resets only; default **3** (isolates badge writes from push/DM/email)
-- `DM_PUSH_CONCURRENCY` – (optional) max parallel DM/reaction push handlers per tick; default **2**
+- `DISCOVERY_DB_POOL_MAX` – (optional) max discovery Knex pool; default **25** (`LISTEN` uses one connection from this pool)
+- `IDENTITY_DB_POOL_MAX` – (optional) max identity Knex pool; default **50**
+- `DM_PUSH_CONCURRENCY` – (optional) max parallel DM/reaction push handlers per tick; default **4**
 - `DM_NOTIFICATION_MAX_AGE_MS` – (optional) skip DM/reaction pushes older than this (ms); default 1h; **0** = no cap
-- `NOTIFICATION_RETRY_BATCH_MAX` – (optional) max Redis retry-queue entries per tick; default **150**
+- `NOTIFICATION_RETRY_BATCH_MAX` – (optional) max Redis retry-queue entries LPOP’d per tick; default **150**
 - `DISCOVERY_LISTEN_RECONNECT_MS` – (optional) basekit `LISTEN` reconnect backoff; see `@pedalboard/basekit`
-- `OPTIMIZELY_SDK_KEY` – (optional) Optimizely Full Stack SDK key; if unset, a built-in fallback key is used. On startup, logs **`Remote config snapshot (Optimizely)`** with effective push flags (`optimizelyRaw: null` → code default for that variable).
-
-### Push pipeline logs (troubleshooting)
-
-- **`Processing push batch`** – `pushBatchProfile`: `typeHistogram`, `mappedHandlers`, `unmappedDropped` (no mapper for that `type`).
-- **`Done processing push notifications (...)`** – `pushBatchBreakdown`: counts **by notification `type`** for processed / skipped (Optimizely off) / errored / needsRetry.
-- **`Push batch completed with zero successful deliveries`** (WARN) – hints when everything was skipped vs errored.
+- `OPTIMIZELY_SDK_KEY` – (optional) Optimizely Full Stack SDK key; if unset, a built-in fallback key is used
+- `NOTIFICATIONS_LOG_REMOTE_CONFIG_SNAPSHOT` – set to **`1`** to log a one-shot **`Remote config snapshot (Optimizely)`** at startup (all push flags + raw vs effective)
+- `GIT_COMMIT`, `IMAGE_TAG`, `BUILD_TIME` – (optional) deploy metadata for logs and `/health_check`; see Dockerfile build-args
 - `SENDGRID_API_KEY` – email
 - `ANNOUNCEMENT_SEND_SECRET` – (optional) if set, `POST /internal/send-announcement` requires `Authorization: Bearer <this value>` (used by notifications-dashboard). Optional body field **`notification_campaign_id`** is stored on the notification row and included on mobile push payloads.
+
+### Push pipeline logs
+
+- **`Processing N push notifications`** / **`Done processing push notifications (processed=… skipped=… errored=…)`** – includes structured **`pushOutcome`**
 
 ## sql-ts types
 
