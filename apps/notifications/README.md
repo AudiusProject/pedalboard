@@ -89,6 +89,12 @@ To find `targetARN`: query identity DB table `NotificationDeviceTokens`, e.g. `s
 - `NOTIFICATION_RETRY_BATCH_MAX` – (optional) max Redis retry-queue entries per tick; default **150**
 - `DISCOVERY_LISTEN_RECONNECT_MS` – (optional) basekit `LISTEN` reconnect backoff; see `@pedalboard/basekit`
 - `OPTIMIZELY_SDK_KEY` – (optional) Optimizely Full Stack SDK key; if unset, a built-in fallback key is used. On startup, logs **`Remote config snapshot (Optimizely)`** with effective push flags (`optimizelyRaw: null` → code default for that variable).
+
+### Push pipeline logs (troubleshooting)
+
+- **`Processing push batch`** – `pushBatchProfile`: `typeHistogram`, `mappedHandlers`, `unmappedDropped` (no mapper for that `type`).
+- **`Done processing push notifications (...)`** – `pushBatchBreakdown`: counts **by notification `type`** for processed / skipped (Optimizely off) / errored / needsRetry.
+- **`Push batch completed with zero successful deliveries`** (WARN) – hints when everything was skipped vs errored.
 - `SENDGRID_API_KEY` – email
 - `ANNOUNCEMENT_SEND_SECRET` – (optional) if set, `POST /internal/send-announcement` requires `Authorization: Bearer <this value>` (used by notifications-dashboard). Optional body field **`notification_campaign_id`** is stored on the notification row and included on mobile push payloads.
 

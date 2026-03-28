@@ -37,6 +37,22 @@ import { CommentReaction } from './mappers/commentReaction'
 
 const NOTIFICATION_RETRY_QUEUE_REDIS_KEY = 'notification_retry'
 
+function countByType(items: { type: string }[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const o of items) {
+    const t = o.type ?? 'unknown'
+    out[t] = (out[t] ?? 0) + 1
+  }
+  return out
+}
+
+function incrementBucket(
+  bucket: Record<string, number>,
+  type: string
+): void {
+  bucket[type] = (bucket[type] ?? 0) + 1
+}
+
 export type ProcessNotificationsOptions = {
   /**
    * Items were LPOP'd from the retry queue. On skip or non-retry error, push
@@ -166,7 +182,6 @@ export class AppNotificationsProcessor {
 
     const redis = await getRedisConnection()
 
-    logger.info(`Processing ${notifications.length} push notifications`)
     const timer = new Timer('Processing notifications duration')
     const blocknumber = notifications[0].blocknumber
     const blockhash = await this.dnDB
@@ -183,6 +198,11 @@ export class AppNotificationsProcessor {
       blocknumber,
       blockhash
     }
+
+    const processedByType: Record<string, number> = {}
+    const skippedByType: Record<string, number> = {}
+    const erroredByType: Record<string, number> = {}
+    const needsRetryByType: Record<string, number> = {}
 
     // Filter out notifications triggered by shadowbanned users
     try {
@@ -213,10 +233,32 @@ export class AppNotificationsProcessor {
       logger.error('Error shadow banning users:', error)
     }
 
+    status.total = notifications.length
+
     const mappedNotifications = mapNotifications(
       notifications,
       this.dnDB,
       this.identityDB
+    )
+
+    const typeHistogram = countByType(notifications)
+    const unmappedDropped = notifications.length - mappedNotifications.length
+    if (unmappedDropped > 0) {
+      logger.info(
+        { unmappedDropped, rows: notifications.length, typeHistogram },
+        'push batch: some rows had no notification mapper (dropped)'
+      )
+    }
+    logger.info(
+      {
+        pushBatchProfile: {
+          rowsInBatch: notifications.length,
+          typeHistogram,
+          mappedHandlers: mappedNotifications.length,
+          unmappedDropped
+        }
+      },
+      `Processing push batch (mapped=${mappedNotifications.length} rows=${notifications.length})`
     )
 
     for (const notification of mappedNotifications) {
@@ -236,9 +278,11 @@ export class AppNotificationsProcessor {
               this.getIsPushNotificationEnabled(type)
           })
           status.processed += 1
+          incrementBucket(processedByType, notification.notification.type)
         } catch (e) {
           if (e instanceof RequiresRetry) {
             status.needsRetry += 1
+            incrementBucket(needsRetryByType, notification.notification.type)
             // enqueue in redis
             await redis.lPush(
               NOTIFICATION_RETRY_QUEUE_REDIS_KEY,
@@ -253,6 +297,7 @@ export class AppNotificationsProcessor {
               `Error processing push notification`
             )
             status.errored += 1
+            incrementBucket(erroredByType, notification.notification.type)
             if (options?.requeuePoppedRetries) {
               await redis.lPush(
                 NOTIFICATION_RETRY_QUEUE_REDIS_KEY,
@@ -263,8 +308,10 @@ export class AppNotificationsProcessor {
         }
       } else {
         status.skipped += 1
-        logger.info(
-          `Skipping push notification of type ${notification.notification.type}`
+        incrementBucket(skippedByType, notification.notification.type)
+        logger.debug(
+          { type: notification.notification.type },
+          'Skipping push notification (remote mapping off or unmapped variable)'
         )
         if (options?.requeuePoppedRetries) {
           await redis.lPush(
@@ -273,6 +320,13 @@ export class AppNotificationsProcessor {
           )
         }
       }
+    }
+
+    const pushBatchBreakdown = {
+      processedByType,
+      skippedByType,
+      erroredByType,
+      needsRetryByType
     }
 
     logger.info(
@@ -285,10 +339,34 @@ export class AppNotificationsProcessor {
           skipped: status.skipped,
           errored: status.errored,
           needsRetry: status.needsRetry
-        }
+        },
+        pushBatchBreakdown
       },
       `Done processing push notifications (processed=${status.processed} skipped=${status.skipped} errored=${status.errored} needsRetry=${status.needsRetry} total=${status.total})`
     )
+
+    if (status.total > 0 && status.processed === 0) {
+      logger.warn(
+        {
+          pushOutcome: {
+            total: status.total,
+            skipped: status.skipped,
+            errored: status.errored,
+            needsRetry: status.needsRetry
+          },
+          pushBatchBreakdown,
+          hintSkipped:
+            status.skipped > 0 && status.errored === 0
+              ? 'All work skipped: check Optimizely discovery_notification_mapping (see Remote config snapshot at startup)'
+              : undefined,
+          hintErrored:
+            status.errored > 0
+              ? 'Handlers threw before SNS: check Knex pool / DB errors above'
+              : undefined
+        },
+        'Push batch completed with zero successful deliveries'
+      )
+    }
   }
 
   /**
