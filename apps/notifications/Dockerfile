@@ -1,4 +1,13 @@
 FROM node:18.16-alpine
+
+# Override at build time: docker build --build-arg GIT_COMMIT=$(git rev-parse HEAD) ...
+ARG GIT_COMMIT=unknown
+ARG IMAGE_TAG=unknown
+ARG BUILD_TIME=unknown
+ENV GIT_COMMIT=$GIT_COMMIT
+ENV IMAGE_TAG=$IMAGE_TAG
+ENV BUILD_TIME=$BUILD_TIME
+
 RUN apk add --no-cache --virtual .gyp python3 make g++ 
 
 WORKDIR /notifications

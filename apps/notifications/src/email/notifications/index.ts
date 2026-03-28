@@ -414,7 +414,9 @@ const processGroupOfEmails = async (
   const groupedNotifications = groupNotifications(notifications, users)
 
   const currentUtcTime = moment.utc()
-  const chunkSize = 20
+  // Keep small: each chunk runs Promise.all over sendNotificationEmail + identity
+  // writes; large chunks overlap badly with push/DM work on shared Knex pools.
+  const chunkSize = 5
   const results = []
   let numEmailsSent = 0
   for (

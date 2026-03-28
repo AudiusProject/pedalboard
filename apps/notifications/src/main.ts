@@ -13,10 +13,8 @@ import {
   fetchNotificationsByIds,
   type ListenerAdapter
 } from './listener'
-import {
-  updateBadgeCount,
-  NotificationSeenListener
-} from './notificationSeenListener'
+import { NotificationSeenListener } from './notificationSeenListener'
+import { enqueueNotificationSeenBadgeUpdate } from './utils/notificationSeenBadgeQueue'
 import { AppNotificationsProcessor } from './processNotifications/indexAppNotifications'
 import { sendDMNotifications } from './tasks/dmNotifications'
 import { processEmailNotifications } from './email/notifications/index'
@@ -30,6 +28,7 @@ import {
 } from './remoteConfig'
 import { Server } from './server'
 import { configureWebPush } from './web'
+import { getBuildInfo } from './buildInfo'
 import { logMemStats } from './utils/memStats'
 
 /** Legacy Processor class for test harness (init/start/close + discoveryDB, listener, server, etc.). */
@@ -68,7 +67,7 @@ export class Processor {
   } = {}) => {
     await this.remoteConfig.init()
 
-    logger.info('starting up!!!')
+    logger.info(getBuildInfo(), 'notifications starting')
 
     const discoveryDBConnection = discoveryDBUrl ?? process.env.DN_DB_URL
     const identityDBConnection = identityDBUrl ?? process.env.IDENTITY_DB_URL
@@ -135,7 +134,7 @@ export class Processor {
           this.lastDailyEmailSent < moment.utc().subtract(1, 'days'))
       ) {
         logger.info('Processing daily emails...')
-        processEmailNotifications(
+        void processEmailNotifications(
           this.discoveryDB,
           this.identityDB,
           'daily',
@@ -150,7 +149,7 @@ export class Processor {
           this.lastWeeklyEmailSent < moment.utc().subtract(7, 'days'))
       ) {
         logger.info('Processing weekly emails')
-        processEmailNotifications(
+        void processEmailNotifications(
           this.discoveryDB,
           this.identityDB,
           'weekly',
@@ -217,7 +216,8 @@ async function main() {
   const discoveryDb = initializeDiscoveryDb(discoveryDbUrl, {
     pool: {
       min: 2,
-      max: Number(process.env.DISCOVERY_DB_POOL_MAX) || 25,
+      // LISTEN holds one connection from this pool; leave headroom for batches + DM queries.
+      max: Number(process.env.DISCOVERY_DB_POOL_MAX) || 45,
       acquireTimeoutMillis: 30000
     }
   })
@@ -228,7 +228,7 @@ async function main() {
     connection: identityDbUrl,
     pool: {
       min: 2,
-      max: Number(process.env.IDENTITY_DB_POOL_MAX) || 50,
+      max: Number(process.env.IDENTITY_DB_POOL_MAX) || 90,
       acquireTimeoutMillis: 30000
     }
   })
@@ -236,7 +236,7 @@ async function main() {
   const remoteConfig = new RemoteConfig()
   await remoteConfig.init()
 
-  logger.info('starting up!!!')
+  logger.info(getBuildInfo(), 'notifications starting')
 
   configureWebPush()
   logMemStats()
@@ -277,7 +277,7 @@ async function main() {
       })
     })
     .listen('notification_seen', async (self, msg: { user_id: number }) => {
-      await updateBadgeCount(self.getIdDb(), msg.user_id)
+      enqueueNotificationSeenBadgeUpdate(self.getIdDb(), msg.user_id)
     })
     .tick({ milliseconds: config.pollInterval }, async (self) => {
       let pendingIds: number[] = []
@@ -351,7 +351,7 @@ async function main() {
           data.lastDailyEmailSent < moment.utc().subtract(1, 'days'))
       ) {
         logger.info('Processing daily emails...')
-        processEmailNotifications(
+        void processEmailNotifications(
           self.getDnDb(),
           self.getIdDb(),
           'daily',
@@ -366,7 +366,7 @@ async function main() {
           data.lastWeeklyEmailSent < moment.utc().subtract(7, 'days'))
       ) {
         logger.info('Processing weekly emails')
-        processEmailNotifications(
+        void processEmailNotifications(
           self.getDnDb(),
           self.getIdDb(),
           'weekly',

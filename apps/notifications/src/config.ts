@@ -11,8 +11,8 @@ export const config = {
   // Batch size of users for chat blast notifications
   blastUserBatchSize: 100,
   // Max DM/reaction pushes to run in parallel (each needs identity + discovery).
-  // Override with DM_PUSH_CONCURRENCY. Default conservative vs identity pool + LISTEN.
-  dmPushConcurrency: Number(process.env.DM_PUSH_CONCURRENCY) || 4,
+  // Override with DM_PUSH_CONCURRENCY. Default 3 to reduce Knex pool contention with app pushes.
+  dmPushConcurrency: Number(process.env.DM_PUSH_CONCURRENCY) || 3,
   // Only process blasts older than this delay (in seconds) to avoid blast vs chat create race condition.
   // See PAY-3573: if a blast rpc and chat create rpc arrive at the same time on different nodes, the blast
   // may not be seeded into the chat if it had not been broadcast to that node yet.

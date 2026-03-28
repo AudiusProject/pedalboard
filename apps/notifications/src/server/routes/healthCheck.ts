@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import { getBuildInfo } from '../../buildInfo'
 import { config } from '../../config'
 import { getRedisConnection } from '../../utils/redisConnection'
 
@@ -15,6 +16,7 @@ router.get('/', async (req: Request, res: Response) => {
   )
   res.json({
     healthy: true,
+    ...getBuildInfo(),
     poll: config.pollInterval,
     dmNotificationDelay: config.dmNotificationDelay,
     lastIndexedMessageRedisKey,
