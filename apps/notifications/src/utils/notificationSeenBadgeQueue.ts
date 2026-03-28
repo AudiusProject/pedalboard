@@ -8,7 +8,8 @@ import { updateBadgeCount } from '../notificationSeenListener'
  * identity Knex pool and starve push processing (save/follow/etc.).
  *
  * Coalesce user IDs and drain sequentially so at most one badge update runs at
- * a time (duplicate user_ids in a batch collapse to one write).
+ * a time (duplicate user_ids in a batch collapse to one write). Callers should
+ * pass a dedicated Knex (small pool) — see `identityBadgeDb` in `main.ts`.
  */
 const pendingUserIds = new Set<number>()
 let pumpRunning = false

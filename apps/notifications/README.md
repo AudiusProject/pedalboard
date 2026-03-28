@@ -81,8 +81,9 @@ To find `targetARN`: query identity DB table `NotificationDeviceTokens`, e.g. `s
 - `DN_DB_URL` – discovery DB
 - `AUDIUS_REDIS_URL` – Redis (cursors, retry queue)
 - `IDENTITY_DB_URL` – identity DB
-- `DISCOVERY_DB_POOL_MAX` – (optional) max discovery Knex pool; default **45** (`LISTEN` uses one connection)
-- `IDENTITY_DB_POOL_MAX` – (optional) max identity Knex pool; default **90**
+- `DISCOVERY_DB_POOL_MAX` – (optional) max discovery Knex pool; default **50** (`LISTEN` uses one connection)
+- `IDENTITY_DB_POOL_MAX` – (optional) max identity Knex pool; default **100**
+- `IDENTITY_BADGE_POOL_MAX` – (optional) dedicated pool for `notification_seen` badge resets only; default **3** (isolates badge writes from push/DM/email)
 - `DM_PUSH_CONCURRENCY` – (optional) max parallel DM/reaction push handlers per tick; default **3**
 - `DM_NOTIFICATION_MAX_AGE_MS` – (optional) skip DM/reaction pushes older than this (ms); default 1h; **0** = no cap
 - `NOTIFICATION_RETRY_BATCH_MAX` – (optional) max Redis retry-queue entries per tick; default **150**

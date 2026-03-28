@@ -217,7 +217,7 @@ async function main() {
     pool: {
       min: 2,
       // LISTEN holds one connection from this pool; leave headroom for batches + DM queries.
-      max: Number(process.env.DISCOVERY_DB_POOL_MAX) || 45,
+      max: Number(process.env.DISCOVERY_DB_POOL_MAX) || 50,
       acquireTimeoutMillis: 30000
     }
   })
@@ -228,8 +228,20 @@ async function main() {
     connection: identityDbUrl,
     pool: {
       min: 2,
-      max: Number(process.env.IDENTITY_DB_POOL_MAX) || 90,
+      max: Number(process.env.IDENTITY_DB_POOL_MAX) || 100,
       acquireTimeoutMillis: 30000
+    }
+  })
+  // Separate tiny pool for notification_seen → badge reset only. Otherwise badge
+  // updates share the main identity pool with push/DM/email and starve each other
+  // under load (30s acquire timeouts on both paths).
+  const identityBadgeDb: Knex = knex({
+    client: 'pg',
+    connection: identityDbUrl,
+    pool: {
+      min: 1,
+      max: Number(process.env.IDENTITY_BADGE_POOL_MAX) || 3,
+      acquireTimeoutMillis: 60000
     }
   })
 
@@ -277,7 +289,7 @@ async function main() {
       })
     })
     .listen('notification_seen', async (self, msg: { user_id: number }) => {
-      enqueueNotificationSeenBadgeUpdate(self.getIdDb(), msg.user_id)
+      enqueueNotificationSeenBadgeUpdate(identityBadgeDb, msg.user_id)
     })
     .tick({ milliseconds: config.pollInterval }, async (self) => {
       let pendingIds: number[] = []
