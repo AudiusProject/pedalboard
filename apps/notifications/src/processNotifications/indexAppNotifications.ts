@@ -278,9 +278,16 @@ export class AppNotificationsProcessor {
     logger.info(
       {
         ...timer.getContext(),
-        ...status
+        ...status,
+        pushOutcome: {
+          total: status.total,
+          processed: status.processed,
+          skipped: status.skipped,
+          errored: status.errored,
+          needsRetry: status.needsRetry
+        }
       },
-      `Done processing push notifications`
+      `Done processing push notifications (processed=${status.processed} skipped=${status.skipped} errored=${status.errored} needsRetry=${status.needsRetry} total=${status.total})`
     )
   }
 
