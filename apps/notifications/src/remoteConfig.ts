@@ -1,5 +1,7 @@
 import optimizelySDK, { Client } from '@optimizely/optimizely-sdk'
 
+import { logger } from './logger'
+
 const optimizelySDKKey =
   process.env.OPTIMIZELY_SDK_KEY || 'MX4fYBgANQetvmBXGpuxzF'
 
@@ -132,6 +134,101 @@ export class RemoteConfig {
       })
     })
     await optimizelyPromise
+    this.logStartupDiagnostics()
+  }
+
+  /**
+   * One-shot INFO log after onReady so operators can see effective flags.
+   * `optimizelyRaw: null` means the variable was not in the datafile → code defaults apply for push mapping.
+   */
+  logStartupDiagnostics(): void {
+    const pushVariables: Record<
+      string,
+      { effectiveEnabled: boolean; optimizelyRaw: boolean | null }
+    > = {}
+    for (const variable of Object.values(MappingVariable)) {
+      const raw = this.optimizelyClient.getFeatureVariableBoolean(
+        MappingFeatureName,
+        variable,
+        ''
+      )
+      pushVariables[variable] = {
+        effectiveEnabled: Boolean(
+          this.getFeatureVariableEnabled(MappingFeatureName, variable)
+        ),
+        optimizelyRaw: raw
+      }
+    }
+
+    const emailLiveRaw = this.optimizelyClient.getFeatureVariableBoolean(
+      NotificationsEmailPlugin,
+      EmailPluginMappings.Live,
+      ''
+    )
+    const emailScheduledRaw = this.optimizelyClient.getFeatureVariableBoolean(
+      NotificationsEmailPlugin,
+      EmailPluginMappings.Scheduled,
+      ''
+    )
+    const browserPushRaw = this.optimizelyClient.getFeatureVariableBoolean(
+      BrowserPushPlugin,
+      BrowserPluginMappings.Enabled,
+      ''
+    )
+
+    const pushEnabledCount = Object.values(pushVariables).filter(
+      (v) => v.effectiveEnabled
+    ).length
+
+    logger.info(
+      {
+        remoteConfigSnapshot: {
+          optimizelyReady: this.isInit,
+          optimizelySdkKey: process.env.OPTIMIZELY_SDK_KEY
+            ? 'from_env'
+            : 'built_in_fallback',
+          discoveryNotificationMapping: pushVariables,
+          pushTypesWithEffectiveEnabled: pushEnabledCount,
+          notificationEmailPlugin: {
+            live: {
+              effectiveEnabled: Boolean(
+                this.getFeatureVariableEnabled(
+                  NotificationsEmailPlugin,
+                  EmailPluginMappings.Live
+                )
+              ),
+              optimizelyRaw: emailLiveRaw
+            },
+            scheduled: {
+              effectiveEnabled: Boolean(
+                this.getFeatureVariableEnabled(
+                  NotificationsEmailPlugin,
+                  EmailPluginMappings.Scheduled
+                )
+              ),
+              optimizelyRaw: emailScheduledRaw
+            }
+          },
+          browserPushPlugin: {
+            effectiveEnabled: Boolean(
+              this.getFeatureVariableEnabled(
+                BrowserPushPlugin,
+                BrowserPluginMappings.Enabled
+              )
+            ),
+            optimizelyRaw: browserPushRaw
+          },
+          notificationScheduledEmails: {
+            pageCount: this.getFeatureVariableValue(
+              NotificationsScheduledEmails,
+              ScheduledEmailPluginMappings.PageCount,
+              1000
+            )
+          }
+        }
+      },
+      'Remote config snapshot (Optimizely)'
+    )
   }
 
   close = () => {

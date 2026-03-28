@@ -88,6 +88,7 @@ To find `targetARN`: query identity DB table `NotificationDeviceTokens`, e.g. `s
 - `DM_NOTIFICATION_MAX_AGE_MS` – (optional) skip DM/reaction pushes older than this (ms); default 1h; **0** = no cap
 - `NOTIFICATION_RETRY_BATCH_MAX` – (optional) max Redis retry-queue entries per tick; default **150**
 - `DISCOVERY_LISTEN_RECONNECT_MS` – (optional) basekit `LISTEN` reconnect backoff; see `@pedalboard/basekit`
+- `OPTIMIZELY_SDK_KEY` – (optional) Optimizely Full Stack SDK key; if unset, a built-in fallback key is used. On startup, logs **`Remote config snapshot (Optimizely)`** with effective push flags (`optimizelyRaw: null` → code default for that variable).
 - `SENDGRID_API_KEY` – email
 - `ANNOUNCEMENT_SEND_SECRET` – (optional) if set, `POST /internal/send-announcement` requires `Authorization: Bearer <this value>` (used by notifications-dashboard). Optional body field **`notification_campaign_id`** is stored on the notification row and included on mobile push payloads.
 
