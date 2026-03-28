@@ -30,6 +30,10 @@ import {
 import { config } from '../config'
 import { Timer } from '../utils/timer'
 import { getRedisConnection } from '../utils/redisConnection'
+import {
+  isKnexAcquireTimeout,
+  logKnexPoolState
+} from '../utils/knexPoolDebug'
 import { RequiresRetry } from '../types/notifications'
 import { CommentThread } from './mappers/commentThread'
 import { CommentMention } from './mappers/commentMention'
@@ -289,6 +293,10 @@ export class AppNotificationsProcessor {
               JSON.stringify(notification.notification)
             )
           } else {
+            if (isKnexAcquireTimeout(e)) {
+              logKnexPoolState('discovery', this.dnDB)
+              logKnexPoolState('identity', this.identityDB)
+            }
             logger.error(
               {
                 type: notification.notification.type,
