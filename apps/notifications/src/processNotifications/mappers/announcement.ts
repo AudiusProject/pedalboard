@@ -193,7 +193,7 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
         {
           userId,
           pushResults: pushes.map((p) => ({
-            error: p?.error ?? null
+            endpointDisabled: p?.endpointDisabled ?? false
           }))
         },
         'announcement: push results'

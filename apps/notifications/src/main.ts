@@ -289,10 +289,7 @@ async function main() {
           'tick: draining pending notification IDs'
         )
         try {
-          const rows = await fetchNotificationsByIds(
-            self.getDnDb(),
-            pendingIds
-          )
+          const rows = await fetchNotificationsByIds(self.getDnDb(), pendingIds)
           logger.info(
             {
               requestedIds: pendingIds.length,
@@ -384,10 +381,7 @@ async function main() {
           getIsBrowserPushEnabled(data.remoteConfig)
         )
       } catch (e) {
-        logger.error(
-          { err: e },
-          'tick: sendDMNotifications threw unexpectedly'
-        )
+        logger.error({ err: e }, 'tick: sendDMNotifications threw unexpectedly')
       }
 
       if (
