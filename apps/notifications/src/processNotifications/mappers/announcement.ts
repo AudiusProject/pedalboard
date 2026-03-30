@@ -107,11 +107,16 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
     userNotificationSettings: UserNotificationSettings,
     isBrowserPushEnabled: boolean
   ) {
-    if (
-      userNotificationSettings.shouldSendPushNotification({
-        receiverUserId: userId
-      })
-    ) {
+    const shouldSend = userNotificationSettings.shouldSendPushNotification({
+      receiverUserId: userId
+    })
+    if (!shouldSend) {
+      logger.info(
+        { userId, notificationId: this.notification.id },
+        'announcement: skipping push — shouldSendPushNotification returned false'
+      )
+    }
+    if (shouldSend) {
       const title = this.notification.data.title ?? ''
       const body = this.notification.data.short_description ?? ''
       const pushBody = this.notification.data.push_body || body
@@ -138,12 +143,24 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
         body
       )
       const devices: Device[] = userNotificationSettings.getDevices(userId)
+      logger.info(
+        {
+          userId,
+          deviceCount: devices.length,
+          deviceTypes: devices.map((d) => d.type),
+          notificationId: this.notification.id
+        },
+        'announcement: sending push to devices'
+      )
+      if (devices.length === 0) {
+        logger.info({ userId }, 'announcement: user has no registered devices')
+        return
+      }
       const rawImage = this.notification.data.image_url
       const imageUrlForPush =
         typeof rawImage === 'string' && rawImage.trim().length > 0
           ? rawImage.trim()
           : undefined
-      // If the user's settings for the follow notification is set to true, proceed
       const pushes = await Promise.all(
         devices.map((device) => {
           // this may get rate limited by AWS
@@ -171,6 +188,15 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
             }
           )
         })
+      )
+      logger.info(
+        {
+          userId,
+          pushResults: pushes.map((p) => ({
+            error: p?.error ?? null
+          }))
+        },
+        'announcement: push results'
       )
       await disableDeviceArns(this.identityDB, pushes)
       await this.incrementBadgeCount(userId)

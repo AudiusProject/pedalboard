@@ -164,16 +164,32 @@ export class AppNotificationsProcessor {
   ) {
     if (notifications.length == 0) return
 
+    logger.info(
+      {
+        count: notifications.length,
+        types: notifications.map((n) => n.type),
+        ids: notifications.map((n) => n.id)
+      },
+      `Processing ${notifications.length} push notifications`
+    )
+
     const redis = await getRedisConnection()
 
-    logger.info(`Processing ${notifications.length} push notifications`)
     const timer = new Timer('Processing notifications duration')
     const blocknumber = notifications[0].blocknumber
-    const blockhash = await this.dnDB
-      .select('blockhash')
-      .from('blocks')
-      .where('number', blocknumber)
-      .first()
+    let blockhash: unknown
+    try {
+      blockhash = await this.dnDB
+        .select('blockhash')
+        .from('blocks')
+        .where('number', blocknumber)
+        .first()
+    } catch (e) {
+      logger.warn(
+        { err: e, blocknumber },
+        'process: failed to fetch blockhash, continuing'
+      )
+    }
     const status = {
       total: notifications.length,
       processed: 0,
@@ -192,23 +208,25 @@ export class AppNotificationsProcessor {
         )
         .map((notification) => Number(notification.specifier))
 
-      const res = await this.dnDB.raw(
-        `
-          SELECT * 
-          FROM get_user_scores(?) 
-          WHERE score <= 0
-          `,
-        [usersTriggeringNotifications]
-      )
+      if (usersTriggeringNotifications.length > 0) {
+        const res = await this.dnDB.raw(
+          `
+            SELECT *
+            FROM get_user_scores(?)
+            WHERE score <= 0
+            `,
+          [usersTriggeringNotifications]
+        )
 
-      const shadowBannedUsers = res.rows.map((row) => String(row.user_id))
-      logger.info(
-        `Skipping notifications triggered by users: ${shadowBannedUsers}`
-      )
+        const shadowBannedUsers = res.rows.map((row) => String(row.user_id))
+        logger.info(
+          `Skipping notifications triggered by users: ${shadowBannedUsers}`
+        )
 
-      notifications = notifications.filter(
-        (notification) => !shadowBannedUsers.includes(notification.specifier)
-      )
+        notifications = notifications.filter(
+          (notification) => !shadowBannedUsers.includes(notification.specifier)
+        )
+      }
     } catch (error) {
       logger.error('Error shadow banning users:', error)
     }

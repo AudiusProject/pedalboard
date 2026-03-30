@@ -284,31 +284,61 @@ async function main() {
         return d
       })
       if (pendingIds.length > 0) {
-        const rows = await fetchNotificationsByIds(self.getDnDb(), pendingIds)
-        const byId = new Map<number, (typeof rows)[0]>()
-        for (const row of rows) {
-          const id = row.id
-          if (id !== undefined && !byId.has(id)) {
-            byId.set(id, row)
-          }
-        }
-        // Preserve order of first-seen ids from NOTIFYs (stable for same tick).
-        const orderedIds: number[] = []
-        const seenId = new Set<number>()
-        for (const id of pendingIds) {
-          if (seenId.has(id)) continue
-          seenId.add(id)
-          orderedIds.push(id)
-        }
-        self.updateAppData((d) => {
-          for (const id of orderedIds) {
-            const row = byId.get(id)
-            if (row !== undefined) {
-              d.listenerPending.appNotifications.push(row)
+        logger.info(
+          { pendingIds, count: pendingIds.length },
+          'tick: draining pending notification IDs'
+        )
+        try {
+          const rows = await fetchNotificationsByIds(
+            self.getDnDb(),
+            pendingIds
+          )
+          logger.info(
+            {
+              requestedIds: pendingIds.length,
+              fetchedRows: rows.length,
+              types: rows.map((r) => r.type),
+              fetchedIds: rows.map((r) => r.id)
+            },
+            'tick: fetched notification rows'
+          )
+          const byId = new Map<number, (typeof rows)[0]>()
+          for (const row of rows) {
+            const id = row.id
+            if (id !== undefined && !byId.has(id)) {
+              byId.set(id, row)
             }
           }
-          return d
-        })
+          // Preserve order of first-seen ids from NOTIFYs (stable for same tick).
+          const orderedIds: number[] = []
+          const seenId = new Set<number>()
+          for (const id of pendingIds) {
+            if (seenId.has(id)) continue
+            seenId.add(id)
+            orderedIds.push(id)
+          }
+          const missingIds = orderedIds.filter((id) => !byId.has(id))
+          if (missingIds.length > 0) {
+            logger.warn(
+              { missingIds },
+              'tick: some notification IDs were not found in DB'
+            )
+          }
+          self.updateAppData((d) => {
+            for (const id of orderedIds) {
+              const row = byId.get(id)
+              if (row !== undefined) {
+                d.listenerPending.appNotifications.push(row)
+              }
+            }
+            return d
+          })
+        } catch (e) {
+          logger.error(
+            { err: e, pendingIds },
+            'tick: failed to fetch notification rows — IDs lost'
+          )
+        }
       }
 
       const listenerAdapter: ListenerAdapter = {
@@ -328,19 +358,37 @@ async function main() {
 
       const data = self.viewAppData()
       logger.debug('Processing app notifications (new)')
-      await sendAppNotifications(
-        listenerAdapter,
-        data.appNotificationsProcessor
-      )
+      try {
+        await sendAppNotifications(
+          listenerAdapter,
+          data.appNotificationsProcessor
+        )
+      } catch (e) {
+        logger.error(
+          { err: e },
+          'tick: sendAppNotifications threw unexpectedly'
+        )
+      }
       logger.debug('Processing app notifications (needs reprocessing)')
-      await data.appNotificationsProcessor.reprocess()
+      try {
+        await data.appNotificationsProcessor.reprocess()
+      } catch (e) {
+        logger.error({ err: e }, 'tick: reprocess threw unexpectedly')
+      }
 
       logger.debug('Processing DM notifications')
-      await sendDMNotifications(
-        self.getDnDb(),
-        self.getIdDb(),
-        getIsBrowserPushEnabled(data.remoteConfig)
-      )
+      try {
+        await sendDMNotifications(
+          self.getDnDb(),
+          self.getIdDb(),
+          getIsBrowserPushEnabled(data.remoteConfig)
+        )
+      } catch (e) {
+        logger.error(
+          { err: e },
+          'tick: sendDMNotifications threw unexpectedly'
+        )
+      }
 
       if (
         getIsScheduledEmailEnabled(data.remoteConfig) &&
