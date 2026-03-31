@@ -13,14 +13,14 @@
   "dependencies": {
     "@pedalboard/basekit": "*",
     "@pedalboard/logger": "*",
-    "await-semaphore": "^0.1.3",
-    "axios": "^1.6.0",
-    "dotenv": "^16.0.0",
-    "envalid": "^8.0.0",
-    "redis": "^4.6.0"
+    "await-semaphore": "0.1.3",
+    "axios": "1.13.6",
+    "dotenv": "16.6.1",
+    "envalid": "8.0.0",
+    "redis": "4.6.11"
   },
   "devDependencies": {
-    "@types/node": "^18.0.0",
+    "@types/node": "18.19.79",
     "eslint": "8.56.0",
     "eslint-config-custom": "*",
     "tsconfig": "*",
