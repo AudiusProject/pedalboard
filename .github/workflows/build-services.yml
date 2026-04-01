@@ -85,13 +85,8 @@ jobs:
       
       - name: Create multiarch manifest
         run: |
-          if [[ "${{ matrix.service }}" == "notifications" ]]; then
-            REPO="audius/notifications"
-            TAG_SUFFIX="${{ inputs.tag }}"
-          else
-            REPO="audius/pedalboard"
-            TAG_SUFFIX="${{ matrix.service }}-${{ inputs.tag }}"
-          fi
+          REPO="audius/${{ matrix.service }}"
+          TAG_SUFFIX="${{ inputs.tag }}"
           AMD64_TAG="${REPO}:${TAG_SUFFIX}-amd64"
           ARM64_TAG="${REPO}:${TAG_SUFFIX}-arm64"
           MULTIARCH_TAG="${REPO}:${TAG_SUFFIX}"

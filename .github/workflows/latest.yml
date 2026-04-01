@@ -48,11 +48,7 @@ jobs:
       - name: Verify source image exists
         run: |
           COMMIT_SHA="${{ inputs.commit_sha || github.sha }}"
-          if [[ "${{ matrix.service }}" == "notifications" ]]; then
-            SOURCE_TAG="audius/notifications:$COMMIT_SHA"
-          else
-            SOURCE_TAG="audius/pedalboard:${{ matrix.service }}-$COMMIT_SHA"
-          fi
+          SOURCE_TAG="audius/${{ matrix.service }}:$COMMIT_SHA"
           if ! docker manifest inspect "$SOURCE_TAG" > /dev/null 2>&1; then
             echo "Error: Image $SOURCE_TAG does not exist. Make sure the edge build completed successfully for commit $COMMIT_SHA"
             exit 1
@@ -80,12 +76,8 @@ jobs:
       - name: Retag as latest
         run: |
           COMMIT_SHA="${{ inputs.commit_sha || github.sha }}"
-          if [[ "${{ matrix.service }}" == "notifications" ]]; then
-            SOURCE_TAG="audius/notifications:$COMMIT_SHA"
-            LATEST_TAG="audius/notifications:latest"
-          else
-            SOURCE_TAG="audius/pedalboard:${{ matrix.service }}-$COMMIT_SHA"
-            LATEST_TAG="audius/pedalboard:${{ matrix.service }}-latest"
-          fi
+          REPO="audius/${{ matrix.service }}"
+          SOURCE_TAG="${REPO}:$COMMIT_SHA"
+          LATEST_TAG="${REPO}:latest"
           docker buildx imagetools create "$SOURCE_TAG" --tag "$LATEST_TAG"
           echo "✅ Tagged $SOURCE_TAG as $LATEST_TAG"
