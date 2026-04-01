@@ -23,5 +23,9 @@ export const config = {
   lastIndexedBlastUserIdRedisKey: 'latestBlastNotificationUserID',
   // Max retry-queue entries to LPOP per tick (was: lRange entire list every tick).
   notificationRetryBatchMax:
-    Number(process.env.NOTIFICATION_RETRY_BATCH_MAX) || 150
+    Number(process.env.NOTIFICATION_RETRY_BATCH_MAX) || 150,
+  // Unread-notification digest emails: send 1 / N attempts on average to cap SendGrid volume.
+  // N=1 disables sampling (always send). N=10 ≈ 10% of eligible sends. Skips do not write NotificationEmails.
+  notificationEmailSampleDenominator:
+    Number(process.env.NOTIFICATION_EMAIL_SAMPLE_DENOMINATOR) || 10
 }

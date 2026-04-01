@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto'
 import { Knex } from 'knex'
 import moment, { Moment } from 'moment-timezone'
 import { config } from '../../config'
@@ -443,6 +444,24 @@ const processGroupOfEmails = async (
 
             const user = userNotifications.user
             const notifications = userNotifications.notifications
+
+            const sampleDenom = Math.floor(
+              config.notificationEmailSampleDenominator
+            )
+            if (
+              Number.isFinite(sampleDenom) &&
+              sampleDenom > 1 &&
+              randomInt(sampleDenom) !== 0
+            ) {
+              logger.debug(
+                `processEmailNotifications | sampled out unread-notification email for user ${user.blockchainUserId} (1/${sampleDenom})`
+              )
+              return {
+                result: Results.SHOULD_SKIP,
+                error: 'Notification email skipped (send sampling)'
+              }
+            }
+
             // Set the timezone
             const sendAt = userNotificationSettings.getUserSendAt(
               user.blockchainUserId
