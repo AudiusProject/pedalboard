@@ -48,7 +48,8 @@ import {
   FanRemixContestStartedNotification,
   ArtistRemixContestEndingSoonNotification,
   ArtistRemixContestSubmissionsNotification,
-  FanRemixContestWinnersSelectedNotification
+  FanRemixContestWinnersSelectedNotification,
+  FanClubTextPostNotification
 } from '../../types/notifications'
 import { ApproveManagerRequest } from './approveManagerRequest'
 import { Follow } from './follow'
@@ -92,6 +93,7 @@ import { FanRemixContestEndingSoon } from './fanRemixContestEndingSoon'
 import { FanRemixContestStarted } from './fanRemixContestStarted'
 import { ArtistRemixContestEndingSoon } from './artistRemixContestEndingSoon'
 import { ArtistRemixContestSubmissions } from './artistRemixContestSubmissions'
+import { FanClubTextPost } from './fanClubTextPost'
 import { FanRemixContestWinnersSelected } from './fanRemixContestWinnersSelected'
 
 export const mapNotifications = (
@@ -396,6 +398,11 @@ const mapNotification = (
       identityDb,
       fanRemixContestWinnersSelectedNotification
     )
+  } else if (notification.type == 'fan_club_text_post') {
+    const fanClubTextPostNotification = notification as NotificationRow & {
+      data: FanClubTextPostNotification
+    }
+    return new FanClubTextPost(dnDb, identityDb, fanClubTextPostNotification)
   }
   logger.info(`Notification type: ${notification.type} has no handler`)
 }
