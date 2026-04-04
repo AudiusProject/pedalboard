@@ -16,11 +16,7 @@ export type FanClubTextPostRow = Omit<NotificationRow, 'data'> & {
 }
 
 export class FanClubTextPost extends BaseNotification<FanClubTextPostRow> {
-  constructor(
-    dnDB: Knex,
-    identityDB: Knex,
-    notification: FanClubTextPostRow
-  ) {
+  constructor(dnDB: Knex, identityDB: Knex, notification: FanClubTextPostRow) {
     super(dnDB, identityDB, notification)
   }
 
