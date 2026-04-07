@@ -49,7 +49,8 @@ export enum MappingVariable {
   PushFanRemixContestStarted = 'push_fan_remix_contest_started',
   PushFanRemixContestWinnersSelected = 'push_fan_remix_contest_winners_selected',
   PushArtistRemixContestEndingSoon = 'push_artist_remix_contest_ending_soon',
-  PushArtistRemixContestSubmissions = 'push_artist_remix_contest_submissions'
+  PushArtistRemixContestSubmissions = 'push_artist_remix_contest_submissions',
+  PushFanClubTextPost = 'push_fan_club_text_post'
 }
 
 export const NotificationsEmailPlugin = 'notification_email_plugin'
@@ -103,7 +104,8 @@ const defaultMappingVariable = {
   [MappingVariable.PushFanRemixContestStarted]: false,
   [MappingVariable.PushFanRemixContestWinnersSelected]: false,
   [MappingVariable.PushArtistRemixContestEndingSoon]: false,
-  [MappingVariable.PushArtistRemixContestSubmissions]: false
+  [MappingVariable.PushArtistRemixContestSubmissions]: false,
+  [MappingVariable.PushFanClubTextPost]: false
 }
 
 export const BrowserPushPlugin = 'browser_push_plugin'
