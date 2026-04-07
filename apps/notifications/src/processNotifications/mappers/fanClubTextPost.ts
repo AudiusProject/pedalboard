@@ -31,7 +31,7 @@ export class FanClubTextPost extends BaseNotification<FanClubTextPostRow> {
     }
 
     const receiverUserId = userIds[0]
-    const entityUserId = this.notification.data.entityUserId
+    const entityUserId = this.notification.data.entity_user_id
 
     // Fetch artist info
     const users: Array<{
@@ -108,7 +108,7 @@ export class FanClubTextPost extends BaseNotification<FanClubTextPostRow> {
                 }`,
                 type: 'FanClubTextPost',
                 entityUserId,
-                commentId: this.notification.data.commentId
+                commentId: this.notification.data.comment_id
               },
               imageUrl
             }

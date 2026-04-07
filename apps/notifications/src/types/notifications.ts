@@ -365,8 +365,8 @@ export type ArtistRemixContestSubmissionsNotification = {
 }
 
 export type FanClubTextPostNotification = {
-  entityUserId: number
-  commentId: number
+  entity_user_id: number
+  comment_id: number
 }
 
 export type NotificationData =

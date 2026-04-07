@@ -46,7 +46,7 @@ describe('Fan Club Text Post Notification', () => {
         group_id: 'fan_club_text_post:100:user:99',
         specifier: String(user1.userId),
         timestamp: new Date(1589373217),
-        data: { entityUserId: 99, commentId: 100 }
+        data: { entity_user_id: 99, comment_id: 100 }
       }
     ])
 
@@ -105,7 +105,7 @@ describe('Fan Club Text Post Notification', () => {
         group_id: 'fan_club_text_post:100:user:99',
         specifier: String(user1.userId),
         timestamp: new Date(1589373217),
-        data: { entityUserId: 99, commentId: 100 }
+        data: { entity_user_id: 99, comment_id: 100 }
       }
     ])
 
