@@ -56,6 +56,14 @@ export class FanClubTextPost extends BaseNotification<FanClubTextPostRow> {
 
     const artistName = userMap[entityUserId]?.name ?? ''
 
+    // Fetch artist coin ticker for deep linking
+    const artistCoin = await this.dnDB
+      .select('ticker')
+      .from('artist_coins')
+      .where('user_id', entityUserId)
+      .first()
+    const ticker = artistCoin?.ticker
+
     // Get artist profile picture for rich notification
     let imageUrl: string | undefined
     if (userMap[entityUserId]?.profile_picture_sizes) {
@@ -108,7 +116,8 @@ export class FanClubTextPost extends BaseNotification<FanClubTextPostRow> {
                 }`,
                 type: 'FanClubTextPost',
                 entityUserId,
-                commentId: this.notification.data.comment_id
+                commentId: this.notification.data.comment_id,
+                ticker
               },
               imageUrl
             }
