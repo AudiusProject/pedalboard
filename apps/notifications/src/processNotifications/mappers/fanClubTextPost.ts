@@ -64,6 +64,15 @@ export class FanClubTextPost extends BaseNotification<FanClubTextPostRow> {
       .first()
     const ticker = artistCoin?.ticker
 
+    // Determine if the post includes a video by looking up the comment
+    const commentId = this.notification.data.comment_id
+    const comment = await this.dnDB
+      .select('video_url')
+      .from('comments')
+      .where('comment_id', commentId)
+      .first()
+    const hasVideo = !!comment?.video_url
+
     // Get artist profile picture for rich notification
     let imageUrl: string | undefined
     if (userMap[entityUserId]?.profile_picture_sizes) {
@@ -79,7 +88,9 @@ export class FanClubTextPost extends BaseNotification<FanClubTextPostRow> {
     )
 
     const title = 'New Fan Club Post'
-    const body = `${artistName} posted in their fan club`
+    const body = hasVideo
+      ? `${artistName} shared a video with their fan club`
+      : `${artistName} posted in their fan club`
 
     // Send browser push
     await sendBrowserNotification(
@@ -116,7 +127,7 @@ export class FanClubTextPost extends BaseNotification<FanClubTextPostRow> {
                 }`,
                 type: 'FanClubTextPost',
                 entityUserId,
-                commentId: this.notification.data.comment_id,
+                commentId,
                 ticker
               },
               imageUrl

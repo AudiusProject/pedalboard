@@ -839,6 +839,8 @@ export interface CommentRow {
   is_delete: boolean
   is_visible: boolean
   is_edited: boolean
+  is_members_only?: boolean
+  video_url?: string | null
   txhash?: string
 }
 
