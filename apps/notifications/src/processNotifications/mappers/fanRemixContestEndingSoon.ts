@@ -39,7 +39,7 @@ export class FanRemixContestEndingSoon extends BaseNotification<FanRemixContestE
       .select('user_id', 'name')
       .from('users')
       .where('is_current', true)
-      .whereIn('user_id', [this.notification.data.entityUserId])
+      .whereIn('user_id', [this.notification.data.entity_user_id])
     const artistName = res[0]?.name ?? ''
 
     // Fetch track's cover art URL for rich notification (150x150 size)
@@ -52,7 +52,7 @@ export class FanRemixContestEndingSoon extends BaseNotification<FanRemixContestE
       .select('track_id', 'title', 'cover_art_sizes')
       .from('tracks')
       .where('is_current', true)
-      .whereIn('track_id', [this.notification.data.entityId])
+      .whereIn('track_id', [this.notification.data.entity_id])
     const track = trackRes[0]
     if (track?.cover_art_sizes) {
       imageUrl = formatImageUrl(track.cover_art_sizes, 150)
@@ -98,8 +98,8 @@ export class FanRemixContestEndingSoon extends BaseNotification<FanRemixContestE
                     this.notification.group_id
                   }`,
                   type: 'FanRemixContestEndingSoon',
-                  entityId: this.notification.data.entityId,
-                  entityUserId: this.notification.data.entityUserId
+                  entityId: this.notification.data.entity_id,
+                  entityUserId: this.notification.data.entity_user_id
                 },
                 imageUrl
               }

@@ -13,8 +13,8 @@ import { formatImageUrl } from '../../utils/format'
 // Type for the notification row
 export type ArtistRemixContestSubmissionsRow = Omit<NotificationRow, 'data'> & {
   data: {
-    entityId: number
-    eventId: number
+    entity_id: number
+    event_id: number
     milestone: number
   }
 }
@@ -47,7 +47,7 @@ export class ArtistRemixContestSubmissions extends BaseNotification<ArtistRemixC
       .select('track_id', 'title', 'cover_art_sizes')
       .from('tracks')
       .where('is_current', true)
-      .whereIn('track_id', [this.notification.data.entityId])
+      .whereIn('track_id', [this.notification.data.entity_id])
     const track = trackRes[0]
     const trackName = track?.title ?? ''
 
@@ -56,7 +56,11 @@ export class ArtistRemixContestSubmissions extends BaseNotification<ArtistRemixC
       imageUrl = formatImageUrl(track.cover_art_sizes, 150)
     }
 
-    const { milestone, eventId, entityId } = this.notification.data
+    const {
+      milestone,
+      event_id: eventId,
+      entity_id: entityId
+    } = this.notification.data
 
     const userNotificationSettings = await buildUserNotificationSettings(
       this.identityDB,

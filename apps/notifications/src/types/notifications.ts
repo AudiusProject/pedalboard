@@ -330,37 +330,37 @@ export type ListenStreakReminderNotification = {
 }
 
 export type ArtistRemixContestEndedNotification = {
-  entityId: number
+  entity_id: number
 }
 
 export type FanRemixContestEndedNotification = {
-  entityId: number
-  entityUserId: number
+  entity_id: number
+  entity_user_id: number
 }
 
 export type FanRemixContestEndingSoonNotification = {
-  entityId: number
-  entityUserId: number
+  entity_id: number
+  entity_user_id: number
 }
 
 export type FanRemixContestStartedNotification = {
-  entityId: number
-  entityUserId: number
+  entity_id: number
+  entity_user_id: number
 }
 
 export type FanRemixContestWinnersSelectedNotification = {
-  entityId: number
-  entityUserId: number
+  entity_id: number
+  entity_user_id: number
 }
 
 export type ArtistRemixContestEndingSoonNotification = {
-  entityId: number
-  entityUserId: number
+  entity_id: number
+  entity_user_id: number
 }
 
 export type ArtistRemixContestSubmissionsNotification = {
-  entityId: number
-  eventId: number
+  entity_id: number
+  event_id: number
   milestone: number
 }
 

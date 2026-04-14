@@ -45,7 +45,7 @@ export class ArtistRemixContestEnded extends BaseNotification<ArtistRemixContest
       .select('track_id', 'title', 'cover_art_sizes')
       .from('tracks')
       .where('is_current', true)
-      .whereIn('track_id', [this.notification.data.entityId])
+      .whereIn('track_id', [this.notification.data.entity_id])
     const track = trackRes[0]
     if (track?.cover_art_sizes) {
       imageUrl = formatImageUrl(track.cover_art_sizes, 150)
@@ -92,7 +92,7 @@ export class ArtistRemixContestEnded extends BaseNotification<ArtistRemixContest
                     this.notification.group_id
                   }`,
                   type: 'ArtistRemixContestEnded',
-                  entityId: this.notification.data.entityId
+                  entityId: this.notification.data.entity_id
                 },
                 imageUrl
               }

@@ -42,7 +42,7 @@ describe('Artist Remix Contest Ended Notification', () => {
         group_id: 'test-group',
         specifier: 'test-specifier',
         timestamp: new Date(),
-        data: { entityId: 12345 }
+        data: { entity_id: 12345 }
       }
     ])
 

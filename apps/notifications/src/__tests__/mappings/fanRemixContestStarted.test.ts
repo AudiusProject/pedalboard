@@ -51,7 +51,7 @@ describe('Fan Remix Contest Started Notification', () => {
         group_id: 'test-group',
         specifier: 'test-specifier',
         timestamp: new Date(),
-        data: { entityId: 12345, entityUserId: 99 }
+        data: { entity_id: 12345, entity_user_id: 99 }
       }
     ])
 

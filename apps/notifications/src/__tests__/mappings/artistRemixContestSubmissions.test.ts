@@ -42,7 +42,7 @@ describe('Artist Remix Contest Submissions Notification', () => {
         group_id: 'test-group',
         specifier: 'test-specifier',
         timestamp: new Date(),
-        data: { entityId: 12345, eventId: 999, milestone: 1 }
+        data: { entity_id: 12345, event_id: 999, milestone: 1 }
       }
     ])
 
@@ -92,7 +92,7 @@ describe('Artist Remix Contest Submissions Notification', () => {
         group_id: 'test-group',
         specifier: 'test-specifier',
         timestamp: new Date(),
-        data: { entityId: 12345, eventId: 999, milestone: 10 }
+        data: { entity_id: 12345, event_id: 999, milestone: 10 }
       }
     ])
 
