@@ -38,6 +38,7 @@ export const createUtils = (services: WorkerServices) => {
     await new Promise((resolve, reject) => {
       body.pipe(fileStream)
       body.on('error', reject)
+      fileStream.on('error', reject)
       fileStream.on('finish', resolve)
     })
 

@@ -163,8 +163,11 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
         await fs.mkdir(jobTempDir, { recursive: true })
       }
 
-      const downloadedFiles = await Promise.all(
-        filesToDownload.map(async (stem: { id: string; origFilename?: string }) => {
+      // Start all downloads immediately so we can await allSettled after a failure:
+      // if one rejects, Promise.all would run the outer catch and removeTempFiles while
+      // siblings are still writing — ENOENT on other WriteStreams and process crash.
+      const downloadPromises = filesToDownload.map(
+        async (stem: { id: string; origFilename?: string }) => {
           let url
 
           const downloadUrl = await sdk.tracks.getTrackDownloadUrl({
@@ -192,8 +195,17 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
             jobId,
             signal: abortController.signal
           })
-        })
+        }
       )
+
+      let downloadedFiles: string[]
+      try {
+        downloadedFiles = await Promise.all(downloadPromises)
+      } catch (error) {
+        abortController.abort()
+        await Promise.allSettled(downloadPromises)
+        throw error
+      }
 
       logger.debug(
         { files: downloadedFiles },
@@ -219,11 +231,11 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
       return { outputFile }
     } catch (error) {
       try {
-        logger.error({ error }, 'Job failed, cleaning up temp files')
+        logger.error({ err: error }, 'Job failed, cleaning up temp files')
         await removeTempFiles(jobId)
         await spaceManager.releaseSpace(jobId)
-      } catch (error) {
-        logger.error({ error }, 'Error cleaning up while handling job failure')
+      } catch (cleanupError) {
+        logger.error({ err: cleanupError }, 'Error cleaning up while handling job failure')
       }
 
       if (abortController.signal.aborted) {
