@@ -33,6 +33,15 @@ export type Config = {
   maxDiskSpaceWaitSeconds: number
   /** Log level to use for the archiver (default: 'info') */
   logLevel: LogLevel
+  /**
+   * Developer-app api_key (the app's wallet address) used to identify the
+   * archiver to api.audius.co's rate limiter. Attached as `?api_key=<key>`
+   * on outbound track/stem fetches so the server resolves the configured
+   * app's per-key rps/rpm from the api_keys table instead of the anonymous
+   * 5-RPS IP bucket. Public identifier — safe to pass in the URL. Leave
+   * unset in dev.
+   */
+  apiKey?: string
 }
 
 let config: Config | null = null
@@ -60,7 +69,8 @@ export const readConfig = (): Config => {
     archiver_max_disk_space_bytes: num({
       default: 32 * 1024 * 1024 * 1024
     }), // 32GB
-    archiver_max_disk_space_wait_seconds: num({ default: 60 })
+    archiver_max_disk_space_wait_seconds: num({ default: 60 }),
+    audius_archiver_api_key: str({ default: '' })
   })
 
   config = {
@@ -76,7 +86,8 @@ export const readConfig = (): Config => {
     maxStemsArchiveAttempts: env.archiver_max_stems_archive_attempts,
     maxDiskSpaceBytes: env.archiver_max_disk_space_bytes,
     maxDiskSpaceWaitSeconds: env.archiver_max_disk_space_wait_seconds,
-    logLevel: env.archiver_log_level
+    logLevel: env.archiver_log_level,
+    apiKey: env.audius_archiver_api_key || undefined
   }
   return config
 }
