@@ -22,16 +22,29 @@ export const createUtils = (services: WorkerServices) => {
   }): Promise<string> => {
     logger.info({ jobId, url, filePath }, 'Downloading stem file')
 
-    const { ok, body, statusText } = await fetch(url, {
+    const res = await fetch(url, {
       signal
     })
+    const { ok, body, statusText, status } = res
 
     if (!ok) {
-      throw new Error(`Failed to download stem: ${statusText}`)
+      // Parallel downloads log "Downloading stem file" in arbitrary order; this line
+      // is the definitive record of which URL failed.
+      logger.error(
+        { jobId, url, filePath, status, statusText },
+        'Stem download failed (HTTP error)'
+      )
+      throw new Error(
+        `Failed to download stem: ${statusText} (${status}) — ${filePath}`
+      )
     }
 
     if (!body) {
-      throw new Error('Response body is null')
+      logger.error(
+        { jobId, url, filePath, status },
+        'Stem download failed (empty body)'
+      )
+      throw new Error(`Response body is null — ${filePath}`)
     }
 
     const fileStream = fsSync.createWriteStream(filePath)
