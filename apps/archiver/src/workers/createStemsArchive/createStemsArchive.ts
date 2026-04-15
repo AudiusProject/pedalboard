@@ -13,30 +13,11 @@ import {
 import path from 'path'
 import { WorkerServices } from '../services'
 import { createUtils } from './utils'
-import fetch from 'node-fetch'
 
 type StemsArchiveWorkerListener = WorkerListener<
   StemsArchiveJobData,
   StemsArchiveJobResult
 >
-
-const getRedirectUrl = async (url: string) => {
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      redirect: 'manual'
-    })
-
-    if (response.status >= 300 && response.status < 400) {
-      const redirectUrl = response.headers.get('Location')
-      return redirectUrl ?? url
-    } else {
-      return url
-    }
-  } catch (error) {
-    throw new Error(`Fetch failed: ${(error as Error).message}`)
-  }
-}
 
 export const createStemsArchiveWorker = (services: WorkerServices) => {
   const { config, spaceManager, fs, sdk } = services
@@ -166,27 +147,22 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
       // Start all downloads immediately so we can await allSettled after a failure:
       // if one rejects, Promise.all would run the outer catch and removeTempFiles while
       // siblings are still writing — ENOENT on other WriteStreams and process crash.
+      // The API's /tracks/{id}/download endpoint already calls tryFindWorkingUrl
+      // to pick a content node mirror that actually serves this file, and
+      // responds with a 302 redirect to it. node-fetch follows 3xx by default,
+      // so we can just point downloadFile at the API URL and let it land on the
+      // verified-working host. Do NOT rewrite the host — forcing every download
+      // through a single node (e.g. creatornode2) bypasses that mirror selection
+      // and produces 404s on files that exist, just not on that node.
       const downloadPromises = filesToDownload.map(
         async (stem: { id: string; origFilename?: string }) => {
-          let url
-
-          const downloadUrl = await sdk.tracks.getTrackDownloadUrl({
+          const url = await sdk.tracks.getTrackDownloadUrl({
             trackId: stem.id,
             userId: hashedUserId,
             userSignature: signatureHeader,
             userData: messageHeader,
             filename: stem.origFilename ?? ''
           })
-
-          if (config.environment === 'prod') {
-            url = downloadUrl
-            const redirectUrl = await getRedirectUrl(downloadUrl)
-            const modifiedUrl = new URL(redirectUrl)
-            modifiedUrl.host = 'creatornode2.audius.co'
-            url = modifiedUrl.toString()
-          } else {
-            url = downloadUrl
-          }
 
           const filePath = path.join(jobTempDir, stem.origFilename ?? 'file')
           return downloadFile({
