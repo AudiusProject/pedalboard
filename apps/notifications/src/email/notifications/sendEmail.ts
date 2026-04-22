@@ -22,6 +22,12 @@ type SendNotificationEmailProps = {
   identityDb: Knex
   sendAt?: number // unix timestamp in seconds
   timezone?: string
+  /**
+   * Optional SendGrid custom args, echoed on every webhook event. Used for
+   * per-campaign attribution (e.g. announcements) in the notifications
+   * dashboard. Values must be strings per SendGrid.
+   */
+  customArgs?: Record<string, string>
 }
 
 // Set of notifications that we do NOT send out emails for
@@ -41,7 +47,8 @@ export const sendNotificationEmail = async ({
   dnDb,
   identityDb,
   sendAt,
-  timezone
+  timezone,
+  customArgs
 }: SendNotificationEmailProps) => {
   if (email === undefined) {
     return
@@ -85,6 +92,11 @@ export const sendNotificationEmail = async ({
 
     if (sendAt) {
       emailParams.sendAt = sendAt
+    }
+
+    if (customArgs && Object.keys(customArgs).length > 0) {
+      // Echoed back on every SendGrid Event Webhook call for attribution.
+      emailParams.customArgs = customArgs
     }
 
     // Send email

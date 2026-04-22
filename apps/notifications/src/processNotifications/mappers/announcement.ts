@@ -219,13 +219,26 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
         receiver_user_id: userId,
         ...this.notification
       }
+      // Attribution for the notifications-dashboard's SendGrid webhook.
+      // `notification_campaign_id` is set by the dashboard's /send-announcement
+      // caller; absent for non-dashboard announcements (e.g. mobile tests).
+      const campaignId = this.notification.data.notification_campaign_id
+      const customArgs =
+        typeof campaignId === 'string' && campaignId.length > 0
+          ? {
+              announcement_id: campaignId,
+              user_id: String(userId),
+              channel: 'announcement_email'
+            }
+          : undefined
       sendNotificationEmail({
         userId: userId,
         email: userNotificationSettings.getUserEmail(userId),
         frequency: 'live',
         notifications: [notification],
         dnDb: this.dnDB,
-        identityDb: this.identityDB
+        identityDb: this.identityDB,
+        customArgs
       })
     }
   }
