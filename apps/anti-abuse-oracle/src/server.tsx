@@ -16,18 +16,15 @@ import {
 } from './actionLog'
 import { logger } from 'hono/logger'
 import { config } from './config'
-import { SolanaUtils, Utils } from '@audius/sdk'
+import { HashId } from '@audius/sdk'
+import { SolanaUtils, Utils } from '@audius/sdk-legacy'
 import bn from 'bn.js'
-import { userFingerprints } from './identity'
+import { useEmail, userFingerprints } from './identity'
 import { cors } from 'hono/cors'
+import { getAudiusSdk } from './sdk'
 
-let CONTENT_NODE = 'https://creatornode2.audius.co'
-let FRONTEND = 'https://audius.co'
-
-if (config.environment == 'stage') {
-  CONTENT_NODE = 'https://creatornode10.staging.audius.co'
-  FRONTEND = 'https://staging.audius.co'
-}
+const CONTENT_NODE = 'https://creatornode2.audius.co'
+const FRONTEND = 'https://audius.co'
 
 let { AAO_AUTH_USER, AAO_AUTH_PASSWORD } = process.env
 if (!AAO_AUTH_USER) {
@@ -41,6 +38,34 @@ if (!AAO_AUTH_PASSWORD) {
     AAO_AUTH_PASSWORD
   )
 }
+
+const openRewards = [
+  'dvl', // daily volume rewards
+  't',   // tastemaker
+  'tt',  // trending
+  'tut', // trending underground
+  'b',   // audio match buy (from verified user)
+  'rd',  // referred (by verified user)
+  'w',   // remix contest winner (from verified user)
+  'cs',  // cosign (from verified user)
+]
+
+const verifiedRewards = [
+  'u',   // uploads
+  's',   // audio match sell
+  'r',   // referral
+  'c',   // first comment
+  'cp',  // comment pin
+  'e',   // listen streak
+  'fp',  // first playlist
+  'm',   // mobile install
+  'p',   // profile completion
+  'p1',  // 250 plays
+  'p2',  // 1000 plays
+  'p3',  // 10000 plays
+]
+
+const sdk = getAudiusSdk()
 
 async function ensureTableExists() {
   try {
@@ -167,19 +192,25 @@ app.post('/attestation/:handle', async (c) => {
   const handle = c.req.param('handle').toLowerCase()
   const { challengeId, challengeSpecifier, amount } = await c.req.json()
 
-  const users =
-    await sql`select user_id, wallet from users where handle_lc = ${handle}`
-  const user = users[0]
-  if (!user) return c.json({ error: `handle not found: ${handle}` }, 404)
-
-  // pass / fail
-  const userScore = await getUserNormalizedScore(user.user_id, user.wallet)
-
-  // Reward attestation proportional to user score confidence
-  if (userScore.overallScore < (amount as number) / 10) {
-    return c.json({ error: 'denied' }, 400)
+  const { data: user } = await sdk.users.getUserByHandle({ handle })
+  if (!user) {
+    return c.json({ error: `handle not found: ${handle}` }, 404)
   }
-
+  if (verifiedRewards.includes(challengeId)) {
+    if (!user.isVerified) {
+      return c.json({ error: 'denied' }, 400)
+    }
+  }
+  if (openRewards.includes(challengeId)) {
+    const userScore = await getUserNormalizedScore(
+      HashId.parse(user.id),
+      user.wallet
+    )
+    if (userScore.overallScore < -1000) {
+      return c.json({ error: 'denied' }, 400)
+    }
+  }
+  
   try {
     const bnAmount = SolanaUtils.uiAudioToBNWaudio(amount)
     const identifier = SolanaUtils.constructTransferId(
@@ -195,9 +226,9 @@ app.post('/attestation/:handle', async (c) => {
       Buffer.from(toSignStr),
       config.privateSignerAddress
     )
-    const result = new bn(Uint8Array.of(...signature, recoveryId)).toString(
-      'hex'
-    )
+    const result = new bn(Uint8Array.of(...signature, recoveryId))
+      .toString('hex')
+      .padStart(130, '0')
 
     return c.json({ result })
   } catch (error) {
@@ -321,6 +352,7 @@ app.get('/attestation/ui/user', async (c) => {
   const idOrHandle = c.req.query('q') || '1'
   const user = await getUser(idOrHandle)
   if (!user) return c.text(`user id not found: ${idOrHandle}`, 404)
+  const email = await useEmail(user.id)
   const signals = await getUserScore(user.id)
   const userScore = (await getUserNormalizedScore(user.id, user.wallet))!
 
@@ -358,7 +390,7 @@ app.get('/attestation/ui/user', async (c) => {
             <div class='flex gap-4 items-end'>
               <div>
                 <a href={`${FRONTEND}/${user.handle}`} target='_blank'>
-                  {user.handle}
+                  {user.handle} ({email})
                 </a>
               </div>
               <div>{user.id}</div>
@@ -390,6 +422,7 @@ app.get('/attestation/ui/user', async (c) => {
               <th class='text-left'>Fast Challenge Count</th>
               <th class='text-left'>Following Count</th>
               <th class='text-left'>Chat Block Count</th>
+              <th class='text-left'>Has Profile Picture</th>
               <th class='text-left'>Audius Impersonator</th>
             </tr>
           </thead>
@@ -421,6 +454,16 @@ app.get('/attestation/ui/user', async (c) => {
                 }
               >
                 {userScore.chatBlockCount}
+              </td>
+              <td
+                class={
+                  !userScore.hasProfilePicture
+                    ? 'text-red-500'
+                    : 'text-green-500'
+                }
+              >
+                {userScore.hasProfilePicture.toString()}{' '}
+                {!userScore.hasProfilePicture ? '(-100)' : ''}
               </td>
               <td
                 class={
