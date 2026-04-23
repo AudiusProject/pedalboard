@@ -353,6 +353,21 @@ export type FanRemixContestWinnersSelectedNotification = {
   entity_user_id: number
 }
 
+export type RemixContestUpdateNotification = {
+  event_id: number
+  entity_id: number
+  entity_user_id: number
+  comment_id: number
+}
+
+export type FanRemixContestSubmissionNotification = {
+  event_id: number
+  entity_id: number
+  entity_user_id: number
+  submission_track_id: number
+  submitter_user_id: number
+}
+
 export type ArtistRemixContestEndingSoonNotification = {
   entity_id: number
   entity_user_id: number
@@ -412,6 +427,8 @@ export type NotificationData =
   | ArtistRemixContestEndingSoonNotification
   | ArtistRemixContestSubmissionsNotification
   | FanClubTextPostNotification
+  | RemixContestUpdateNotification
+  | FanRemixContestSubmissionNotification
 
 export class RequiresRetry extends Error {
   constructor(message: string) {

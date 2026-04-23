@@ -49,7 +49,9 @@ import {
   ArtistRemixContestEndingSoonNotification,
   ArtistRemixContestSubmissionsNotification,
   FanRemixContestWinnersSelectedNotification,
-  FanClubTextPostNotification
+  FanClubTextPostNotification,
+  RemixContestUpdateNotification,
+  FanRemixContestSubmissionNotification
 } from '../../types/notifications'
 import { ApproveManagerRequest } from './approveManagerRequest'
 import { Follow } from './follow'
@@ -95,6 +97,8 @@ import { ArtistRemixContestEndingSoon } from './artistRemixContestEndingSoon'
 import { ArtistRemixContestSubmissions } from './artistRemixContestSubmissions'
 import { FanClubTextPost } from './fanClubTextPost'
 import { FanRemixContestWinnersSelected } from './fanRemixContestWinnersSelected'
+import { FanRemixContestSubmission } from './fanRemixContestSubmission'
+import { RemixContestUpdate } from './remixContestUpdate'
 
 export const mapNotifications = (
   notifications: (NotificationRow | EmailNotification)[],
@@ -403,6 +407,20 @@ const mapNotification = (
       data: FanClubTextPostNotification
     }
     return new FanClubTextPost(dnDb, identityDb, fanClubTextPostNotification)
+  } else if (notification.type == 'remix_contest_update') {
+    const remixContestUpdateNotif = notification as NotificationRow & {
+      data: RemixContestUpdateNotification
+    }
+    return new RemixContestUpdate(dnDb, identityDb, remixContestUpdateNotif)
+  } else if (notification.type == 'fan_remix_contest_submission') {
+    const fanRemixContestSubmissionNotif = notification as NotificationRow & {
+      data: FanRemixContestSubmissionNotification
+    }
+    return new FanRemixContestSubmission(
+      dnDb,
+      identityDb,
+      fanRemixContestSubmissionNotif
+    )
   }
   logger.info(`Notification type: ${notification.type} has no handler`)
 }
