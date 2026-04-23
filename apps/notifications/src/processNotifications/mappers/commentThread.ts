@@ -1,5 +1,5 @@
 import { Knex } from 'knex'
-import { NotificationRow, TrackRow, UserRow } from '../../types/dn'
+import { NotificationRow, PlaylistRow, TrackRow, UserRow } from '../../types/dn'
 import {
   AppEmailNotification,
   CommentThreadNotification
@@ -63,9 +63,57 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
         const { title } = track
         entityType = 'track'
         entityName = title
-        // Get track's cover art URL for rich notification (150x150 size)
         if (track?.cover_art_sizes) {
           imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+        }
+      }
+    } else if (
+      this.entityType === EntityType.Playlist ||
+      this.entityType === EntityType.Album
+    ) {
+      const [playlist] = await this.dnDB
+        .select(
+          'playlist_id',
+          'playlist_name',
+          'is_album',
+          'playlist_image_sizes_multihash'
+        )
+        .from<PlaylistRow>('playlists')
+        .where('is_current', true)
+        .where('playlist_id', this.entityId)
+
+      if (playlist) {
+        entityType = playlist.is_album ? 'album' : 'playlist'
+        entityName = playlist.playlist_name
+        if (playlist.playlist_image_sizes_multihash) {
+          imageUrl = formatImageUrl(
+            playlist.playlist_image_sizes_multihash,
+            150
+          )
+        }
+      }
+    } else if (this.entityType === EntityType.Event) {
+      // Comment is on a contest. `entity_id` is the event_id; the underlying
+      // track is events.entity_id. Mirror that two-hop lookup here so we can
+      // surface the contest's track title and cover art.
+      const event = await this.dnDB
+        .select('entity_id')
+        .from('events')
+        .where('event_id', this.entityId)
+        .first()
+      const contestTrackId: number | undefined = event?.entity_id
+      if (contestTrackId) {
+        const [track] = await this.dnDB
+          .select('track_id', 'title', 'cover_art_sizes')
+          .from<TrackRow>('tracks')
+          .where('is_current', true)
+          .where('track_id', contestTrackId)
+        if (track) {
+          entityType = 'contest'
+          entityName = track.title
+          if (track.cover_art_sizes) {
+            imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+          }
         }
       }
     }
@@ -155,7 +203,7 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
                 id: `timestamp:${timestamp}:group_id:${this.notification.group_id}`,
                 userIds: [this.commenterUserId],
                 type: 'CommentThread',
-                entityType: 'Track',
+                entityType: this.notification.data.type,
                 entityId: this.entityId,
                 commentId: this.notification.data.comment_id
               },
@@ -192,8 +240,17 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
 
   getResourcesForEmail(): ResourceIds {
     const tracks = new Set<number>()
+    const playlists = new Set<number>()
+    const events = new Set<number>()
     if (this.entityType === EntityType.Track) {
       tracks.add(this.entityId)
+    } else if (
+      this.entityType === EntityType.Playlist ||
+      this.entityType === EntityType.Album
+    ) {
+      playlists.add(this.entityId)
+    } else if (this.entityType === EntityType.Event) {
+      events.add(this.entityId)
     }
 
     return {
@@ -202,7 +259,9 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
         this.commenterUserId,
         this.entityUserId
       ]),
-      tracks
+      tracks,
+      playlists,
+      events
     }
   }
 
@@ -221,6 +280,23 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
         type: EntityType.Track,
         name: track.title,
         imageUrl: track.imageUrl
+      }
+    } else if (
+      this.entityType === EntityType.Playlist ||
+      this.entityType === EntityType.Album
+    ) {
+      const playlist = resources.playlists[this.entityId]
+      entity = {
+        type: playlist.is_album ? EntityType.Album : EntityType.Playlist,
+        name: playlist.playlist_name,
+        imageUrl: playlist.imageUrl
+      }
+    } else if (this.entityType === EntityType.Event) {
+      const event = resources.events[this.entityId]
+      entity = {
+        type: EntityType.Event,
+        name: event?.title ?? '',
+        imageUrl: event?.imageUrl
       }
     }
     return {

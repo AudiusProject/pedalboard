@@ -885,6 +885,40 @@ export const createCommentReactions = async (
     .into('comment_reactions')
 }
 
+type CreateEvent = {
+  event_id: number
+  user_id: number
+  event_type?: string
+  entity_type?: string | null
+  entity_id?: number | null
+  event_data?: object
+  is_deleted?: boolean
+  end_date?: Date | null
+  blocknumber?: number
+}
+
+export const createEvents = async (db: Knex, events: CreateEvent[]) => {
+  await db
+    .insert(
+      events.map((event) => ({
+        event_id: event.event_id,
+        event_type: event.event_type ?? 'remix_contest',
+        user_id: event.user_id,
+        entity_type: event.entity_type ?? 'track',
+        entity_id: event.entity_id ?? null,
+        event_data: event.event_data ?? {},
+        is_deleted: event.is_deleted ?? false,
+        end_date: event.end_date ?? null,
+        created_at: new Date(Date.now()),
+        updated_at: new Date(Date.now()),
+        txhash: `0x${event.event_id}`,
+        blockhash: `0x${event.event_id}`,
+        blocknumber: event.blocknumber ?? 0
+      }))
+    )
+    .into('events')
+}
+
 export type UserWithDevice = {
   userId: number
   name: string
