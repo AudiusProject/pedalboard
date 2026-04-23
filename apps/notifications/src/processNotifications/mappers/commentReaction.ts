@@ -1,5 +1,5 @@
 import { Knex } from 'knex'
-import { NotificationRow, TrackRow, UserRow } from '../../types/dn'
+import { NotificationRow, PlaylistRow, TrackRow, UserRow } from '../../types/dn'
 import {
   AppEmailNotification,
   CommentReactionNotification
@@ -63,9 +63,33 @@ export class CommentReaction extends BaseNotification<CommentReactionNotificatio
         const { title } = track
         entityType = 'track'
         entityName = title
-        // Get track's cover art URL for rich notification (150x150 size)
         if (track?.cover_art_sizes) {
           imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+        }
+      }
+    } else if (
+      this.entityType === EntityType.Playlist ||
+      this.entityType === EntityType.Album
+    ) {
+      const [playlist] = await this.dnDB
+        .select(
+          'playlist_id',
+          'playlist_name',
+          'is_album',
+          'playlist_image_sizes_multihash'
+        )
+        .from<PlaylistRow>('playlists')
+        .where('is_current', true)
+        .where('playlist_id', this.entityId)
+
+      if (playlist) {
+        entityType = playlist.is_album ? 'album' : 'playlist'
+        entityName = playlist.playlist_name
+        if (playlist.playlist_image_sizes_multihash) {
+          imageUrl = formatImageUrl(
+            playlist.playlist_image_sizes_multihash,
+            150
+          )
         }
       }
     }
@@ -153,7 +177,7 @@ export class CommentReaction extends BaseNotification<CommentReactionNotificatio
                 id: `timestamp:${timestamp}:group_id:${this.notification.group_id}`,
                 userIds: [this.reacterUserId],
                 type: 'CommentReaction',
-                entityType: 'Track',
+                entityType: this.notification.data.type,
                 entityId: this.entityId,
                 entityUserId: this.entityUserId,
                 commentId: this.notification.data.comment_id
@@ -191,8 +215,14 @@ export class CommentReaction extends BaseNotification<CommentReactionNotificatio
 
   getResourcesForEmail(): ResourceIds {
     const tracks = new Set<number>()
+    const playlists = new Set<number>()
     if (this.entityType === EntityType.Track) {
       tracks.add(this.entityId)
+    } else if (
+      this.entityType === EntityType.Playlist ||
+      this.entityType === EntityType.Album
+    ) {
+      playlists.add(this.entityId)
     }
 
     return {
@@ -201,7 +231,8 @@ export class CommentReaction extends BaseNotification<CommentReactionNotificatio
         this.reacterUserId,
         this.entityUserId
       ]),
-      tracks
+      tracks,
+      playlists
     }
   }
 
@@ -220,6 +251,16 @@ export class CommentReaction extends BaseNotification<CommentReactionNotificatio
         type: EntityType.Track,
         name: track.title,
         imageUrl: track.imageUrl
+      }
+    } else if (
+      this.entityType === EntityType.Playlist ||
+      this.entityType === EntityType.Album
+    ) {
+      const playlist = resources.playlists[this.entityId]
+      entity = {
+        type: playlist.is_album ? EntityType.Album : EntityType.Playlist,
+        name: playlist.playlist_name,
+        imageUrl: playlist.imageUrl
       }
     }
     return {

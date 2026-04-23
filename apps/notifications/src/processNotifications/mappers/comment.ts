@@ -1,5 +1,5 @@
 import { Knex } from 'knex'
-import { NotificationRow, TrackRow, UserRow } from '../../types/dn'
+import { NotificationRow, PlaylistRow, TrackRow, UserRow } from '../../types/dn'
 import {
   AppEmailNotification,
   CommentNotification
@@ -70,11 +70,20 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
     }
 
     const commenterUserName = users[this.commenterUserId]?.name
-    let entityType
-    let entityName
+    let entityType: string | undefined
+    let entityName: string | undefined
+    let imageUrl: string | undefined
     let tracks: Record<
       number,
       { title: string; cover_art_sizes?: string | null }
+    > = {}
+    let playlists: Record<
+      number,
+      {
+        playlist_name: string
+        is_album: boolean
+        playlist_image_sizes_multihash?: string | null
+      }
     > = {}
 
     if (this.entityType === EntityType.Track) {
@@ -95,8 +104,47 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
         return acc
       }, {} as Record<number, { title: string; cover_art_sizes?: string | null }>)
 
+      const track = tracks[this.entityId]
       entityType = 'track'
-      entityName = tracks[this.entityId]?.title
+      entityName = track?.title
+      if (track?.cover_art_sizes) {
+        imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+      }
+    } else if (
+      this.entityType === EntityType.Playlist ||
+      this.entityType === EntityType.Album
+    ) {
+      const res: Array<{
+        playlist_id: number
+        playlist_name: string
+        is_album: boolean
+        playlist_image_sizes_multihash?: string | null
+      }> = await this.dnDB
+        .select(
+          'playlist_id',
+          'playlist_name',
+          'is_album',
+          'playlist_image_sizes_multihash'
+        )
+        .from<PlaylistRow>('playlists')
+        .where('is_current', true)
+        .whereIn('playlist_id', [this.entityId])
+      playlists = res.reduce((acc, playlist) => {
+        acc[playlist.playlist_id] = {
+          playlist_name: playlist.playlist_name,
+          is_album: playlist.is_album,
+          playlist_image_sizes_multihash:
+            playlist.playlist_image_sizes_multihash
+        }
+        return acc
+      }, {} as Record<number, { playlist_name: string; is_album: boolean; playlist_image_sizes_multihash?: string | null }>)
+
+      const playlist = playlists[this.entityId]
+      entityType = playlist?.is_album ? 'album' : 'playlist'
+      entityName = playlist?.playlist_name
+      if (playlist?.playlist_image_sizes_multihash) {
+        imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 150)
+      }
     }
 
     // Get the user's notification setting from identity service
@@ -106,16 +154,7 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
     )
 
     const title = 'New Comment'
-    const body = `${commenterUserName} commented on your ${entityType.toLowerCase()} ${entityName}`
-
-    // Get track's cover art URL for rich notification (150x150 size)
-    let imageUrl: string | undefined
-    if (this.entityType === EntityType.Track) {
-      const track = tracks[this.entityId]
-      imageUrl = track?.cover_art_sizes
-        ? formatImageUrl(track.cover_art_sizes, 150)
-        : undefined
-    }
+    const body = `${commenterUserName} commented on your ${entityType?.toLowerCase()} ${entityName}`
 
     if (
       userNotificationSettings.isNotificationTypeBrowserEnabled(
@@ -166,7 +205,7 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
                 id: `timestamp:${timestamp}:group_id:${this.notification.group_id}`,
                 userIds: [this.commenterUserId],
                 type: 'Comment',
-                entityType: 'Track',
+                entityType: this.notification.data.type,
                 entityId: this.entityId,
                 commentId: this.notification.data.comment_id
               },
@@ -203,13 +242,20 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
 
   getResourcesForEmail(): ResourceIds {
     const tracks = new Set<number>()
+    const playlists = new Set<number>()
     if (this.entityType === EntityType.Track) {
       tracks.add(this.entityId)
+    } else if (
+      this.entityType === EntityType.Playlist ||
+      this.entityType === EntityType.Album
+    ) {
+      playlists.add(this.entityId)
     }
 
     return {
       users: new Set([this.receiverUserId, this.commenterUserId]),
-      tracks
+      tracks,
+      playlists
     }
   }
 
@@ -228,6 +274,16 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
         type: EntityType.Track,
         name: track.title,
         imageUrl: track.imageUrl
+      }
+    } else if (
+      this.entityType === EntityType.Playlist ||
+      this.entityType === EntityType.Album
+    ) {
+      const playlist = resources.playlists[this.entityId]
+      entity = {
+        type: playlist.is_album ? EntityType.Album : EntityType.Playlist,
+        name: playlist.playlist_name,
+        imageUrl: playlist.imageUrl
       }
     }
     return {
