@@ -154,6 +154,14 @@ export const getEntity = (entity: Entity) => {
         <HighlightText text={entity.name} />{' '}
       </>
     )
+  } else if (entity.type === EntityType.Event) {
+    return (
+      <>
+        {' '}
+        <BodyText text={'contest '} />
+        <HighlightText text={entity.name} />{' '}
+      </>
+    )
   }
 }
 

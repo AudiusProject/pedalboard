@@ -919,8 +919,12 @@ export enum challengetype {
   'trending' = 'trending'
 }
 
+// `comments.entity_type` is a TEXT column (no postgres enum exists) — these
+// are the literal strings the discovery-provider indexer writes. Keep this in
+// sync with FAN_CLUB_ENTITY_TYPE / EVENT_ENTITY_TYPE / EntityType.TRACK in
+// discovery-provider/src/tasks/entity_manager/entities/comment.py.
 export enum commenttype {
   'track' = 'Track',
-  'playlist' = 'Playlist',
-  'album' = 'Album'
+  'fanClub' = 'FanClub',
+  'event' = 'Event'
 }

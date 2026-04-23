@@ -28,6 +28,7 @@ export type ResourceIds = {
   users?: Set<number>
   tracks?: Set<number>
   playlists?: Set<number>
+  events?: Set<number>
 }
 
 type UserResource = {
@@ -76,10 +77,25 @@ type TrackResourcesDict = {
 type PlaylistResourcesDict = {
   [userId: number]: PlaylistResource & { imageUrl: string }
 }
+type EventResource = {
+  event_id: number
+  // The track the contest is attached to. We hydrate this so email
+  // notifications for comments on contests can render the contest's track
+  // title and cover art the same way Track-comment notifications do.
+  track_id: number | null
+  title: string | null
+  cover_art_sizes: string | null
+  cover_art: string | null
+  creator_node_endpoint: string | null
+}
+type EventResourcesDict = {
+  [eventId: number]: EventResource & { imageUrl: string }
+}
 export type Resources = {
   users: UserResourcesDict
   tracks: TrackResourcesDict
   playlists: PlaylistResourcesDict
+  events: EventResourcesDict
 }
 
 // TODO: Fill out defaults
@@ -237,7 +253,58 @@ export const fetchResources = async (
     return acc
   }, {} as { [playlistId: number]: PlaylistResource & { imageUrl: string } })
 
-  return { users, tracks, playlists }
+  const eventRows: EventResource[] = []
+  const eventIds = Array.from(ids.events ?? [])
+  for (const batch of inBatches(eventIds, BATCH_SIZE)) {
+    const rows = await dnDb
+      .select(
+        'events.event_id',
+        { track_id: 'tracks.track_id' },
+        'tracks.title',
+        'tracks.cover_art_sizes',
+        'tracks.cover_art',
+        'users.creator_node_endpoint'
+      )
+      .from('events')
+      .leftJoin('tracks', function () {
+        this.on('tracks.track_id', '=', 'events.entity_id').andOn(
+          'tracks.is_current',
+          '=',
+          dnDb.raw('true')
+        )
+      })
+      .leftJoin('users', function () {
+        this.on('users.user_id', '=', 'tracks.owner_id').andOn(
+          'users.is_current',
+          '=',
+          dnDb.raw('true')
+        )
+      })
+      .whereIn('events.event_id', batch)
+    eventRows.push(...rows)
+  }
+  const events = eventRows.reduce((acc, event) => {
+    acc[event.event_id] = {
+      ...event,
+      imageUrl: event.title
+        ? getTrackCoverArt({
+            track_id: event.track_id ?? 0,
+            title: event.title,
+            owner_id: 0,
+            cover_art: event.cover_art ?? '',
+            cover_art_sizes: event.cover_art_sizes ?? '',
+            stream_conditions: {},
+            creator_node_endpoint: event.creator_node_endpoint ?? '',
+            slug: '',
+            ownerName: '',
+            ownerCreatorNodeEndpoint: ''
+          })
+        : DEFAULT_TRACK_COVER_ART_URL
+    }
+    return acc
+  }, {} as { [eventId: number]: EventResource & { imageUrl: string } })
+
+  return { users, tracks, playlists, events }
 }
 
 /**
@@ -259,7 +326,8 @@ const getNotificationProps = async (
   const idsToFetch: ResourceIds = {
     users: new Set(),
     tracks: new Set(),
-    playlists: new Set()
+    playlists: new Set(),
+    events: new Set()
   }
 
   const mappedNotifications: BaseNotification<any>[] = mapNotifications(

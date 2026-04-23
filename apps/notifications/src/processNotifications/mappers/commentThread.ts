@@ -92,6 +92,30 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
           )
         }
       }
+    } else if (this.entityType === EntityType.Event) {
+      // Comment is on a contest. `entity_id` is the event_id; the underlying
+      // track is events.entity_id. Mirror that two-hop lookup here so we can
+      // surface the contest's track title and cover art.
+      const event = await this.dnDB
+        .select('entity_id')
+        .from('events')
+        .where('event_id', this.entityId)
+        .first()
+      const contestTrackId: number | undefined = event?.entity_id
+      if (contestTrackId) {
+        const [track] = await this.dnDB
+          .select('track_id', 'title', 'cover_art_sizes')
+          .from<TrackRow>('tracks')
+          .where('is_current', true)
+          .where('track_id', contestTrackId)
+        if (track) {
+          entityType = 'contest'
+          entityName = track.title
+          if (track.cover_art_sizes) {
+            imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+          }
+        }
+      }
     }
 
     const users = await this.dnDB
@@ -217,6 +241,7 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
   getResourcesForEmail(): ResourceIds {
     const tracks = new Set<number>()
     const playlists = new Set<number>()
+    const events = new Set<number>()
     if (this.entityType === EntityType.Track) {
       tracks.add(this.entityId)
     } else if (
@@ -224,6 +249,8 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
       this.entityType === EntityType.Album
     ) {
       playlists.add(this.entityId)
+    } else if (this.entityType === EntityType.Event) {
+      events.add(this.entityId)
     }
 
     return {
@@ -233,7 +260,8 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
         this.entityUserId
       ]),
       tracks,
-      playlists
+      playlists,
+      events
     }
   }
 
@@ -262,6 +290,13 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
         type: playlist.is_album ? EntityType.Album : EntityType.Playlist,
         name: playlist.playlist_name,
         imageUrl: playlist.imageUrl
+      }
+    } else if (this.entityType === EntityType.Event) {
+      const event = resources.events[this.entityId]
+      entity = {
+        type: EntityType.Event,
+        name: event?.title ?? '',
+        imageUrl: event?.imageUrl
       }
     }
     return {
