@@ -4,3 +4,7 @@ local-config.json
 file_storage
 local-storage
 build
+*.env
+**/*.env
+*.env.*
+**/*.env.*
