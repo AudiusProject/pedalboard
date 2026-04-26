@@ -9,9 +9,7 @@ export const configureWebPush = () => {
     publicKey: process.env.BROWSER_PUSH_VAPID_PUBLIC_KEY,
     privateKey: process.env.BROWSER_PUSH_VAPID_PRIVATE_KEY
   }
-  const browserPushGCMAPIKey = process.env.BROWSER_PUSH_GCM_API_KEY
-  if (vapidKeys.publicKey && vapidKeys.privateKey && browserPushGCMAPIKey) {
-    webpush.setGCMAPIKey(browserPushGCMAPIKey)
+  if (vapidKeys.publicKey && vapidKeys.privateKey) {
     webpush.setVapidDetails(
       'mailto:contact@audius.co', // taken from identity
       vapidKeys.publicKey,
