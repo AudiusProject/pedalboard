@@ -1,17 +1,11 @@
 import {
   AntiAbuseOracleSelector,
   Configuration,
-  DiscoveryNodeSelector,
   SolanaRelayWalletAdapter,
   SolanaClient,
   SolanaRelay,
-  sdk
+  createSdkWithServices
 } from '@audius/sdk'
-
-const makeDiscoveryNodeSelector = (allowlist?: string[]) =>
-  new DiscoveryNodeSelector({
-    allowlist: allowlist ? new Set(allowlist) : undefined
-  })
 
 const makeAAOSelector = () =>
   new AntiAbuseOracleSelector({
@@ -52,13 +46,15 @@ const makeSolanaClient = (
 }
 
 export const audiusSdk = ({
+  apiKey,
+  apiSecret,
   environment,
-  discoveryNodeAllowlist,
   solanaRpcEndpoint,
   solanaRelayNode
 }: {
-  environment: 'development' | 'staging' | 'production'
-  discoveryNodeAllowlist?: string[]
+  apiKey: string
+  apiSecret: string
+  environment: 'development' | 'production'
   solanaRpcEndpoint?: string
   solanaRelayNode: string
 }) => {
@@ -66,11 +62,12 @@ export const audiusSdk = ({
   const solanaClient = solanaRpcEndpoint
     ? makeSolanaClient(solanaRelay, solanaRpcEndpoint)
     : undefined
-  return sdk({
+  return createSdkWithServices({
     appName: 'trending-challenge-rewards',
+    apiKey,
+    apiSecret,
     environment,
     services: {
-      discoveryNodeSelector: makeDiscoveryNodeSelector(discoveryNodeAllowlist),
       solanaRelay,
       solanaClient,
       antiAbuseOracleSelector: makeAAOSelector()
