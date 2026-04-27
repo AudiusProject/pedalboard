@@ -4,6 +4,9 @@ import { SharedData, initSharedData } from './config'
 import { disburseTrendingRewards } from './rewards'
 import { establishSlackConnection } from './slack'
 import { announceTopFiveTrending } from './trending'
+import { startHealthServer } from './healthServer'
+
+const DEFAULT_PORT = 6000
 
 const onDemandRun = async (app: App<SharedData>) => {
   // Run on demand only if runNow is true
@@ -17,8 +20,14 @@ const onDemandRun = async (app: App<SharedData>) => {
 
 export const main = async () => {
   const data = await initSharedData()
+  const port = process.env.port
+    ? parseInt(process.env.port, 10)
+    : DEFAULT_PORT
 
   await new App<SharedData>({ appData: data })
+    .task(async () => {
+      await startHealthServer(port)
+    })
     .task(establishSlackConnection)
     .task(onDemandRun)
     .run()
