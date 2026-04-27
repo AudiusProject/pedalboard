@@ -37,24 +37,24 @@ export const initSharedData = async (): Promise<SharedData> => {
 
   sharedData = {
     sdk: audiusSdk({
-      apiKey: process.env.trending_rewards_api_key!,
-      apiSecret: process.env.trending_rewards_api_secret!,
-      environment: process.env.environment as
+      apiKey: process.env.TRENDING_REWARDS_API_KEY!,
+      apiSecret: process.env.TRENDING_REWARDS_API_SECRET!,
+      environment: process.env.ENVIRONMENT as
         | 'development'
         | 'production',
-      solanaRpcEndpoint: process.env.solana_rpc_endpoint,
-      solanaRelayNode: process.env.solana_relay_node!
+      solanaRpcEndpoint: process.env.SOLANA_RPC_ENDPOINT,
+      solanaRelayNode: process.env.SOLANA_RELAY_NODE!
     }),
     apiEndpoint: getApiEndpoint(
-      process.env.environment as 'development' | 'production'
+      process.env.ENVIRONMENT as 'development' | 'production'
     ),
-    runNow: process.env.run_now?.toLowerCase() === 'true',
-    dryRun: process.env.tcr_dry_run?.toLowerCase() === 'true',
-    audiusDbUrl: process.env.audius_db_url!,
-    slackChannel: process.env.slack_channel,
-    slackSigningSecret: process.env.slack_signing_secret,
-    slackBotToken: process.env.slack_bot_token,
-    slackAppToken: process.env.slack_app_token
+    runNow: process.env.RUN_NOW?.toLowerCase() === 'true',
+    dryRun: process.env.TCR_DRY_RUN?.toLowerCase() === 'true',
+    audiusDbUrl: process.env.AUDIUS_DB_URL!,
+    slackChannel: process.env.SLACK_CHANNEL,
+    slackSigningSecret: process.env.SLACK_SIGNING_SECRET,
+    slackBotToken: process.env.SLACK_BOT_TOKEN,
+    slackAppToken: process.env.SLACK_APP_TOKEN
   }
   return sharedData
 }
