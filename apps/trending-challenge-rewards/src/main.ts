@@ -1,27 +1,33 @@
 import cron from 'node-cron'
 import { App } from '@pedalboard/basekit'
-import { createLogger } from '@pedalboard/logger'
 import { SharedData, initSharedData } from './config'
 import { disburseTrendingRewards } from './rewards'
 import { establishSlackConnection } from './slack'
 import { announceTopFiveTrending } from './trending'
+import { startHealthServer } from './healthServer'
 
-const logger = createLogger('trending-challenge-rewards')
+const DEFAULT_PORT = 6000
 
 const onDemandRun = async (app: App<SharedData>) => {
   // Run on demand only if runNow is true
   const { runNow } = app.viewAppData()
   if (runNow) {
     // Uncomment to also announce to slack
-    // await announceTopFiveTrending(app)
+    await announceTopFiveTrending(app)
     await disburseTrendingRewards(app)
   }
 }
 
 export const main = async () => {
   const data = await initSharedData()
+  const port = process.env.port
+    ? parseInt(process.env.port, 10)
+    : DEFAULT_PORT
 
   await new App<SharedData>({ appData: data })
+    .task(async () => {
+      await startHealthServer(port)
+    })
     .task(establishSlackConnection)
     .task(onDemandRun)
     .run()
@@ -39,10 +45,10 @@ cron.schedule(
         return data
       })
       announceTopFiveTrending(appData).catch((e) =>
-        logger.error({ err: e }, 'Announcement failed')
+        console.error('Announcement failed: ', e)
       )
       disburseTrendingRewards(appData).catch((e) =>
-        logger.error({ err: e }, 'Disbursment failed')
+        console.error('Disbursment failed: ', e)
       )
     })
   },
