@@ -70,7 +70,6 @@ npm run docker:archiver            # Build archiver
 - `archiver`
 - `staking`
 - `trending-challenge-rewards`
-- `mri`
 - `relay`
 - `solana-relay`
 - `sla-auditor`
