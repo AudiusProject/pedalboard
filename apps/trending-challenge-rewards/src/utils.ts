@@ -4,8 +4,8 @@ import {
 } from '@pedalboard/basekit'
 import { Err, Ok, Result } from 'ts-results'
 
-export const identityDb = initializeIdentityDb()
-export const discoveryDb = initializeDiscoveryDb()
+export const identityDb = initializeIdentityDb(process.env.IDENTITY_DB_URL)
+export const discoveryDb = initializeDiscoveryDb(process.env.AUDIUS_DB_URL)
 
 /// catches possibles errors and converts them to an appropriate result type
 /// this is useful when using a library that may throw and you want to catch it safely
