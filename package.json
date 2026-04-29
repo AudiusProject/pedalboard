@@ -22,7 +22,6 @@
     "docker:archiver": "./scripts/docker.sh archiver",
     "docker:staking": "./scripts/docker.sh staking",
     "docker:trending-challenge-rewards": "./scripts/docker.sh trending-challenge-rewards",
-    "docker:mri": "./scripts/docker.sh mri",
     "docker:relay": "./scripts/docker.sh relay",
     "docker:solana-relay": "./scripts/docker.sh solana-relay",
     "docker:sla-auditor": "./scripts/docker.sh sla-auditor",
