@@ -3,13 +3,9 @@ import {
   Configuration,
   SolanaRelayWalletAdapter,
   SolanaClient,
-  SolanaRelay
+  SolanaRelay,
+  sdk
 } from '@audius/sdk'
-// 14.1.0 doesn't re-export createSdkWithServices from the root; pulled from
-// the deep path. Pinning to 14.1.0 because 15.x switched main → ESM and the
-// SDK's `import { pick, uniqBy } from 'lodash'` breaks under Node 22's strict
-// ESM-CJS interop. Bump back to ^15 once the SDK ships a Node-safe ESM build.
-import { createSdkWithServices } from '@audius/sdk/dist/sdk/createSdkWithServices'
 
 const makeAAOSelector = () =>
   new AntiAbuseOracleSelector({
@@ -50,14 +46,10 @@ const makeSolanaClient = (
 }
 
 export const audiusSdk = ({
-  apiKey,
-  apiSecret,
   environment,
   solanaRpcEndpoint,
   solanaRelayNode
 }: {
-  apiKey: string
-  apiSecret: string
   environment: 'development' | 'production'
   solanaRpcEndpoint?: string
   solanaRelayNode: string
@@ -66,10 +58,8 @@ export const audiusSdk = ({
   const solanaClient = solanaRpcEndpoint
     ? makeSolanaClient(solanaRelay, solanaRpcEndpoint)
     : undefined
-  return createSdkWithServices({
+  return sdk({
     appName: 'trending-challenge-rewards',
-    apiKey,
-    apiSecret,
     environment,
     services: {
       solanaRelay,
