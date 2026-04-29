@@ -20,8 +20,8 @@ const onDemandRun = async (app: App<SharedData>) => {
 
 export const main = async () => {
   const data = await initSharedData()
-  const port = process.env.PORT
-    ? parseInt(process.env.PORT, 10)
+  const port = process.env.port
+    ? parseInt(process.env.port, 10)
     : DEFAULT_PORT
 
   await new App<SharedData>({ appData: data })
