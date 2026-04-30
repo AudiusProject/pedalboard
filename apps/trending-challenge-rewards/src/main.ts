@@ -3,7 +3,7 @@ import { App } from '@pedalboard/basekit'
 import { SharedData, initSharedData } from './config'
 import { disburseTrendingRewards } from './rewards'
 import { establishSlackConnection } from './slack'
-import { announceTopFiveTrending } from './trending'
+import { announceTopTrending } from './trending'
 import { startHealthServer } from './healthServer'
 
 const DEFAULT_PORT = 6000
@@ -13,7 +13,7 @@ const onDemandRun = async (app: App<SharedData>) => {
   const { runNow } = app.viewAppData()
   if (runNow) {
     // Uncomment to also announce to slack
-    await announceTopFiveTrending(app)
+    await announceTopTrending(app)
     await disburseTrendingRewards(app)
   }
 }
@@ -44,7 +44,7 @@ cron.schedule(
         data.dryRun = false
         return data
       })
-      announceTopFiveTrending(appData).catch((e) =>
+      announceTopTrending(appData).catch((e) =>
         console.error('Announcement failed: ', e)
       )
       disburseTrendingRewards(appData).catch((e) =>
