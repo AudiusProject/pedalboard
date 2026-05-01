@@ -107,7 +107,7 @@ export const queryHandles = async (
     )
     const twitterHandle = twitterHandles.find(
       (handle) =>
-        handle.handle === userHandle.handle && handle.twitter_handle !== null
+        handle.handle === userHandle.handle && !!handle.twitter_handle
     )
     if (twitterHandle === undefined)
       handleMap.set(userId, `@/${userHandle.handle}`)
