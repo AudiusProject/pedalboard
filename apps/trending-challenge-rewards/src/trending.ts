@@ -12,7 +12,7 @@ enum TrendingTypes {
 }
 
 type TrendingEntry = {
-  handle: string // twitter or discovery
+  handle: string // instagram or discovery
   rank: number
 }
 
@@ -96,8 +96,8 @@ export const queryHandles = async (
     .select('handle', 'blockchainUserId')
     .whereIn('blockchainUserId', blockchainUserIds)
   const handles = userHandles.map((handle) => handle.handle)
-  const twitterHandles = await discoveryDb<Users>(Table.Users)
-    .select('handle', 'twitter_handle')
+  const instagramHandles = await discoveryDb<Users>(Table.Users)
+    .select('handle', 'instagram_handle')
     .whereIn('handle', handles)
     .andWhere('is_current', true)
   const handleMap = new Map<number, string>()
@@ -105,14 +105,14 @@ export const queryHandles = async (
     const userHandle = userHandles.find(
       (handle) => handle.blockchainUserId === userId
     )
-    const twitterHandle = twitterHandles.find(
+    const instagramHandle = instagramHandles.find(
       (handle) =>
-        handle.handle === userHandle.handle && !!handle.twitter_handle
+        handle.handle === userHandle.handle && !!handle.instagram_handle
     )
-    if (twitterHandle === undefined)
+    if (instagramHandle === undefined)
       handleMap.set(userId, `@/${userHandle.handle}`)
     else {
-      handleMap.set(userId, `@${twitterHandle.twitter_handle}`)
+      handleMap.set(userId, `@${instagramHandle.instagram_handle}`)
     }
   }
   return handleMap
