@@ -103,34 +103,45 @@ export const onDisburse = async (
       let retries = totalRetries
       while (retries > 0) {
         try {
-          if (!dryRun) {
+          if (dryRun) {
+            // Dry run: log what would have been claimed and move on without
+            // hitting the SDK or retrying.
             console.log(
-              'Claiming reward for challengeId = ',
+              'Dry run, would claim reward for challengeId = ',
               challengeId,
               'specifier = ',
               challenge.specifier,
               'amount = ',
               challenge.amount
             )
-            res = await sdk.rewards.claimRewards({
-              reward: {
-                challengeId,
-                userId: challenge.user_id,
-                specifier: challenge.specifier
-              }
-            })
-            if (res?.data?.[0]?.error) {
-              if (
-                res.data[0].error.includes('failed to get oracle attestation')
-              ) {
-                // If the error is because the attestation failed, break
-                break
-              }
-              throw new Error(res.data[0].error)
-            }
-            console.log('res = ', res)
-            break // Success - exit retry loop
+            break
           }
+          console.log(
+            'Claiming reward for challengeId = ',
+            challengeId,
+            'specifier = ',
+            challenge.specifier,
+            'amount = ',
+            challenge.amount
+          )
+          res = await sdk.rewards.claimRewards({
+            reward: {
+              challengeId,
+              userId: challenge.user_id,
+              specifier: challenge.specifier
+            }
+          })
+          if (res?.data?.[0]?.error) {
+            if (
+              res.data[0].error.includes('failed to get oracle attestation')
+            ) {
+              // If the error is because the attestation failed, break
+              break
+            }
+            throw new Error(res.data[0].error)
+          }
+          console.log('res = ', res)
+          break // Success - exit retry loop
         } catch (e) {
           console.error(
             `Error claiming reward, challengeId = ${challengeId}, attempt ${totalRetries - retries + 1} of ${totalRetries}, error = `,
