@@ -16,7 +16,9 @@ import {
 } from './actionLog'
 import { logger } from 'hono/logger'
 import { config } from './config'
-import { SolanaUtils, Utils } from '@audius/sdk'
+import { encodeHashId } from '@audius/sdk'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { SolanaUtils } = require('@audius/sdk-legacy/dist/libs')
 import bn from 'bn.js'
 import { userFingerprints } from './identity'
 import { cors } from 'hono/cors'
@@ -362,7 +364,7 @@ app.get('/attestation/ui/user', async (c) => {
                 </a>
               </div>
               <div>{user.id}</div>
-              <div>{Utils.encodeHashId(user.id)}</div>
+              <div>{encodeHashId(user.id)}</div>
               {user.isVerified && <div class='badge'>Verified</div>}
             </div>
             <div class='flex gap-2 mt-2 items-center'>

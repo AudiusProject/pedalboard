@@ -19,15 +19,17 @@ export const main = async () => {
 
   const audiusSdk = sdk({
     appName: 'experimentalDiscoveryRelay',
-    apiKey,
-    apiSecret,
-    environment: 'staging'
+    apiKey: apiKey!,
+    apiSecret: apiSecret!,
+    environment: 'production',
+    apiEndpoint: 'https://discoveryprovider.staging.audius.co'
   })
   const { data } = await audiusSdk.users.getUserByHandle({
     handle: 'totallynotalec'
   })
   const userId = data?.id!
-  const res = await audiusSdk.users.updateProfile({
+  const res = await audiusSdk.users.updateUser({
+    id: userId,
     userId,
     metadata: {
       bio: `identity has no reigns on me ${new Date().getTime()}`
