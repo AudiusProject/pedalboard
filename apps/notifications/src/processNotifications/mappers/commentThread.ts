@@ -64,7 +64,7 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
         entityType = 'track'
         entityName = title
         if (track?.cover_art_sizes) {
-          imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+          imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
         }
       }
     } else if (
@@ -88,7 +88,7 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
         if (playlist.playlist_image_sizes_multihash) {
           imageUrl = formatImageUrl(
             playlist.playlist_image_sizes_multihash,
-            150
+            1000
           )
         }
       }
@@ -112,7 +112,7 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
           entityType = 'contest'
           entityName = track.title
           if (track.cover_art_sizes) {
-            imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+            imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
           }
         }
       }

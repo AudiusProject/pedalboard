@@ -35,7 +35,7 @@ export class ArtistRemixContestEnded extends BaseNotification<ArtistRemixContest
       return
     }
 
-    // Fetch track's cover art URL for rich notification (150x150 size)
+    // Fetch track's cover art URL for rich notification (1000x1000 size)
     let imageUrl: string | undefined
     const trackRes: Array<{
       track_id: number
@@ -48,7 +48,7 @@ export class ArtistRemixContestEnded extends BaseNotification<ArtistRemixContest
       .whereIn('track_id', [this.notification.data.entity_id])
     const track = trackRes[0]
     if (track?.cover_art_sizes) {
-      imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+      imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
     }
 
     const userNotificationSettings = await buildUserNotificationSettings(

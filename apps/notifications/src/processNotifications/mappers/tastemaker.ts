@@ -106,10 +106,10 @@ export class Tastemaker extends BaseNotification<TastemakerNotificationRow> {
     const title = `You're a Tastemaker!`
     const body = `${entityName} is now trending thanks to you! Great work 🙌`
 
-    // Get track's cover art URL for rich notification (150x150 size)
+    // Get track's cover art URL for rich notification (1000x1000 size)
     let imageUrl: string | undefined
     if (track?.cover_art_sizes) {
-      imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+      imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
     }
 
     await sendBrowserNotification(

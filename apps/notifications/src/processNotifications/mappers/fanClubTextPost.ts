@@ -78,7 +78,7 @@ export class FanClubTextPost extends BaseNotification<FanClubTextPostRow> {
     if (userMap[entityUserId]?.profile_picture_sizes) {
       imageUrl = formatImageUrl(
         userMap[entityUserId].profile_picture_sizes!,
-        150
+        1000
       )
     }
 

@@ -68,9 +68,9 @@ export class RemixContestUpdate extends BaseNotification<RemixContestUpdateRow> 
 
     let imageUrl: string | undefined
     if (track?.cover_art_sizes) {
-      imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+      imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
     } else if (hostRes[0]?.profile_picture_sizes) {
-      imageUrl = formatImageUrl(hostRes[0].profile_picture_sizes, 150)
+      imageUrl = formatImageUrl(hostRes[0].profile_picture_sizes, 1000)
     }
 
     const userNotificationSettings = await buildUserNotificationSettings(

@@ -42,7 +42,7 @@ export class FanRemixContestStarted extends BaseNotification<FanRemixContestStar
       .whereIn('user_id', [this.notification.data.entity_user_id])
     const artistName = artistRes[0]?.name ?? ''
 
-    // Fetch track name and cover art URL for rich notification (150x150 size)
+    // Fetch track name and cover art URL for rich notification (1000x1000 size)
     const trackRes: Array<{
       track_id: number
       title: string
@@ -57,7 +57,7 @@ export class FanRemixContestStarted extends BaseNotification<FanRemixContestStar
 
     let imageUrl: string | undefined
     if (track?.cover_art_sizes) {
-      imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+      imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
     }
 
     const userNotificationSettings = await buildUserNotificationSettings(
