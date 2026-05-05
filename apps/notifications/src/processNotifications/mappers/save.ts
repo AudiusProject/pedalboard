@@ -88,10 +88,10 @@ export class Save extends BaseNotification<SaveNotificationRow> {
 
       entityType = 'track'
       entityName = tracks[this.saveItemId]?.title
-      // Get track's cover art URL for rich notification (150x150 size)
+      // Get track's cover art URL for rich notification (1000x1000 size)
       const track = tracks[this.saveItemId]
       if (track?.cover_art_sizes) {
-        imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+        imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
       }
     } else {
       const res: Array<{
@@ -121,9 +121,9 @@ export class Save extends BaseNotification<SaveNotificationRow> {
       const playlist = playlists[this.saveItemId]
       entityType = playlist?.is_album ? 'album' : 'playlist'
       entityName = playlist?.playlist_name
-      // Get playlist's image URL for rich notification (150x150 size)
+      // Get playlist's image URL for rich notification (1000x1000 size)
       if (playlist?.playlist_image_sizes_multihash) {
-        imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 150)
+        imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 1000)
       }
     }
 

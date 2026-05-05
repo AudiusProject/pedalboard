@@ -38,7 +38,7 @@ export class ArtistRemixContestSubmissions extends BaseNotification<ArtistRemixC
       return
     }
 
-    // Fetch track name and cover art URL for rich notification (150x150 size)
+    // Fetch track name and cover art URL for rich notification (1000x1000 size)
     const trackRes: Array<{
       track_id: number
       title: string
@@ -53,7 +53,7 @@ export class ArtistRemixContestSubmissions extends BaseNotification<ArtistRemixC
 
     let imageUrl: string | undefined
     if (track?.cover_art_sizes) {
-      imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+      imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
     }
 
     const {

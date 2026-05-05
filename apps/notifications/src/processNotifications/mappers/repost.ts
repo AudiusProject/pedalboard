@@ -88,9 +88,9 @@ export class Repost extends BaseNotification<RepostNotificationRow> {
         cover_art_sizes?: string
       }
       entityName = track?.title
-      // Get track's cover art URL for rich notification (150x150 size)
+      // Get track's cover art URL for rich notification (1000x1000 size)
       if (track?.cover_art_sizes) {
-        imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+        imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
       }
     } else {
       const playlist = entities[this.repostItemId] as {
@@ -100,9 +100,9 @@ export class Repost extends BaseNotification<RepostNotificationRow> {
       }
       entityType = playlist?.is_album ? EntityType.Album : EntityType.Playlist
       entityName = playlist?.playlist_name
-      // Get playlist's image URL for rich notification (150x150 size)
+      // Get playlist's image URL for rich notification (1000x1000 size)
       if (playlist?.playlist_image_sizes_multihash) {
-        imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 150)
+        imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 1000)
       }
     }
 

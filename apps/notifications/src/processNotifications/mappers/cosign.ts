@@ -94,11 +94,11 @@ export class CosignRemix extends BaseNotification<CosignRemixNotificationRow> {
     const title = 'New Track Co-Sign! 🔥'
     const body = `${parentTrackUserName} Co-Signed your Remix of ${remixTrackTitle}`
 
-    // Get track's cover art URL for rich notification (150x150 size)
+    // Get track's cover art URL for rich notification (1000x1000 size)
     let imageUrl: string | undefined
     const track = tracks[this.trackId]
     if (track?.cover_art_sizes) {
-      imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+      imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
     }
 
     await sendBrowserNotification(

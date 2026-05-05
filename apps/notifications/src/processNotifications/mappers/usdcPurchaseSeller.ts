@@ -124,10 +124,10 @@ export class USDCPurchaseSeller extends BaseNotification<USDCPurchaseSellerRow> 
       users[this.notificationReceiverUserId]?.profile_picture_sizes
     const price = this.totalAmount
 
-    // Get content's image URL for rich notification (150x150 size)
+    // Get content's image URL for rich notification (1000x1000 size)
     let imageUrl: string | undefined
     if (cover_art_sizes) {
-      imageUrl = formatImageUrl(cover_art_sizes, 150)
+      imageUrl = formatImageUrl(cover_art_sizes, 1000)
     }
 
     await sendBrowserNotification(

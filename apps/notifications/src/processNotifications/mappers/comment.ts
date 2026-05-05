@@ -108,7 +108,7 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
       entityType = 'track'
       entityName = track?.title
       if (track?.cover_art_sizes) {
-        imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+        imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
       }
     } else if (
       this.entityType === EntityType.Playlist ||
@@ -143,7 +143,7 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
       entityType = playlist?.is_album ? 'album' : 'playlist'
       entityName = playlist?.playlist_name
       if (playlist?.playlist_image_sizes_multihash) {
-        imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 150)
+        imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 1000)
       }
     } else if (this.entityType === EntityType.Event) {
       // Comment is on a contest. `entity_id` is the event_id; the underlying
@@ -165,7 +165,7 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
           entityType = 'contest'
           entityName = track.title
           if (track.cover_art_sizes) {
-            imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+            imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
           }
         }
       }

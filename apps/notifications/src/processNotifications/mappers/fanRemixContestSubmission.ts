@@ -62,9 +62,9 @@ export class FanRemixContestSubmission extends BaseNotification<FanRemixContestS
 
     let imageUrl: string | undefined
     if (submission?.cover_art_sizes) {
-      imageUrl = formatImageUrl(submission.cover_art_sizes, 150)
+      imageUrl = formatImageUrl(submission.cover_art_sizes, 1000)
     } else if (track?.cover_art_sizes) {
-      imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+      imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
     }
 
     const userNotificationSettings = await buildUserNotificationSettings(

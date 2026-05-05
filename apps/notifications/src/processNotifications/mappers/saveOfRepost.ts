@@ -103,7 +103,7 @@ export class SaveOfRepost extends BaseNotification<SaveOfRepostNotificationRow> 
       if (tracks[this.saveOfRepostItemId]?.cover_art_sizes) {
         imageUrl = formatImageUrl(
           tracks[this.saveOfRepostItemId].cover_art_sizes!,
-          150
+          1000
         )
       }
     } else {
@@ -137,7 +137,7 @@ export class SaveOfRepost extends BaseNotification<SaveOfRepostNotificationRow> 
 
       // Generate image URL for playlist/album artwork
       if (playlist?.playlist_image_sizes_multihash) {
-        imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 150)
+        imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 1000)
       }
     }
 

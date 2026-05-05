@@ -104,10 +104,10 @@ export class AddTrackToPlaylist extends BaseNotification<AddTrackToPlaylistNotif
     const title = 'Your track got on a playlist! 💿'
     const body = `${playlistOwnerName} added ${trackTitle} to their playlist ${playlistName}`
 
-    // Get playlist's image URL for rich notification (150x150 size)
+    // Get playlist's image URL for rich notification (1000x1000 size)
     let imageUrl: string | undefined
     if (playlist?.playlist_image_sizes_multihash) {
-      imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 150)
+      imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 1000)
     }
 
     await sendBrowserNotification(

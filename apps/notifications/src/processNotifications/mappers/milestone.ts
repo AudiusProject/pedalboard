@@ -129,10 +129,10 @@ export class Milestone extends BaseNotification<MilestoneRow> {
       }, {} as Record<number, { title: string; cover_art_sizes?: string | null }>)
 
       entityName = tracks[id]?.title
-      // Get track's cover art URL for rich notification (150x150 size)
+      // Get track's cover art URL for rich notification (1000x1000 size)
       const track = tracks[id]
       if (track?.cover_art_sizes) {
-        imageUrl = formatImageUrl(track.cover_art_sizes, 150)
+        imageUrl = formatImageUrl(track.cover_art_sizes, 1000)
       }
     } else if (
       this.type === MilestoneType.PLAYLIST_REPOST_COUNT ||
@@ -166,9 +166,9 @@ export class Milestone extends BaseNotification<MilestoneRow> {
       const playlist = playlists[id]
       entityName = playlist?.playlist_name
       isAlbum = playlist?.is_album
-      // Get playlist's image URL for rich notification (150x150 size)
+      // Get playlist's image URL for rich notification (1000x1000 size)
       if (playlist?.playlist_image_sizes_multihash) {
-        imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 150)
+        imageUrl = formatImageUrl(playlist.playlist_image_sizes_multihash, 1000)
       }
     }
 
