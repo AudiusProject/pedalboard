@@ -16,6 +16,7 @@ import {
 } from './userNotificationSettings'
 import { sendBrowserNotification } from '../../web'
 import { disableDeviceArns } from '../../utils/disableArnEndpoint'
+import { logger } from '../../logger'
 
 type ChallengeRewardRow = Omit<NotificationRow, 'data'> & {
   data: ChallengeRewardNotification
@@ -26,7 +27,7 @@ export class ChallengeReward extends BaseNotification<ChallengeRewardRow> {
   specifier: string
   challengeId: ChallengeId
 
-  challengeInfoMap = {
+  challengeInfoMap: Record<string, { title: string; amount?: number }> = {
     p: {
       title: '✅️ Complete your Profile',
       amount: 1
@@ -73,6 +74,15 @@ export class ChallengeReward extends BaseNotification<ChallengeRewardRow> {
     w: {
       title: '🏆 Remix Contest Winner',
       amount: 1000
+    },
+    cs: {
+      title: '🎚️ Co-signed Remix'
+    },
+    s: {
+      title: '💸 Sell to Earn'
+    },
+    b: {
+      title: '🛒 Spend to Earn'
     }
   }
 
@@ -134,7 +144,14 @@ export class ChallengeReward extends BaseNotification<ChallengeRewardRow> {
       [this.receiverUserId]
     )
 
-    const title = this.challengeInfoMap[this.challengeId].title
+    const challengeInfo = this.challengeInfoMap[this.challengeId]
+    if (!challengeInfo) {
+      logger.warn(
+        `ChallengeReward: unknown challengeId ${this.challengeId} for receiver ${this.receiverUserId}`
+      )
+      return
+    }
+    const title = challengeInfo.title
     const body = this.getPushBodyText()
     await sendBrowserNotification(
       isBrowserPushEnabled,

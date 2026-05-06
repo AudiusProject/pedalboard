@@ -151,12 +151,12 @@ export class UserNotificationSettings {
     )
   }
 
-  getDevices(userId: number) {
-    return this.mobile?.[userId].devices
+  getDevices(userId: number): Device[] {
+    return this.mobile?.[userId]?.devices ?? []
   }
 
   getBadgeCount(userId: number) {
-    return this.mobile[userId].badgeCount
+    return this.mobile?.[userId]?.badgeCount ?? 0
   }
 
   getUserEmail(userId: number) {
