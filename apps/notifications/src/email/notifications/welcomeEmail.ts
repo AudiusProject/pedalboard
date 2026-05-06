@@ -7,6 +7,17 @@ import {
 } from './preRendered/welcome'
 import { sendTransactionalEmail } from './sendEmail'
 
+// Node 18+ exposes `fetch` as a global (apps/notifications/Dockerfile
+// pins `node:18.16-alpine`), but @types/node@17.0.29 in this workspace
+// doesn't type it yet. Declare the slice we actually use here rather
+// than pulling `lib: ["dom"]` into every file in the service.
+declare const fetch: (input: string) => Promise<{
+  ok: boolean
+  status: number
+  statusText: string
+  json: () => Promise<unknown>
+}>
+
 // Default REST endpoint to fetch trending tracks for the "Featured on
 // Audius" section. Override via DISCOVERY_PROVIDER_URL when running
 // against a custom DN. The template is null-safe per slot, so a
