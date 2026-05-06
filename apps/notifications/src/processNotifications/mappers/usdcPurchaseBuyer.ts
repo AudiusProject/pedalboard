@@ -188,7 +188,9 @@ export class USDCPurchaseBuyer extends BaseNotification<USDCPurchaseBuyerRow> {
         total: this.totalAmount,
         vendor: this.vendor
       }),
-      subject: 'Thank you for your purchase!'
+      subject: 'Thank you for your purchase!',
+      // Money-movement confirmation — never sample.
+      bypassSampling: true
     })
   }
 
