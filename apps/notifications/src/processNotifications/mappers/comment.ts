@@ -70,8 +70,14 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
     }
 
     const commenterUserName = users[this.commenterUserId]?.name
-    let entityType: string | undefined
-    let entityName: string | undefined
+    // Default so a missing entity row never produces "commented on your
+    // undefined undefined" — the notification still reads cleanly even when
+    // the track / playlist / event row can't be resolved (e.g. deleted).
+    let entityType: string =
+      this.entityType === EntityType.Event
+        ? 'contest'
+        : (this.entityType?.toLowerCase() ?? 'post')
+    let entityName: string = ''
     let imageUrl: string | undefined
     let tracks: Record<
       number,
@@ -178,7 +184,9 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
     )
 
     const title = 'New Comment'
-    const body = `${commenterUserName} commented on your ${entityType?.toLowerCase()} ${entityName}`
+    const body = `${commenterUserName} commented on your ${entityType.toLowerCase()}${
+      entityName ? ` ${entityName}` : ''
+    }`
 
     if (
       userNotificationSettings.isNotificationTypeBrowserEnabled(

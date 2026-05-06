@@ -48,8 +48,14 @@ export class CommentReaction extends BaseNotification<CommentReactionNotificatio
     isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
   }) {
-    let entityType: string
-    let entityName: string
+    // Default to safe values so a missing track / event lookup never renders
+    // "liked your comment on their undefined undefined" — the notification
+    // body still reads cleanly when the entity row can't be resolved.
+    let entityType: string =
+      this.entityType === EntityType.Event
+        ? 'contest'
+        : (this.entityType?.toLowerCase() ?? 'post')
+    let entityName: string = ''
     let imageUrl: string | undefined
 
     if (this.entityType === EntityType.Track) {
@@ -145,13 +151,19 @@ export class CommentReaction extends BaseNotification<CommentReactionNotificatio
     )
 
     const title = 'New Reaction'
-    const body = `${users[this.reacterUserId]?.name} liked your comment on ${
+    const possessor =
       this.entityUserId === this.receiverUserId
         ? 'your'
         : this.entityUserId === this.reacterUserId
         ? 'their'
         : `${users[this.entityUserId]?.name}'s`
-    } ${entityType?.toLowerCase()} ${entityName}`
+    // Trim trailing whitespace when entityName is empty (entity lookup failed)
+    // so the message ends cleanly instead of "… their contest ".
+    const body = `${
+      users[this.reacterUserId]?.name
+    } liked your comment on ${possessor} ${entityType.toLowerCase()}${
+      entityName ? ` ${entityName}` : ''
+    }`
     if (
       userNotificationSettings.isNotificationTypeBrowserEnabled(
         this.receiverUserId,

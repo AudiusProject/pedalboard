@@ -211,13 +211,22 @@ const snippetMap = {
   },
   ['comment_reaction'](notification) {
     const [user] = notification.users
-    return `${user.name} liked your comment on ${
+    const possessor =
       notification.entityUser.user_id === notification.receiverUserId
         ? 'your'
         : notification.entityUser.user_id === user.user_id
         ? 'their'
         : `${notification.entityUser.name}'s`
-    } ${notification.entity.type.toLowerCase()} ${notification.entity.name}`
+    // entity.type is 'Track' | 'Album' | 'Playlist' | 'Event'; for events
+    // surface "contest" instead of "event" and tolerate a missing entity row.
+    const rawEntityType =
+      notification.entity?.type === 'Event'
+        ? 'contest'
+        : notification.entity?.type?.toLowerCase() ?? 'post'
+    const entityName = notification.entity?.name ?? ''
+    return `${user.name} liked your comment on ${possessor} ${rawEntityType}${
+      entityName ? ` ${entityName}` : ''
+    }`
   }
 }
 
