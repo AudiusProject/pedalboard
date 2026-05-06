@@ -183,41 +183,73 @@ const snippetMap = {
   },
   ['comment'](notification) {
     const [user] = notification.users
-    return `${
-      user.name
-    } commented on your ${notification.entity.type.toLowerCase()} ${
-      notification.entity.name
+    // entity.type is 'Track' | 'Album' | 'Playlist' | 'Event'; for events
+    // surface "contest" instead of "event" and tolerate a missing entity row.
+    const rawEntityType =
+      notification.entity?.type === 'Event'
+        ? 'contest'
+        : notification.entity?.type?.toLowerCase() ?? 'post'
+    const entityName = notification.entity?.name ?? ''
+    return `${user.name} commented on your ${rawEntityType}${
+      entityName ? ` ${entityName}` : ''
     }`
   },
   ['comment_thread'](notification) {
     const [user] = notification.users
-    return `${user.name} replied to your comment on ${
+    const possessor =
       notification.entityUser.user_id === notification.receiverUserId
         ? 'your'
         : notification.entityUser.user_id === user.user_id
         ? 'their'
         : `${notification.entityUser.name}'s`
-    } ${notification.entity.type.toLowerCase()} ${notification.entity.name}`
+    const rawEntityType =
+      notification.entity?.type === 'Event'
+        ? 'contest'
+        : notification.entity?.type?.toLowerCase() ?? 'post'
+    const entityName = notification.entity?.name ?? ''
+    return `${
+      user.name
+    } replied to your comment on ${possessor} ${rawEntityType}${
+      entityName ? ` ${entityName}` : ''
+    }`
   },
   ['comment_mention'](notification) {
     const [user] = notification.users
-    return `${user.name} tagged you in a comment on ${
+    const possessor =
       notification.entityUser.user_id === notification.receiverUserId
         ? 'your'
         : notification.entityUser.user_id === user.user_id
         ? 'their'
         : `${notification.entityUser.name}'s`
-    } ${notification.entity.type.toLowerCase()} ${notification.entity.name}`
+    const rawEntityType =
+      notification.entity?.type === 'Event'
+        ? 'contest'
+        : notification.entity?.type?.toLowerCase() ?? 'post'
+    const entityName = notification.entity?.name ?? ''
+    return `${
+      user.name
+    } tagged you in a comment on ${possessor} ${rawEntityType}${
+      entityName ? ` ${entityName}` : ''
+    }`
   },
   ['comment_reaction'](notification) {
     const [user] = notification.users
-    return `${user.name} liked your comment on ${
+    const possessor =
       notification.entityUser.user_id === notification.receiverUserId
         ? 'your'
         : notification.entityUser.user_id === user.user_id
         ? 'their'
         : `${notification.entityUser.name}'s`
-    } ${notification.entity.type.toLowerCase()} ${notification.entity.name}`
+    // entity.type is 'Track' | 'Album' | 'Playlist' | 'Event'; for events
+    // surface "contest" instead of "event" and tolerate a missing entity row.
+    const rawEntityType =
+      notification.entity?.type === 'Event'
+        ? 'contest'
+        : notification.entity?.type?.toLowerCase() ?? 'post'
+    const entityName = notification.entity?.name ?? ''
+    return `${user.name} liked your comment on ${possessor} ${rawEntityType}${
+      entityName ? ` ${entityName}` : ''
+    }`
   }
 }
 

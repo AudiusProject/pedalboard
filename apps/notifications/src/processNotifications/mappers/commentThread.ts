@@ -48,8 +48,15 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
     isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
   }) {
-    let entityType: string
-    let entityName: string
+    // Default so a missing entity row never produces "replied to your comment
+    // on their undefined undefined" — the notification still reads cleanly
+    // even when the track / playlist / event row can't be resolved (e.g.
+    // deleted). Mirrors comment.ts and commentReaction.ts.
+    let entityType: string =
+      this.entityType === EntityType.Event
+        ? 'contest'
+        : this.entityType?.toLowerCase() ?? 'post'
+    let entityName = ''
     let imageUrl: string | undefined
 
     if (this.entityType === EntityType.Track) {
@@ -145,15 +152,19 @@ export class CommentThread extends BaseNotification<CommentThreadNotificationRow
     )
 
     const title = 'New Reply'
-    const body = `${
-      users[this.commenterUserId]?.name
-    } replied to your comment on ${
+    const possessor =
       this.entityUserId === this.receiverUserId
         ? 'your'
         : this.entityUserId === this.commenterUserId
         ? 'their'
         : `${users[this.entityUserId]?.name}'s`
-    } ${entityType?.toLowerCase()} ${entityName}`
+    // Trim trailing whitespace when entityName is empty (entity lookup failed)
+    // so the message ends cleanly instead of "… their contest ".
+    const body = `${
+      users[this.commenterUserId]?.name
+    } replied to your comment on ${possessor} ${entityType.toLowerCase()}${
+      entityName ? ` ${entityName}` : ''
+    }`
     if (
       userNotificationSettings.isNotificationTypeBrowserEnabled(
         this.receiverUserId,
