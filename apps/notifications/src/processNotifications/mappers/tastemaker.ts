@@ -17,6 +17,7 @@ import { sendNotificationEmail } from '../../email/notifications/sendEmail'
 import { disableDeviceArns } from '../../utils/disableArnEndpoint'
 import { capitalize } from 'lodash'
 import { formatImageUrl } from '../../utils/format'
+import { logger } from '../../logger'
 
 type TastemakerNotificationRow = Omit<NotificationRow, 'data'> & {
   data: TastemakerNotification
@@ -96,12 +97,16 @@ export class Tastemaker extends BaseNotification<TastemakerNotificationRow> {
       .whereIn('track_id', [this.tastemakerItemId])
       .first()
 
+    if (!track) {
+      logger.warn(
+        `Tastemaker: missing track ${this.tastemakerItemId} for receiver ${this.receiverUserId}`
+      )
+      return
+    }
+
     const entityName = track.title
     const entityId = track.track_id
     const entityType = 'track'
-    const devices: Device[] = userNotificationSettings.getDevices(
-      this.receiverUserId
-    )
 
     const title = `You're a Tastemaker!`
     const body = `${entityName} is now trending thanks to you! Great work 🙌`
@@ -126,6 +131,9 @@ export class Tastemaker extends BaseNotification<TastemakerNotificationRow> {
         receiverUserId: this.receiverUserId
       })
     ) {
+      const devices: Device[] = userNotificationSettings.getDevices(
+        this.receiverUserId
+      )
       const pushes = await Promise.all(
         devices.map((device) => {
           return sendPushNotification(

@@ -17,7 +17,15 @@ type RewardInCooldownRow = Omit<NotificationRow, 'data'> & {
   data: RewardInCooldownNotification
 }
 
-const challengeMessages = {
+const challengeMessages: Record<
+  string,
+  { title: string; description: string; imageUrl: string }
+> = {
+  o: {
+    title: 'Airdrop 2: Artist Appreciation',
+    description: 'Your airdrop reward is in cooldown.',
+    imageUrl: 'trophy.png'
+  },
   ft: {
     title: 'Send Your First Tip',
     description:
@@ -125,8 +133,21 @@ export class RewardInCooldown extends BaseNotification<RewardInCooldownRow> {
       [user.user_id]
     )
     const challengeMessage = challengeMessages[this.challengeId]
+    if (!challengeMessage) {
+      logger.warn(
+        `RewardInCooldown: unknown challengeId ${this.challengeId} for user ${this.userId}`
+      )
+      return
+    }
+    const recipientEmail = userNotificationSettings.getUserEmail(user.user_id)
+    if (!recipientEmail) {
+      logger.warn(
+        `RewardInCooldown: missing email for user ${this.userId}, skipping`
+      )
+      return
+    }
     await sendTransactionalEmail({
-      email: userNotificationSettings.getUserEmail(user.user_id),
+      email: recipientEmail,
       html: email({
         name: user.name,
         handle: user.handle,
