@@ -5,6 +5,7 @@ import { Server as HttpServer } from 'http'
 import { router as healthCheckRouter } from './routes/healthCheck'
 import { router as memStatsRouter } from './routes/memStats'
 import { createSendAnnouncementRouter } from './routes/sendAnnouncement'
+import { createSendWelcomeEmailRouter } from './routes/sendWelcomeEmail'
 
 const DEFAULT_PORT = 6000
 
@@ -26,6 +27,10 @@ export class Server {
       this.app.use(
         '/internal/send-announcement',
         createSendAnnouncementRouter(discoveryDb)
+      )
+      this.app.use(
+        '/internal/send-welcome-email',
+        createSendWelcomeEmailRouter(identityDb)
       )
     }
 
