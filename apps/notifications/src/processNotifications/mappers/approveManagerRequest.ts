@@ -2,10 +2,7 @@ import { Knex } from 'knex'
 import { ResourceIds, Resources } from '../../email/notifications/renderEmail'
 import { sendPushNotification } from '../../sns'
 import { NotificationRow } from '../../types/dn'
-import {
-  AppEmailNotification,
-  ApproveManagerNotification
-} from '../../types/notifications'
+import { ApproveManagerNotification } from '../../types/notifications'
 import { disableDeviceArns } from '../../utils/disableArnEndpoint'
 import { sendBrowserNotification } from '../../web'
 import { BaseNotification } from './base'
@@ -13,7 +10,6 @@ import {
   Device,
   buildUserNotificationSettings
 } from './userNotificationSettings'
-import { sendNotificationEmail } from '../../email/notifications/sendEmail'
 
 type ApproveManagerRow = Omit<NotificationRow, 'data'> & {
   data: ApproveManagerNotification
@@ -35,10 +31,8 @@ export class ApproveManagerRequest extends BaseNotification<ApproveManagerRow> {
   }
 
   async processNotification({
-    isLiveEmailEnabled,
     isBrowserPushEnabled
   }: {
-    isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
   }) {
     const users = await this.getUsersBasicInfo([
@@ -101,28 +95,6 @@ export class ApproveManagerRequest extends BaseNotification<ApproveManagerRow> {
 
       await disableDeviceArns(this.identityDB, pushes)
       await this.incrementBadgeCount(this.userId)
-    }
-
-    if (
-      isLiveEmailEnabled &&
-      userNotificationSettings.shouldSendEmailAtFrequency({
-        initiatorUserId: this.granteeUserId,
-        receiverUserId: this.userId,
-        frequency: 'live'
-      })
-    ) {
-      const notification: AppEmailNotification = {
-        receiver_user_id: this.userId,
-        ...this.notification
-      }
-      await sendNotificationEmail({
-        userId: this.userId,
-        email: userNotificationSettings.getUserEmail(this.userId),
-        frequency: 'live',
-        notifications: [notification],
-        dnDb: this.dnDB,
-        identityDb: this.identityDB
-      })
     }
   }
 

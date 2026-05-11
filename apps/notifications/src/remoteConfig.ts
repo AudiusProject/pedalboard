@@ -57,7 +57,6 @@ export enum MappingVariable {
 
 export const NotificationsEmailPlugin = 'notification_email_plugin'
 export const EmailPluginMappings = {
-  Live: 'live',
   Scheduled: 'scheduled'
 }
 
@@ -168,11 +167,6 @@ export class RemoteConfig {
       }
     }
 
-    const emailLiveRaw = this.optimizelyClient.getFeatureVariableBoolean(
-      NotificationsEmailPlugin,
-      EmailPluginMappings.Live,
-      ''
-    )
     const emailScheduledRaw = this.optimizelyClient.getFeatureVariableBoolean(
       NotificationsEmailPlugin,
       EmailPluginMappings.Scheduled,
@@ -198,15 +192,6 @@ export class RemoteConfig {
           discoveryNotificationMapping: pushVariables,
           pushTypesWithEffectiveEnabled: pushEnabledCount,
           notificationEmailPlugin: {
-            live: {
-              effectiveEnabled: Boolean(
-                this.getFeatureVariableEnabled(
-                  NotificationsEmailPlugin,
-                  EmailPluginMappings.Live
-                )
-              ),
-              optimizelyRaw: emailLiveRaw
-            },
             scheduled: {
               effectiveEnabled: Boolean(
                 this.getFeatureVariableEnabled(

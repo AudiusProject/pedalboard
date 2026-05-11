@@ -1,14 +1,10 @@
 import { Knex } from 'knex'
 import { NotificationRow, TrackRow, UserRow } from '../../types/dn'
-import {
-  AppEmailNotification,
-  TrendingTrackNotification
-} from '../../types/notifications'
+import { TrendingTrackNotification } from '../../types/notifications'
 import { BaseNotification } from './base'
 import { sendPushNotification } from '../../sns'
 import { ResourceIds, Resources } from '../../email/notifications/renderEmail'
 import { EntityType } from '../../email/notifications/types'
-import { sendNotificationEmail } from '../../email/notifications/sendEmail'
 import {
   buildUserNotificationSettings,
   Device
@@ -42,10 +38,8 @@ export class TrendingTrack extends BaseNotification<TrendingTrackNotificationRow
   }
 
   async processNotification({
-    isLiveEmailEnabled,
     isBrowserPushEnabled
   }: {
-    isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
   }) {
     const res: Array<{
@@ -151,29 +145,6 @@ export class TrendingTrack extends BaseNotification<TrendingTrackNotificationRow
       )
       await disableDeviceArns(this.identityDB, pushes)
       await this.incrementBadgeCount(notificationReceiverUserId)
-    }
-
-    if (
-      isLiveEmailEnabled &&
-      userNotificationSettings.shouldSendEmailAtFrequency({
-        receiverUserId: notificationReceiverUserId,
-        frequency: 'live'
-      })
-    ) {
-      const notification: AppEmailNotification = {
-        receiver_user_id: notificationReceiverUserId,
-        ...this.notification
-      }
-      await sendNotificationEmail({
-        userId: notificationReceiverUserId,
-        email: userNotificationSettings.getUserEmail(
-          notificationReceiverUserId
-        ),
-        frequency: 'live',
-        notifications: [notification],
-        dnDb: this.dnDB,
-        identityDb: this.identityDB
-      })
     }
   }
 

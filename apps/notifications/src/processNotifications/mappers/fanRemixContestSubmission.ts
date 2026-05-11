@@ -34,11 +34,12 @@ export class FanRemixContestSubmission extends BaseNotification<FanRemixContestS
       return
     }
 
-    const submitterRes: Array<{ user_id: number; name: string }> = await this.dnDB
-      .select('user_id', 'name')
-      .from('users')
-      .where('is_current', true)
-      .whereIn('user_id', [this.notification.data.submitter_user_id])
+    const submitterRes: Array<{ user_id: number; name: string }> =
+      await this.dnDB
+        .select('user_id', 'name')
+        .from('users')
+        .where('is_current', true)
+        .whereIn('user_id', [this.notification.data.submitter_user_id])
     const submitterName = submitterRes[0]?.name ?? 'Someone'
 
     const trackRes: Array<{

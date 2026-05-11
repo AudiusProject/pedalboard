@@ -170,7 +170,7 @@ export class UserNotificationSettings {
   getUserEmailFrequency(userId: number) {
     const emailSettings = this.email?.[userId]
     if (emailSettings === undefined) {
-      return 'live'
+      return 'daily'
     }
     return emailSettings.frequency
   }
@@ -193,6 +193,30 @@ export class UserNotificationSettings {
       !isInitiatorAbusive &&
       !userIsAbusive[receiverUserId] &&
       this.email?.[receiverUserId]?.frequency === frequency
+    )
+  }
+
+  // Announcements broadcast to every deliverable, non-abusive user whose
+  // emailFrequency is set and not 'off' — i.e. everyone who opted in to any
+  // unread-notification email cadence.
+  shouldSendEmail({
+    initiatorUserId,
+    receiverUserId
+  }: {
+    initiatorUserId?: number
+    receiverUserId: number
+  }) {
+    const { userIsAbusive } = this
+    const isInitiatorAbusive = initiatorUserId
+      ? userIsAbusive[initiatorUserId]
+      : false
+    const frequency = this.email?.[receiverUserId]?.frequency
+    return (
+      this.userIsEmailDeliverable[receiverUserId] &&
+      !isInitiatorAbusive &&
+      !userIsAbusive[receiverUserId] &&
+      frequency !== undefined &&
+      frequency !== 'off'
     )
   }
 

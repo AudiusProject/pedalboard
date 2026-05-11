@@ -44,12 +44,15 @@ export class RemixContestUpdate extends BaseNotification<RemixContestUpdateRow> 
           .first()
       )?.entity_id
 
-    const hostRes: Array<{ user_id: number; name: string; profile_picture_sizes: string | null }> =
-      await this.dnDB
-        .select('user_id', 'name', 'profile_picture_sizes')
-        .from('users')
-        .where('is_current', true)
-        .whereIn('user_id', [this.notification.data.entity_user_id])
+    const hostRes: Array<{
+      user_id: number
+      name: string
+      profile_picture_sizes: string | null
+    }> = await this.dnDB
+      .select('user_id', 'name', 'profile_picture_sizes')
+      .from('users')
+      .where('is_current', true)
+      .whereIn('user_id', [this.notification.data.entity_user_id])
     const hostName = hostRes[0]?.name ?? ''
 
     const trackRes: Array<{

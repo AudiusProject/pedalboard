@@ -7,7 +7,7 @@ import Notification from './notifications/Notification'
 const AudiusImage = () => {
   return (
     <img
-      src="https://gallery.mailchimp.com/f351897a27ff0a641b8acd9ab/images/b1070e55-9487-4acb-abce-e755484cce46.png"
+      src="https://download.audius.co/static-resources/email/grayLogoHorizontal.png"
       style={{ maxWidth: '240px', margin: '27px auto' }}
       alt="Audius Logo"
     />

@@ -26,10 +26,8 @@ export class MessageReaction extends BaseNotification<DMReactionNotification> {
   }
 
   async processNotification({
-    isLiveEmailEnabled,
     isBrowserPushEnabled
   }: {
-    isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
   }) {
     const res: Array<{

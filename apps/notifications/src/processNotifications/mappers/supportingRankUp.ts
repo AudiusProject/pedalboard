@@ -1,13 +1,9 @@
 import { Knex } from 'knex'
 import { NotificationRow, UserRow } from '../../types/dn'
-import {
-  AppEmailNotification,
-  SupportingRankUpNotification
-} from '../../types/notifications'
+import { SupportingRankUpNotification } from '../../types/notifications'
 import { BaseNotification } from './base'
 import { sendPushNotification } from '../../sns'
 import { ResourceIds, Resources } from '../../email/notifications/renderEmail'
-import { sendNotificationEmail } from '../../email/notifications/sendEmail'
 import {
   buildUserNotificationSettings,
   Device
@@ -36,10 +32,8 @@ export class SupportingRankUp extends BaseNotification<SupportingRankUpNotificat
   }
 
   async processNotification({
-    isLiveEmailEnabled,
     isBrowserPushEnabled
   }: {
-    isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
   }) {
     const res: Array<{
@@ -118,27 +112,6 @@ export class SupportingRankUp extends BaseNotification<SupportingRankUpNotificat
       )
       await disableDeviceArns(this.identityDB, pushes)
       await this.incrementBadgeCount(this.senderUserId)
-    }
-
-    if (
-      isLiveEmailEnabled &&
-      userNotificationSettings.shouldSendEmailAtFrequency({
-        receiverUserId: this.senderUserId,
-        frequency: 'live'
-      })
-    ) {
-      const notification: AppEmailNotification = {
-        receiver_user_id: this.senderUserId,
-        ...this.notification
-      }
-      await sendNotificationEmail({
-        userId: this.senderUserId,
-        email: userNotificationSettings.getUserEmail(this.senderUserId),
-        frequency: 'live',
-        notifications: [notification],
-        dnDb: this.dnDB,
-        identityDb: this.identityDB
-      })
     }
   }
 
