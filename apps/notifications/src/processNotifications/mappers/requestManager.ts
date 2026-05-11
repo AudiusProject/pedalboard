@@ -37,7 +37,6 @@ export class RequestManager extends BaseNotification<RequestManagerRow> {
   async processNotification({
     isBrowserPushEnabled
   }: {
-    isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
   }) {
     const users = await this.getUsersBasicInfo([

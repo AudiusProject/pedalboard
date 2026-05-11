@@ -116,27 +116,27 @@ const getUserProfileUrl = (user: UserResource) => {
 }
 
 const getTrackCoverArt = (track: TrackResource) => {
-  const primaryEndpoint = track.creator_node_endpoint?.split(',')[0]?.trim()
-  if (!primaryEndpoint) return DEFAULT_TRACK_COVER_ART_URL
-  let coverArtUrl = DEFAULT_TRACK_COVER_ART_URL
+  // Match getUserProfileUrl: when the owner's creator_node_endpoint is missing
+  // we still want a working URL, so fall back to the stable CN gateway.
+  const primaryEndpoint =
+    track.creator_node_endpoint?.split(',')[0]?.trim() || getContentNode()
   if (track.cover_art_sizes) {
-    coverArtUrl = `${primaryEndpoint}/content/${track.cover_art_sizes}/1000x1000.jpg`
+    return `${primaryEndpoint}/content/${track.cover_art_sizes}/1000x1000.jpg`
   } else if (track.cover_art) {
-    coverArtUrl = `${primaryEndpoint}/content/${track.cover_art}`
+    return `${primaryEndpoint}/content/${track.cover_art}`
   }
-  return coverArtUrl
+  return DEFAULT_TRACK_COVER_ART_URL
 }
 
 const getPlaylistImage = (playlist: PlaylistResource) => {
-  const primaryEndpoint = playlist.creator_node_endpoint?.split(',')[0]?.trim()
-  if (!primaryEndpoint) return DEFAULT_PLAYLIST_IMAGE_URL
-  let playlistImageUrl = DEFAULT_PLAYLIST_IMAGE_URL
+  const primaryEndpoint =
+    playlist.creator_node_endpoint?.split(',')[0]?.trim() || getContentNode()
   if (playlist.playlist_image_sizes_multihash) {
-    playlistImageUrl = `${primaryEndpoint}/content/${playlist.playlist_image_sizes_multihash}/1000x1000.jpg`
+    return `${primaryEndpoint}/content/${playlist.playlist_image_sizes_multihash}/1000x1000.jpg`
   } else if (playlist.playlist_image_multihash) {
-    playlistImageUrl = `${primaryEndpoint}/content/${playlist.playlist_image_multihash}`
+    return `${primaryEndpoint}/content/${playlist.playlist_image_multihash}`
   }
-  return playlistImageUrl
+  return DEFAULT_PLAYLIST_IMAGE_URL
 }
 
 const BATCH_SIZE = 100

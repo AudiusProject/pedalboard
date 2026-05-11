@@ -1,9 +1,6 @@
 import { Knex } from 'knex'
 import { NotificationRow, TrackRow, UserRow } from '../../types/dn'
-import {
-  AppEmailNotification,
-  TastemakerNotification
-} from '../../types/notifications'
+import { TastemakerNotification } from '../../types/notifications'
 import { BaseNotification } from './base'
 import { sendPushNotification } from '../../sns'
 import { ResourceIds, Resources } from '../../email/notifications/renderEmail'
@@ -13,7 +10,6 @@ import {
   Device
 } from './userNotificationSettings'
 import { sendBrowserNotification } from '../../web'
-import { sendNotificationEmail } from '../../email/notifications/sendEmail'
 import { disableDeviceArns } from '../../utils/disableArnEndpoint'
 import { capitalize } from 'lodash'
 import { formatImageUrl } from '../../utils/format'
@@ -50,10 +46,8 @@ export class Tastemaker extends BaseNotification<TastemakerNotificationRow> {
   }
 
   async processNotification({
-    isLiveEmailEnabled,
     isBrowserPushEnabled
   }: {
-    isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
   }) {
     const res: Array<{
@@ -162,27 +156,6 @@ export class Tastemaker extends BaseNotification<TastemakerNotificationRow> {
       )
       await disableDeviceArns(this.identityDB, pushes)
       await this.incrementBadgeCount(this.receiverUserId)
-    }
-
-    if (
-      isLiveEmailEnabled &&
-      userNotificationSettings.shouldSendEmailAtFrequency({
-        receiverUserId: this.receiverUserId,
-        frequency: 'live'
-      })
-    ) {
-      const notification: AppEmailNotification = {
-        receiver_user_id: this.receiverUserId,
-        ...this.notification
-      }
-      await sendNotificationEmail({
-        userId: this.receiverUserId,
-        email: userNotificationSettings.getUserEmail(this.receiverUserId),
-        frequency: 'live',
-        notifications: [notification],
-        dnDb: this.dnDB,
-        identityDb: this.identityDB
-      })
     }
   }
 

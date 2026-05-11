@@ -81,25 +81,7 @@ export const getUsersCanNotifyQuery = async (
         startOffset
       )
     })
-    .modify(function (queryBuilder: Knex.QueryBuilder) {
-      // This logic is to handle a 'live' frequency exception for message notifications so as to not spam users with
-      // live email notifications for every new message action.
-      // New messages/reactions do not trigger live email notifications but are included in existing live emails scheduled to go out.
-      // If a user with frequency='live' receives messages but no other notifications to trigger a live email since validLastEmailOffset,
-      // they'll receive a daily email with the message notifications.
-      // No other notification types for the live users since validLastEmailOffset should be included in the daily
-      // email because they would have triggered an email notification immediately.
-      if (frequency == 'daily') {
-        queryBuilder.where(function () {
-          this.where(
-            'UserNotificationSettings.emailFrequency',
-            frequency
-          ).orWhere('UserNotificationSettings.emailFrequency', 'live')
-        })
-      } else {
-        queryBuilder.where('UserNotificationSettings.emailFrequency', frequency)
-      }
-    })
+    .where('UserNotificationSettings.emailFrequency', frequency)
     .where('Users.blockchainUserId', '>', lastUser)
     .limit(pageCount)
     .orderBy('Users.blockchainUserId')
@@ -192,26 +174,7 @@ const getNotifications = async (
     return false
   })
 
-  // This logic is to handle a 'live' frequency exception for message notifications so as to not spam users with
-  // live email notifications for every new message action.
-  // New messages/reactions do not trigger live email notifications but are included in existing live emails scheduled to go out.
-  // If a user with frequency='live' receives messages but no other notifications to trigger a live email in the past day,
-  // they'll receive a daily email with the message notifications.
-  let messageUserIds: string[] | number[] = userIds
-  if (frequency == 'live') {
-    // Only query for unread messages and reactions for users with app notifications scheduled to go out in this live email.
-    if (appNotifications.length == 0) {
-      return appNotifications
-    }
-    const userIdsWithAppNotifications = appNotifications.reduce(
-      (acc, notification) => {
-        acc.push(notification.receiver_user_id)
-        return acc
-      },
-      [] as number[]
-    )
-    messageUserIds = userIdsWithAppNotifications
-  }
+  const messageUserIds: string[] | number[] = userIds
 
   const messageStartOffset = new Date(
     startOffset.valueOf() - config.dmNotificationDelay
@@ -473,7 +436,7 @@ const processGroupOfEmails = async (
               notifications,
               dnDb,
               identityDb,
-              sendAt: frequency !== 'live' ? sendAt : null
+              sendAt
             })
             if (!sent) {
               // sent could be undefined, in which case there was no email sending failure, rather the user had 0 email notifications to be sent

@@ -1,7 +1,6 @@
 import { Knex } from 'knex'
 import { NotificationRow, PlaylistRow, TrackRow, UserRow } from '../../types/dn'
 import {
-  AppEmailNotification,
   CreatePlaylistNotification,
   CreateTrackNotification,
   RequiresRetry
@@ -10,7 +9,6 @@ import { BaseNotification } from './base'
 import { sendPushNotification } from '../../sns'
 import { ResourceIds, Resources } from '../../email/notifications/renderEmail'
 import { EntityType } from '../../email/notifications/types'
-import { sendNotificationEmail } from '../../email/notifications/sendEmail'
 import { capitalize } from 'lodash'
 import {
   buildUserNotificationSettings,
@@ -68,11 +66,9 @@ export class Create extends BaseNotification<CreateNotificationRow> {
   }
 
   async processNotification({
-    isLiveEmailEnabled,
     isBrowserPushEnabled,
     getIsPushNotificationEnabled
   }: {
-    isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
     getIsPushNotificationEnabled: (type: string) => boolean
   }) {
@@ -231,28 +227,6 @@ export class Create extends BaseNotification<CreateNotificationRow> {
         )
         await disableDeviceArns(this.identityDB, pushes)
         await this.incrementBadgeCount(userId)
-      }
-
-      if (
-        isLiveEmailEnabled &&
-        userNotificationSettings.shouldSendEmailAtFrequency({
-          initiatorUserId: ownerId,
-          receiverUserId: userId,
-          frequency: 'live'
-        })
-      ) {
-        const notification: AppEmailNotification = {
-          receiver_user_id: userId,
-          ...this.notification
-        }
-        await sendNotificationEmail({
-          userId: userId,
-          email: userNotificationSettings.getUserEmail(userId),
-          frequency: 'live',
-          notifications: [notification],
-          dnDb: this.dnDB,
-          identityDb: this.identityDB
-        })
       }
     }
   }

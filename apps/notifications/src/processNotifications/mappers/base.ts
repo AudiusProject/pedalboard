@@ -157,7 +157,6 @@ export abstract class BaseNotification<Type> {
   }
 
   async processNotification(params: {
-    isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
     getIsPushNotificationEnabled: (type: string) => boolean
   }) {

@@ -32,10 +32,8 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
   }
 
   async processNotification({
-    isLiveEmailEnabled,
     isBrowserPushEnabled
   }: {
-    isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
   }) {
     const explicitUserIds = Array.isArray(this.notification.user_ids)
@@ -55,11 +53,7 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
       return
     }
 
-    await this.broadcastAnnouncement(
-      explicitUserIds,
-      isLiveEmailEnabled,
-      isBrowserPushEnabled
-    )
+    await this.broadcastAnnouncement(explicitUserIds, isBrowserPushEnabled)
     logger.info(
       { userCount: explicitUserIds.length },
       'announcement complete for explicit user_ids'
@@ -81,7 +75,6 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
 
   async broadcastAnnouncement(
     userIds: number[],
-    isLiveEmailEnabled: boolean,
     isBrowserPushEnabled: boolean
   ) {
     const userNotificationSettings = await buildUserNotificationSettings(
@@ -94,11 +87,7 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
         userNotificationSettings,
         isBrowserPushEnabled
       )
-      await this.broadcastEmailAnnouncements(
-        isLiveEmailEnabled,
-        userId,
-        userNotificationSettings
-      )
+      await this.broadcastEmailAnnouncements(userId, userNotificationSettings)
     }
   }
 
@@ -204,15 +193,12 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
   }
 
   async broadcastEmailAnnouncements(
-    isLiveEmailEnabled: boolean,
     userId: number,
     userNotificationSettings: UserNotificationSettings
   ) {
     if (
-      isLiveEmailEnabled &&
-      userNotificationSettings.shouldSendEmailAtFrequency({
-        receiverUserId: userId,
-        frequency: 'live'
+      userNotificationSettings.shouldSendEmail({
+        receiverUserId: userId
       })
     ) {
       const notification: AppEmailNotification = {

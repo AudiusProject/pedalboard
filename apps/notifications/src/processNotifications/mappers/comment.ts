@@ -1,14 +1,10 @@
 import { Knex } from 'knex'
 import { NotificationRow, PlaylistRow, TrackRow, UserRow } from '../../types/dn'
-import {
-  AppEmailNotification,
-  CommentNotification
-} from '../../types/notifications'
+import { CommentNotification } from '../../types/notifications'
 import { BaseNotification } from './base'
 import { sendPushNotification } from '../../sns'
 import { ResourceIds, Resources } from '../../email/notifications/renderEmail'
 import { EntityType } from '../../email/notifications/types'
-import { sendNotificationEmail } from '../../email/notifications/sendEmail'
 import {
   buildUserNotificationSettings,
   Device
@@ -40,10 +36,8 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
   }
 
   async processNotification({
-    isLiveEmailEnabled,
     isBrowserPushEnabled
   }: {
-    isLiveEmailEnabled: boolean
     isBrowserPushEnabled: boolean
   }) {
     const res: Array<{
@@ -76,8 +70,8 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
     let entityType: string =
       this.entityType === EntityType.Event
         ? 'contest'
-        : (this.entityType?.toLowerCase() ?? 'post')
-    let entityName: string = ''
+        : this.entityType?.toLowerCase() ?? 'post'
+    let entityName = ''
     let imageUrl: string | undefined
     let tracks: Record<
       number,
@@ -248,27 +242,6 @@ export class Comment extends BaseNotification<CommentNotificationRow> {
       )
       await disableDeviceArns(this.identityDB, pushes)
       await this.incrementBadgeCount(this.receiverUserId)
-    }
-    if (
-      isLiveEmailEnabled &&
-      userNotificationSettings.shouldSendEmailAtFrequency({
-        initiatorUserId: this.commenterUserId,
-        receiverUserId: this.receiverUserId,
-        frequency: 'live'
-      })
-    ) {
-      const notification: AppEmailNotification = {
-        receiver_user_id: this.receiverUserId,
-        ...this.notification
-      }
-      await sendNotificationEmail({
-        userId: this.receiverUserId,
-        email: userNotificationSettings.getUserEmail(this.receiverUserId),
-        frequency: 'live',
-        notifications: [notification],
-        dnDb: this.dnDB,
-        identityDb: this.identityDB
-      })
     }
   }
 

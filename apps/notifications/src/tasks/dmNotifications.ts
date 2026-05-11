@@ -379,7 +379,6 @@ export async function sendDMNotifications(
       await Promise.all(
         slice.map((notification) =>
           notification.processNotification({
-            isLiveEmailEnabled: false,
             isBrowserPushEnabled
           })
         )

@@ -21,10 +21,8 @@ import { Comment } from './mappers/comment'
 import {
   BrowserPluginMappings,
   BrowserPushPlugin,
-  EmailPluginMappings,
   MappingFeatureName,
   MappingVariable,
-  NotificationsEmailPlugin,
   RemoteConfig
 } from '../remoteConfig'
 import { config } from '../config'
@@ -140,16 +138,6 @@ export class AppNotificationsProcessor {
     return Boolean(featureEnabled)
   }
 
-  getIsLiveEmailEnabled() {
-    const isEnabled = this.remoteConfig.getFeatureVariableEnabled(
-      NotificationsEmailPlugin,
-      EmailPluginMappings.Live
-    )
-    // If the feature does not exist in remote config, then it returns null
-    // In that case, set to false bc we want to explicitly set to true
-    return Boolean(isEnabled)
-  }
-
   getIsBrowserPushEnabled(): boolean {
     const isEnabled = this.remoteConfig.getFeatureVariableEnabled(
       BrowserPushPlugin,
@@ -247,11 +235,9 @@ export class AppNotificationsProcessor {
         notification.notification.type
       )
       if (isEnabled) {
-        const isLiveEmailEnabled = this.getIsLiveEmailEnabled()
         const isBrowserPushEnabled = this.getIsBrowserPushEnabled()
         try {
           await notification.processNotification({
-            isLiveEmailEnabled,
             isBrowserPushEnabled,
             // Must bind: passing `this.getIsPushNotificationEnabled` drops the
             // receiver and breaks `this.remoteConfig` inside the processor.
