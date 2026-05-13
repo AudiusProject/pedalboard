@@ -1,18 +1,8 @@
-import { Keypair, PublicKey } from '@solana/web3.js'
+import { Keypair } from '@solana/web3.js'
 import dotenv from 'dotenv'
 import { cleanEnv, str, num, json } from 'envalid'
 
 import { logger } from './logger'
-
-export const LISTENS_RATE_LIMIT_IP_PREFIX = 'listens-rate-limit-ip'
-export const LISTENS_RATE_LIMIT_TRACK_PREFIX = 'listens-rate-limit-track'
-
-export const ClockProgram = new PublicKey(
-  'SysvarC1ock11111111111111111111111111111111'
-)
-export const InstructionsProgram = new PublicKey(
-  'Sysvar1nstructions1111111111111111111111111'
-)
 
 // reads .env file based on environment
 const readDotEnv = () => {
@@ -35,27 +25,15 @@ type Config = {
   serverHost: string
   serverPort: number
   solanaEndpoints: string[]
-  listenRpcUrl: string
   rewardsManagerProgramId: string
   rewardsManagerAccountAddress: string
   claimableTokenProgramId: string
   paymentRouterProgramId: string
-  trackListenCountProgramId: string
-  ethRegistryProgramId: string
   usdcMintAddress: string
   waudioMintAddress: string
   bonkMintAddress: string
   solanaFeePayerWallets: Keypair[]
   delegatePrivateKey: Buffer
-  listensValidSigner: string
-  solanaSignerPrivateKey: string
-  identityRelayerPublicKey: string
-  listensIpHourlyRateLimit: number
-  listensIpDailyRateLimit: number
-  listensIpWeeklyRateLimit: number
-  listensTrackHourlyRateLimit: number
-  listensTrackDailyRateLimit: number
-  listensTrackWeeklyRateLimit: number
   antiAbuseOracle: string
   // The public key for the launchpad config partner (Squads multisig)
   launchpadPartnerPublicKey: string
@@ -92,13 +70,7 @@ const readConfig = (): Config => {
     audius_solana_endpoint: str({
       default: 'http://solana-test-validator:8899'
     }),
-    audius_solana_listen_rpc_url: str({
-      default: 'http://solana-test-validator:8899'
-    }),
-    audius_solana_track_listen_count_address: str({
-      default: 'testEjzEibm3nq77VQcqCCmSMx6m3KdJHuepBH1rnue'
-    }),
-    audius_solana_waudio_mint: str({
+audius_solana_waudio_mint: str({
       default: '37RCjhgV1qGV2Q54EHFScdxZ22ydRMdKMtVgod47fDP3'
     }),
     audius_solana_usdc_mint: str({
@@ -135,25 +107,6 @@ const readConfig = (): Config => {
     solana_relay_server_host: str({ default: '0.0.0.0' }),
     solana_relay_server_port: num({ default: 6002 }),
     audius_delegate_private_key: str({ default: '' }),
-    audius_solana_eth_registry_program: str({
-      default: 'testBgRfFcage1hN7zmTsktdQCJZkHEhM1eguYPaeKg'
-    }),
-    audius_solana_listens_valid_signer: str({
-      default: 'yM9adjwKaRbYxQzLPF6zvZMSAfKUNte5xvK4B3iGbkL'
-    }),
-    audius_solana_signer_private_key: str({
-      default:
-        'd242765e718801781440d77572b9dafcdc9baadf0269eff24cf61510ddbf1003'
-    }),
-    audius_identity_relayer_public_key: str({
-      default: '0xaaaa90Fc2bfa70028D6b444BB9754066d9E2703b'
-    }),
-    audius_solana_listens_ip_hourly_rate_limit: num({ default: 120 }),
-    audius_solana_listens_ip_daily_rate_limit: num({ default: 50000 }),
-    audius_solana_listens_ip_weekly_rate_limit: num({ default: 50000000 }),
-    audius_solana_listens_track_hourly_rate_limit: num({ default: 120 }),
-    audius_solana_listens_track_daily_rate_limit: num({ default: 50000 }),
-    audius_solana_listens_track_weekly_rate_limit: num({ default: 50000000 }),
     audius_anti_abuse_oracle: str({
       default: 'http://audius-anti-abuse-oracle-1:8000'
     }),
@@ -187,30 +140,15 @@ const readConfig = (): Config => {
     serverHost: env.solana_relay_server_host,
     serverPort: env.solana_relay_server_port,
     solanaEndpoints: env.audius_solana_endpoint.split(','),
-    listenRpcUrl: env.audius_solana_listen_rpc_url,
     rewardsManagerProgramId: env.audius_solana_rewards_manager_program_address,
     rewardsManagerAccountAddress: env.audius_solana_rewards_manager_account,
     claimableTokenProgramId: env.audius_solana_user_bank_program_address,
     paymentRouterProgramId: env.audius_solana_payment_router_program_address,
-    trackListenCountProgramId: env.audius_solana_track_listen_count_address,
-    usdcMintAddress: env.audius_solana_usdc_mint,
+usdcMintAddress: env.audius_solana_usdc_mint,
     waudioMintAddress: env.audius_solana_waudio_mint,
     bonkMintAddress: env.audius_solana_bonk_mint,
     solanaFeePayerWallets,
     delegatePrivateKey,
-    listensValidSigner: env.audius_solana_listens_valid_signer,
-    ethRegistryProgramId: env.audius_solana_eth_registry_program,
-    solanaSignerPrivateKey: env.audius_solana_signer_private_key,
-    identityRelayerPublicKey: env.audius_identity_relayer_public_key,
-    listensIpHourlyRateLimit: env.audius_solana_listens_ip_hourly_rate_limit,
-    listensIpDailyRateLimit: env.audius_solana_listens_ip_daily_rate_limit,
-    listensIpWeeklyRateLimit: env.audius_solana_listens_ip_weekly_rate_limit,
-    listensTrackHourlyRateLimit:
-      env.audius_solana_listens_track_hourly_rate_limit,
-    listensTrackDailyRateLimit:
-      env.audius_solana_listens_track_daily_rate_limit,
-    listensTrackWeeklyRateLimit:
-      env.audius_solana_listens_track_weekly_rate_limit,
     antiAbuseOracle: env.audius_anti_abuse_oracle,
     launchpadPartnerPublicKey: env.audius_launchpad_partner_public_key,
     launchpadPartnerSignerPrivateKey:
