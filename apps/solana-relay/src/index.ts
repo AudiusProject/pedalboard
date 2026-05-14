@@ -25,7 +25,6 @@ import {
   getLaunchpadConfigRoute
 } from './routes/launchpad/first_buy_quote'
 import { confirmLaunchCoin, launchCoin } from './routes/launchpad/launch_coin'
-import { listen } from './routes/listen/listen'
 import { swapCoin } from './routes/meteora/swap_coin'
 import { swapCoinQuote } from './routes/meteora/swap_coin_quote'
 import { relay } from './routes/relay/relay'
@@ -41,7 +40,6 @@ const main = async () => {
   app.use(cors())
   app.use(incomingRequestLogger)
   app.get('/solana/health_check', health)
-  app.post('/solana/tracks/:trackId/listen', listen)
 
   const upload = multer({
     storage: multer.memoryStorage(),

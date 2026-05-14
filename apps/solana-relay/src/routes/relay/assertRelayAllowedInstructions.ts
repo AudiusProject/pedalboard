@@ -44,7 +44,6 @@ const PAYOUT_WALLET_MEMO = 'Payout Wallet'
 const PREPARE_WITHDRAWAL_MEMO = 'Prepare Withdrawal'
 const CLAIMABLE_TOKEN_PROGRAM_ID = config.claimableTokenProgramId
 const REWARDS_MANAGER_PROGRAM_ID = config.rewardsManagerProgramId
-const TRACK_LISTEN_COUNT_PROGRAM_ID = config.trackListenCountProgramId
 const PAYMENT_ROUTER_PROGRAM_ID = config.paymentRouterProgramId
 const JUPITER_AGGREGATOR_V6_PROGRAM_ID =
   'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4'
@@ -707,7 +706,6 @@ export const assertRelayAllowedInstructions = async (
       case DAMM_V2_PROGRAM_ID:
       case MEMO_PROGRAM_ID:
       case MEMO_V2_PROGRAM_ID:
-      case TRACK_LISTEN_COUNT_PROGRAM_ID:
       case ComputeBudgetProgram.programId.toBase58():
       case COINFLOW_PROGRAM_ID:
         // All instructions of these programs are allowed
