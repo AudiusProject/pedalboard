@@ -1,12 +1,9 @@
-import { initializeDiscoveryDb } from '@pedalboard/basekit'
 import { Table, Users } from '@pedalboard/storage'
 import { recoverPersonalSignature } from 'eth-sig-util'
 import { NextFunction, Request, Response } from 'express'
 
-import { config } from '../config'
+import { db } from '../db'
 import { getCachedDiscoveryNodes } from '../redis'
-
-const discoveryDb = initializeDiscoveryDb(config.discoveryDbConnectionString)
 
 export const userSignerRecoveryMiddleware = async (
   req: Request,
@@ -21,7 +18,7 @@ export const userSignerRecoveryMiddleware = async (
       return next()
     }
     const walletAddress = recoverPersonalSignature({ data, sig })
-    const user = await discoveryDb<Users>(Table.Users)
+    const user = await db<Users>(Table.Users)
       .where('wallet', '=', walletAddress)
       .first()
     res.locals.signerUser = user
