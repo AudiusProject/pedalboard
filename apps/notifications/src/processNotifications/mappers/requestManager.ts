@@ -118,9 +118,7 @@ export class RequestManager extends BaseNotification<RequestManagerRow> {
           managedAccountUser.user_id
         }`
       }),
-      subject: `Account Management Request`,
-      // Account-management security flow — never sample.
-      bypassSampling: true
+      subject: `Account Management Request`
     })
   }
 

@@ -200,9 +200,7 @@ export class USDCPurchaseSeller extends BaseNotification<USDCPurchaseSellerRow> 
         payExtra: this.extraAmount,
         total: this.totalAmount
       }),
-      subject: `Congrats! You've made a sale on Audius!`,
-      // Money-movement confirmation — never sample.
-      bypassSampling: true
+      subject: `Congrats! You've made a sale on Audius!`
     })
   }
 

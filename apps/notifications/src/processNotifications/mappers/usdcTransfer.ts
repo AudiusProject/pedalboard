@@ -61,9 +61,7 @@ export class USDCTransfer extends BaseNotification<USDCTransferRow> {
         wallet: this.receiverAccount,
         signature: this.signature
       }),
-      subject: 'Your USDC Transfer is Complete!',
-      // Money-movement confirmation — never sample.
-      bypassSampling: true
+      subject: 'Your USDC Transfer is Complete!'
     })
   }
 }
