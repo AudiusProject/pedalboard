@@ -93,6 +93,8 @@ const app = new Hono()
 app.use(logger())
 app.use('/attestation/*', cors())
 
+app.get('/health_check', (c) => c.json({ status: 'ok' }, 200))
+
 app.get('/attestation/check', async (c) => {
   const wallet = c.req.query('wallet')
   if (!wallet) return c.json({ error: 'wallet is required' }, 400)
