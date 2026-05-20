@@ -1,7 +1,6 @@
 import { renderEmail } from './renderEmail'
 
 import { EmailNotification } from '../../types/notifications'
-import { config } from '../../config'
 import { logger } from '../../logger'
 import { getSendgrid } from '../../sendgrid'
 import { MailDataRequired } from '@sendgrid/mail'
@@ -126,45 +125,14 @@ type SendTransactionalEmailArgs = {
    * envelope.
    */
   from?: string
-  /**
-   * Skip the global transactional-email sample rate
-   * (`config.notificationEmailSampleDenominator`) and always send.
-   * Reserved for must-deliver flows where dropping the email would be
-   * a real bug — USDC purchase / transfer / withdrawal confirmations
-   * and account-management request emails. Defaults to `false`, so
-   * volume-heavy transactional sends (welcome, claimable reward,
-   * reward in cooldown) are sampled to cap SendGrid usage.
-   */
-  bypassSampling?: boolean
 }
 
 export const sendTransactionalEmail = async ({
   email,
   html,
   subject,
-  from = 'Audius <team@audius.co>',
-  bypassSampling = false
+  from = 'Audius <team@audius.co>'
 }: SendTransactionalEmailArgs) => {
-  // Sample 1-in-N of all non-bypassed transactional sends. Mirrors the
-  // existing digest-email sampling in processEmailNotifications (uses
-  // the same `notificationEmailSampleDenominator` knob) so volume can
-  // be tuned with one env var. The guard `sampleDenom > 1` makes
-  // `NOTIFICATION_EMAIL_SAMPLE_DENOMINATOR=1` a clean disable, and the
-  // `Number.isFinite` check avoids accidental "always skip" if someone
-  // sets the env to `Infinity` / a negative value.
-  if (!bypassSampling) {
-    const sampleDenom = Math.floor(config.notificationEmailSampleDenominator)
-    if (
-      Number.isFinite(sampleDenom) &&
-      sampleDenom > 1 &&
-      Math.random() > 1 / sampleDenom
-    ) {
-      logger.debug(
-        `sendTransactionalEmail | sampled out (1/${sampleDenom}) — to=${email}, subject=${subject}`
-      )
-      return false
-    }
-  }
   try {
     logger.debug(`SendTransactionalEmail | ${email}, ${subject}`)
     const emailParams = {

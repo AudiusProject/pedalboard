@@ -59,9 +59,7 @@ export class USDCWithdrawal extends BaseNotification<USDCWithdrawalRow> {
         profileLink: formatProfileUrl(user.handle),
         amount: this.amount
       }),
-      subject: 'Your USDC Transfer is Complete!',
-      // Money-movement confirmation — never sample.
-      bypassSampling: true
+      subject: 'Your USDC Transfer is Complete!'
     })
   }
 }

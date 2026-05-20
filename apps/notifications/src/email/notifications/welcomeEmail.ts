@@ -155,15 +155,10 @@ export const sendWelcomeEmail = async ({
 
   const html = getWelcomeEmail({ name, copyrightYear, featuredContent })
 
-  // Route through sendTransactionalEmail so welcome inherits the global
-  // 1-in-N sample gate (`config.notificationEmailSampleDenominator`) the
-  // way claimable-reward / reward-in-cooldown do. The asm group (23583)
-  // is applied inside sendTransactionalEmail; we only override `from` so
-  // the welcome envelope reads "The Audius Team" instead of the
-  // default "Audius". A `false` return covers both an actual SendGrid
-  // failure (logged at error level) and a sample-out skip (logged at
-  // debug level) — both surface as `reason: 'error'` here, with the
-  // logs being the disambiguator.
+  // Route through sendTransactionalEmail (applies the asm group 23583).
+  // We only override `from` so the welcome envelope reads "The Audius
+  // Team" instead of the default "Audius". A `false` return indicates a
+  // SendGrid failure (logged at error level inside sendTransactionalEmail).
   const sent = await sendTransactionalEmail({
     email: user.email,
     html,
