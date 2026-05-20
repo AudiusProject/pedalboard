@@ -15,7 +15,7 @@
     "preset": "jest-presets/jest/node"
   },
   "dependencies": {
-    "@audius/sdk": "5.0.0",
+    "@audius/sdk": "15.1.0",
     "@audius/sdk-legacy": "npm:@audius/sdk@5.0.0",
     "@hono/node-server": "1.19.1",
     "@pedalboard/basekit": "*",
