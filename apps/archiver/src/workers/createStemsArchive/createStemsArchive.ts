@@ -144,16 +144,35 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
         await fs.mkdir(jobTempDir, { recursive: true })
       }
 
+      // Mirror list comes from the upload metadata. `track.download` is null
+      // on tracks that aren't user-downloadable (stem-only uploads), so fall
+      // back to the stream mirrors — same content node set, same placement.
+      // downloadFile shuffles this list, tries each with a per-mirror timeout,
+      // and falls back to the archive node when every mirror fails, so an
+      // empty/missing list is still safe.
+      //
+      // Cast: the pinned @audius/sdk (10.0.0) Track type predates the
+      // download/stream UrlWithMirrors fields that the API has been returning
+      // for a while. The fields exist at runtime on api.audius.co — see the
+      // Track schema in the current OpenAPI spec — so we read them through a
+      // local shape rather than upgrading the SDK in this PR.
+      const trackWithMirrors = track as typeof track & {
+        download?: { mirrors?: string[] } | null
+        stream?: { mirrors?: string[] } | null
+      }
+      const trackMirrors =
+        trackWithMirrors.download?.mirrors ??
+        trackWithMirrors.stream?.mirrors ??
+        []
+
       // Start all downloads immediately so we can await allSettled after a failure:
       // if one rejects, Promise.all would run the outer catch and removeTempFiles while
       // siblings are still writing — ENOENT on other WriteStreams and process crash.
-      // The API's /tracks/{id}/download endpoint already calls tryFindWorkingUrl
-      // to pick a content node mirror that actually serves this file, and
-      // responds with a 302 redirect to it. node-fetch follows 3xx by default,
-      // so we can just point downloadFile at the API URL and let it land on the
-      // verified-working host. Do NOT rewrite the host — forcing every download
-      // through a single node (e.g. creatornode2) bypasses that mirror selection
-      // and produces 404s on files that exist, just not on that node.
+      // downloadFile resolves the API's /tracks/{id}/download 302 once to get
+      // the canonical signed content-node URL, then tries each mirror by
+      // swapping the host. The signed path is host-agnostic so any mirror
+      // that holds the file can serve it; if none can, we fall back to the
+      // archive node (creatornode2) which is guaranteed to.
       const downloadPromises = filesToDownload.map(
         async (stem: { id: string; origFilename?: string }) => {
           const url = await sdk.tracks.getTrackDownloadUrl({
@@ -169,6 +188,7 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
             url,
             filePath,
             jobId,
+            mirrors: trackMirrors,
             signal: abortController.signal
           })
         }
