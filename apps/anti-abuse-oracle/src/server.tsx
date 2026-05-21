@@ -16,12 +16,26 @@ import {
 } from './actionLog'
 import { logger } from 'hono/logger'
 import { config } from './config'
-import { HashId } from '@audius/sdk'
-import { SolanaUtils, Utils } from '@audius/sdk-legacy'
+import { HashId, Id } from '@audius/sdk'
+import { RewardManagerProgram } from '@audius/spl'
 import bn from 'bn.js'
+import keccak256 from 'keccak256'
+import * as secp256k1 from 'secp256k1'
 import { useEmail, userFingerprints } from './identity'
 import { cors } from 'hono/cors'
 import { getAudiusSdk } from './sdk'
+
+const WAUDIO_DECIMALS = 8
+
+const signBytes = (bytes: Buffer, ethPrivateKey: string) => {
+  const msgHash = keccak256(bytes)
+  const privateKey = Buffer.from(ethPrivateKey, 'hex')
+  const { signature, recid } = secp256k1.ecdsaSign(
+    Uint8Array.from(msgHash),
+    privateKey
+  )
+  return { signature: Buffer.from(signature), recoveryId: recid }
+}
 
 const CONTENT_NODE = 'https://creatornode2.audius.co'
 const FRONTEND = 'https://audius.co'
@@ -214,18 +228,15 @@ app.post('/attestation/:handle', async (c) => {
   }
 
   try {
-    const bnAmount = SolanaUtils.uiAudioToBNWaudio(amount)
-    const identifier = SolanaUtils.constructTransferId(
-      challengeId,
-      challengeSpecifier
-    )
-    const toSignStr = SolanaUtils.constructAttestation(
-      user.wallet,
-      bnAmount,
-      identifier
-    )
-    const { signature, recoveryId } = SolanaUtils.signBytes(
-      Buffer.from(toSignStr),
+    const amountWaudio = BigInt(Math.round(amount * 10 ** WAUDIO_DECIMALS))
+    const disbursementId = `${challengeId}:${challengeSpecifier}`
+    const messageBytes = RewardManagerProgram.encodeAttestation({
+      recipientEthAddress: user.wallet,
+      amount: amountWaudio,
+      disbursementId
+    })
+    const { signature, recoveryId } = signBytes(
+      messageBytes,
       config.privateSignerAddress
     )
     const result = new bn(Uint8Array.of(...signature, recoveryId))
@@ -396,7 +407,7 @@ app.get('/attestation/ui/user', async (c) => {
                 </a>
               </div>
               <div>{user.id}</div>
-              <div>{Utils.encodeHashId(user.id)}</div>
+              <div>{Id.parse(user.id)}</div>
               {user.isVerified && <div class='badge'>Verified</div>}
             </div>
             <div class='flex gap-2 mt-2 items-center'>
