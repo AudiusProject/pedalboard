@@ -2,7 +2,6 @@ import { NextFunction, Request, Response } from 'express'
 import { App } from '@pedalboard/basekit'
 import { SharedData } from '..'
 import { ClaimsManager } from '@audius/eth'
-import { PublicClient } from 'viem'
 
 export const initRound = (app: App<SharedData>) => async (
   req: Request,
@@ -10,11 +9,26 @@ export const initRound = (app: App<SharedData>) => async (
   next: NextFunction
 ) => {
   const { viemClient } = app.viewAppData()
-  const claimsManager = new ClaimsManager(viemClient as PublicClient)
 
-  const latestBlock = Number((await viemClient.getBlock()).number)
-  const lastFundedBlockNumber = Number(await claimsManager.getLastFundedBlock())
-  const fundingRoundBlockDiff = Number(await claimsManager.getFundingRoundBlockDiff())
+  const [latestBlock, lastFundedBlockNumber, fundingRoundBlockDiff] =
+    await Promise.all([
+      viemClient.getBlock().then((b) => Number(b.number)),
+      viemClient
+        .readContract({
+          abi: ClaimsManager.abi,
+          address: ClaimsManager.address,
+          functionName: 'getLastFundedBlock'
+        })
+        .then(Number),
+      viemClient
+        .readContract({
+          abi: ClaimsManager.abi,
+          address: ClaimsManager.address,
+          functionName: 'getFundingRoundBlockDiff'
+        })
+        .then(Number)
+    ])
+
   const blockDiff = latestBlock - lastFundedBlockNumber
 
   if (lastFundedBlockNumber < latestBlock - 1.1 * fundingRoundBlockDiff) {
@@ -23,7 +37,7 @@ export const initRound = (app: App<SharedData>) => async (
       lastFundedBlockNumber,
       latestBlock,
       fundingRoundBlockDiff,
-      blockDiff,
+      blockDiff
     })
     next()
     return
@@ -34,8 +48,7 @@ export const initRound = (app: App<SharedData>) => async (
     lastFundedBlockNumber,
     latestBlock,
     fundingRoundBlockDiff,
-    blockDiff,
+    blockDiff
   })
   next()
 }
-
