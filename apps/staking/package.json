@@ -3,16 +3,18 @@
   "version": "0.0.2",
   "private": true,
   "scripts": {
-    "start": "npx tsx ./src/index.ts",
+    "build": "tsc",
+    "clean": "rm -rf dist",
     "dev": "npx tsx watch ./src/index.ts",
-    "test": "vitest",
-    "lint": "tsc --noEmit && eslint \"src/**/*.ts*\""
+    "lint": "tsc --noEmit && eslint \"src/**/*.ts*\"",
+    "start": "node ./dist/index.js",
+    "test": "vitest"
   },
   "jest": {
     "preset": "jest-presets/jest/node"
   },
   "dependencies": {
-    "@audius/eth": "0.1.0",
+    "@audius/eth": "1.0.0",
     "@audius/sdk": "10.0.0",
     "@pedalboard/basekit": "*",
     "@pedalboard/logger": "*",
