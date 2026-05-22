@@ -1,4 +1,4 @@
-import { sdk } from '@audius/sdk'
+import { createSdkWithServices } from '@audius/sdk'
 import { readConfig, Environment } from './config'
 
 const environmentToSdkEnvironment: Record<
@@ -9,7 +9,7 @@ const environmentToSdkEnvironment: Record<
   prod: 'production'
 }
 
-let audiusSdk: ReturnType<typeof sdk> | undefined = undefined
+let audiusSdk: ReturnType<typeof createSdkWithServices> | undefined = undefined
 
 export const getAudiusSdk = () => {
   if (audiusSdk === undefined) {
@@ -19,7 +19,9 @@ export const getAudiusSdk = () => {
     // inspectTrack land in the configured app's rps/rpm bucket on the server's
     // rate-limit middleware. The raw downloadFile fetch (which bypasses the
     // SDK entirely) attaches api_key itself — see downloadFile in utils.ts.
-    audiusSdk = sdk({
+    // Use createSdkWithServices (not sdk()) so tracks.getTrackDownloadUrl is
+    // available — the bare sdk() factory exposes only the generated TracksApi.
+    audiusSdk = createSdkWithServices({
       appName: 'audius-archiver',
       environment: environmentToSdkEnvironment[config.environment],
       apiKey: config.apiKey
