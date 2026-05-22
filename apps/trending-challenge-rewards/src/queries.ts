@@ -34,7 +34,7 @@ export const getChallengesDisbursementsUserbanks = async (
       'u.specifier',
       'c.slot'
     )
-    .leftJoin('challenge_disbursements as c', function () {
+    .leftJoin('v_challenge_disbursements as c', function () {
       this.on('u.specifier', '=', 'c.specifier').andOn(
         'u.challenge_id',
         '=',
@@ -66,7 +66,7 @@ export const getChallengesDisbursementsUserbanksFriendly = async (
       'u.completed_blocknumber',
       'c.slot'
     )
-    .leftJoin('challenge_disbursements as c', function () {
+    .leftJoin('v_challenge_disbursements as c', function () {
       this.on('u.specifier', '=', 'c.specifier').andOn(
         'u.challenge_id',
         '=',
