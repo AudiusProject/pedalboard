@@ -110,7 +110,7 @@ async function ensureTableExists() {
 
 ensureTableExists()
 
-const app = new Hono()
+export const app = new Hono()
 
 app.use(logger())
 app.use('/attestation/*', cors())
