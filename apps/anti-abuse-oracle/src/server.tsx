@@ -37,6 +37,14 @@ const signBytes = (bytes: Buffer, ethPrivateKey: string) => {
   return { signature: Buffer.from(signature), recoveryId: recid }
 }
 
+const ethAddressFromPrivateKey = (ethPrivateKey: string) => {
+  const privateKey = Buffer.from(ethPrivateKey, 'hex')
+  const publicKey = Buffer.from(
+    secp256k1.publicKeyCreate(privateKey, false)
+  ).subarray(1)
+  return '0x' + keccak256(publicKey).subarray(-20).toString('hex')
+}
+
 const CONTENT_NODE = 'https://creatornode2.audius.co'
 const FRONTEND = 'https://audius.co'
 
@@ -107,7 +115,17 @@ const app = new Hono()
 app.use(logger())
 app.use('/attestation/*', cors())
 
-app.get('/health_check', (c) => c.json({ status: 'ok' }, 200))
+app.get('/health_check', (c) =>
+  c.json(
+    {
+      status: 'ok',
+      antiAbuseWalletPubkey: ethAddressFromPrivateKey(
+        config.privateSignerAddress
+      )
+    },
+    200
+  )
+)
 
 app.get('/attestation/check', async (c) => {
   const wallet = c.req.query('wallet')
