@@ -96,7 +96,11 @@ export class ChallengeReward extends BaseNotification<ChallengeRewardRow> {
       return `You’ve received ${
         this.challengeInfoMap[this.challengeId].amount
       } $AUDIO for being referred! Invite your friends to join to earn more!`
-    } else if (this.challengeId === 'o') {
+    }
+    // Challenges with variable per-user rewards (no fixed amount in
+    // challengeInfoMap) — read the amount from the notification payload.
+    const variableAmountChallenges: string[] = ['o', 'b', 's']
+    if (variableAmountChallenges.includes(this.challengeId)) {
       return `You’ve earned ${
         this.amount / AUDIO_DIVISOR
       } $AUDIO for completing this challenge!`
