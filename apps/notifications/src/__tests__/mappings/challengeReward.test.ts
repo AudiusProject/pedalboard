@@ -76,6 +76,48 @@ describe('Challenge Reward Notification', () => {
     )
   })
 
+  test('Process push notification for Spend to Earn (b) interpolates amount from payload', async () => {
+    await createUsers(processor.discoveryDB, [{ user_id: 1 }])
+    await createRewardManagerTx(processor.discoveryDB, [
+      { slot: 2, signature: '0x2' }
+    ])
+    await createChallengeReward(processor.discoveryDB, [
+      {
+        challenge_id: 'b',
+        user_id: 1,
+        specifier: '1',
+        amount: '500000000',
+        created_at: new Date(1589373217)
+      }
+    ])
+    await insertMobileSettings(processor.identityDB, [{ userId: 1 }])
+    await insertMobileDevices(processor.identityDB, [{ userId: 1 }])
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    const pending = processor.listener.takePending()
+    const challengeNotifications = pending?.appNotifications.filter(
+      (n) => n.type === 'challenge_reward'
+    )
+
+    expect(challengeNotifications).toHaveLength(1)
+    await processor.appNotificationsProcessor.process(challengeNotifications)
+
+    expect(sendPushNotificationSpy).toHaveBeenCalledWith(
+      {
+        type: 'ios',
+        targetARN: 'arn:1',
+        badgeCount: 1
+      },
+      {
+        title: `🛒 Spend to Earn`,
+        body: `You’ve earned 5 $AUDIO for completing this challenge!`,
+        data: {
+          id: 'timestamp:1589373:group_id:challenge_reward:1:challenge:b:specifier:1',
+          type: 'ChallengeReward'
+        }
+      }
+    )
+  })
+
   test('Render a single challenge reward email', async () => {
     await createUsers(processor.discoveryDB, [{ user_id: 1 }, { user_id: 2 }])
 
