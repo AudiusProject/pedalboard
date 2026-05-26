@@ -5,8 +5,7 @@ import { SharedData } from './config'
 import {
   getChallengesDisbursementsUserbanksFriendlyEnsureSlots,
   getTrendingChallenges,
-  getTrendingChallengesByDate,
-  getCompletedBlockNumberFromDaysAgo
+  getTrendingChallengesByDate
 } from './queries'
 import { WebClient } from '@slack/web-api'
 import { formatDisbursementTable } from './slack'
@@ -80,12 +79,7 @@ export const onDisburse = async (
     console.log('endpoint = ', apiEndpoint)
     const toDisburse: Challenge[] = []
     for (const challengeId of TRENDING_REWARD_IDS) {
-      let completedBlocknumber = await getCompletedBlockNumberFromDaysAgo(db, 6)
-      if (completedBlocknumber === null) {
-        console.error('Could not find a completed block number')
-        completedBlocknumber = 0
-      }
-      const url = `${apiEndpoint}/v1/challenges/undisbursed?challenge_id=${challengeId}&completed_blocknumber=${completedBlocknumber}`
+      const url = `${apiEndpoint}/v1/challenges/undisbursed?challenge_id=${challengeId}&completed_blocknumber=${completedBlock}`
       console.log('fetching undisbursed challenges from url = ', url)
       // Fetch all undisbursed challenges
       const res = await axios.get(url)
