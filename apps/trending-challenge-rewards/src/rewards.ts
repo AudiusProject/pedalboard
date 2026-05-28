@@ -171,7 +171,7 @@ export const onDisburse = async (
   )
 
   // Format the results for Slack
-  const formattedResults = formatDisbursementTable(friendly)
+  const formattedResults = formatDisbursementTable(friendly, trimmedSpecifier)
   console.log(formattedResults)
 
   if (slackChannel === undefined) return new Err('SLACK_CHANNEL not defined')
