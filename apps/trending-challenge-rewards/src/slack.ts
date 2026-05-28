@@ -87,7 +87,8 @@ const trending = async (
 }
 
 export const formatDisbursementTable = (
-  challenges: ChallengeDisbursementUserbankFriendly[]
+  challenges: ChallengeDisbursementUserbankFriendly[],
+  date?: string
 ): string => {
   const matrix = challenges.map((challenge) => [
     challenge.challenge_id,
@@ -95,7 +96,10 @@ export const formatDisbursementTable = (
     challenge.slot
   ])
   console.log(matrix)
-  return new AsciiTable3('Challenge Disbursements')
+  const title = date
+    ? `Challenge Disbursements (${date})`
+    : 'Challenge Disbursements'
+  return new AsciiTable3(title)
     .setHeading('Challenge', 'Handle', 'Slot')
     .setAlign(3, AlignmentEnum.CENTER)
     .addRowMatrix(matrix)
