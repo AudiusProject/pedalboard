@@ -18,14 +18,14 @@ const normalizeRoute = (value: string): string | null => {
   }
 }
 
-export function createSendAnnouncementRouter(discoveryDb: Knex): Router {
+export function createSendNotificationRouter(discoveryDb: Knex): Router {
   const router = Router()
   router.post('/', async (req: Request, res: Response) => {
     const secret = process.env.ANNOUNCEMENT_SEND_SECRET
     if (!secret) {
       res.status(503).json({
         error:
-          'Send-announcement is disabled: set ANNOUNCEMENT_SEND_SECRET in env to enable.'
+          'Send-notification is disabled: set ANNOUNCEMENT_SEND_SECRET in env to enable.'
       })
       return
     }
@@ -49,7 +49,7 @@ export function createSendAnnouncementRouter(discoveryDb: Knex): Router {
       if (containsHtml(titleText) || containsHtml(bodyText)) {
         res.status(400).json({
           error:
-            'HTML is not allowed in announcement title/body. Send plain text only.'
+            'HTML is not allowed in notification title/body. Send plain text only.'
         })
         return
       }
@@ -107,7 +107,7 @@ export function createSendAnnouncementRouter(discoveryDb: Knex): Router {
       })
       logger.info(
         { totalRequested: sanitizedUserIds.length },
-        'send-announcement queued'
+        'send-notification queued'
       )
       // Return "sent" for compatibility with existing dashboard batching logic.
       res.json({
@@ -115,9 +115,9 @@ export function createSendAnnouncementRouter(discoveryDb: Knex): Router {
         total: sanitizedUserIds.length
       })
     } catch (e) {
-      logger.error(e, 'send-announcement failed')
+      logger.error(e, 'send-notification failed')
       res.status(500).json({
-        error: e instanceof Error ? e.message : 'Send announcement failed'
+        error: e instanceof Error ? e.message : 'Send notification failed'
       })
     }
   })
