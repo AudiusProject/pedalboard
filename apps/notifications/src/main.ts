@@ -19,7 +19,6 @@ import { AppNotificationsProcessor } from './processNotifications/indexAppNotifi
 import { sendDMNotifications } from './tasks/dmNotifications'
 import { processEmailNotifications } from './email/notifications/index'
 import { sendAppNotifications } from './tasks/appNotifications'
-import { sendInactiveUserNotifications } from './tasks/inactiveUserNotifications'
 import {
   BrowserPluginMappings,
   BrowserPushPlugin,
@@ -184,8 +183,6 @@ export type NotificationsAppData = {
   listenerPendingNotificationIds: number[]
   lastDailyEmailSent: moment.Moment | null
   lastWeeklyEmailSent: moment.Moment | null
-  /** Last time automated inactivity triggers were checked and sent. Runs hourly. */
-  lastInactivityTriggerRun: moment.Moment | null
 }
 
 function getIsScheduledEmailEnabled(remoteConfig: RemoteConfig): boolean {
@@ -256,8 +253,7 @@ async function main() {
     listenerPending,
     listenerPendingNotificationIds: [],
     lastDailyEmailSent: null,
-    lastWeeklyEmailSent: null,
-    lastInactivityTriggerRun: null
+    lastWeeklyEmailSent: null
   }
 
   const server = new Server()
@@ -418,28 +414,6 @@ async function main() {
         self.updateAppData((d) => ({
           ...d,
           lastWeeklyEmailSent: moment.utc()
-        }))
-      }
-
-      // Automated inactivity triggers: run once per hour.
-      // Sends push notifications to users who just crossed each trigger's
-      // inactivity threshold and logs sends to Supabase for open-rate tracking.
-      if (
-        !data.lastInactivityTriggerRun ||
-        data.lastInactivityTriggerRun < moment.utc().subtract(1, 'hours')
-      ) {
-        logger.info('Processing automated inactivity trigger notifications')
-        try {
-          await sendInactiveUserNotifications(self.getDnDb())
-        } catch (e) {
-          logger.error(
-            { err: e },
-            'tick: sendInactiveUserNotifications threw unexpectedly'
-          )
-        }
-        self.updateAppData((d) => ({
-          ...d,
-          lastInactivityTriggerRun: moment.utc()
         }))
       }
     })
