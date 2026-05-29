@@ -119,8 +119,7 @@ describe('Add track to playlist notification', () => {
         type: 'track_added_to_playlist',
         timestamp: new Date(),
         specifier: '1',
-        group_id:
-          'track_added_to_playlist:playlist_id:55:track_id:10',
+        group_id: 'track_added_to_playlist:playlist_id:55:track_id:10',
         data,
         user_ids: [1],
         receiver_user_id: 1
