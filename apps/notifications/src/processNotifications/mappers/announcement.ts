@@ -206,7 +206,7 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
         ...this.notification
       }
       // Attribution for the notifications-dashboard's SendGrid webhook.
-      // `notification_campaign_id` is set by the dashboard's /send-announcement
+      // `notification_campaign_id` is set by the dashboard's /send-notification
       // caller; absent for non-dashboard announcements (e.g. mobile tests).
       const campaignId = this.notification.data.notification_campaign_id
       const customArgs =

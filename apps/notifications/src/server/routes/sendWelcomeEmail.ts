@@ -14,11 +14,11 @@ import { sendWelcomeEmail } from '../../email/notifications/welcomeEmail'
  * `user create / signup` event — pedalboard doesn't currently have a
  * notification-table or pg-notify hook for user creation (only
  * `notification` rows), so this stays a deliberate HTTP call mirroring
- * the existing internal-route pattern (see `sendAnnouncement.ts`).
+ * the existing internal-route pattern (see `sendNotification.ts`).
  *
  * Auth: `Authorization: Bearer ${WELCOME_EMAIL_SEND_SECRET}`. If the
  * env var isn't set the route disables itself — same pattern as
- * `sendAnnouncement.ts`.
+ * `sendNotification.ts`.
  *
  * Body: `{ userId: number, name: string, isNativeMobile?: boolean }`
  */

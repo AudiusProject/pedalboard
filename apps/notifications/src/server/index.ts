@@ -4,7 +4,7 @@ import { Knex } from 'knex'
 import { Server as HttpServer } from 'http'
 import { router as healthCheckRouter } from './routes/healthCheck'
 import { router as memStatsRouter } from './routes/memStats'
-import { createSendAnnouncementRouter } from './routes/sendAnnouncement'
+import { createSendNotificationRouter } from './routes/sendNotification'
 import { createSendWelcomeEmailRouter } from './routes/sendWelcomeEmail'
 
 const DEFAULT_PORT = 6000
@@ -25,8 +25,8 @@ export class Server {
     if (identityDb && discoveryDb) {
       this.app.use(express.json())
       this.app.use(
-        '/internal/send-announcement',
-        createSendAnnouncementRouter(discoveryDb)
+        '/internal/send-notification',
+        createSendNotificationRouter(discoveryDb)
       )
       this.app.use(
         '/internal/send-welcome-email',
