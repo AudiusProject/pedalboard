@@ -873,12 +873,12 @@ export const email = ({
   <td class="stack-column-center" align="center">
   <div>
   <!--[if mso]>
-                          <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://audius.co/audio" style="height:48px;v-text-anchor:middle;width:420px;" fillcolor="#ffffff" strokecolor="#b5b4bb" strokeweight="1pt" arcsize="17%">
+                          <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://audius.co/rewards" style="height:48px;v-text-anchor:middle;width:420px;" fillcolor="#ffffff" strokecolor="#b5b4bb" strokeweight="1pt" arcsize="17%">
                           <w:anchorlock/>
                           <center style="white-space:nowrap;display:inline-block;text-align:center;color:#3a3843;font-weight:600;font-family:Inter,Arial,sans-serif;font-size:18px;">More Ways to Earn</center>
                           </v:roundrect>
                       <![endif]-->
-  <a href="https://audius.co/audio" style="white-space:nowrap;background-color:#ffffff;border-radius:8px; border:1px solid #b5b4bb;display:inline-block;text-align:center;color:#3a3843;font-weight:600;font-family:Inter,Arial,sans-serif;font-size:18px;line-height:48px;width:100%; -webkit-text-size-adjust:none;mso-hide:all;">More Ways to Earn</a>
+  <a href="https://audius.co/rewards" style="white-space:nowrap;background-color:#ffffff;border-radius:8px; border:1px solid #b5b4bb;display:inline-block;text-align:center;color:#3a3843;font-weight:600;font-family:Inter,Arial,sans-serif;font-size:18px;line-height:48px;width:100%; -webkit-text-size-adjust:none;mso-hide:all;">More Ways to Earn</a>
   </div>
   </td>
   </tr>
