@@ -14,24 +14,25 @@ type UserRow = {
   verified_with_tiktok?: boolean
 }
 
-// We resolve the "previous version" of the user directly from the versioned
-// `users` table — the row with the largest blocknumber strictly less than the
-// blocknumber that fired this NOTIFY. We used to walk Python's
-// `revert_blocks.prev_records` for this, but the new Go ETL indexer doesn't
-// populate revert_blocks, so any update to an already-verified user would look
-// like a brand-new verified signup and the channel would re-fire every time a
-// verified user touched their profile.
+// Fires off the dedicated `user_verified` NOTIFY channel, which the DB trigger
+// (api ddl/functions/notify_on_row.sql) emits ONLY on a genuine verification
+// transition — false -> true on an in-place update, or a brand-new row that
+// arrives already verified.
 //
-// Sourcing from `users` directly is also a strict improvement: revert_blocks is
-// going away with the Python indexer, and the versioned `users` table is the
-// real source of truth for what each row looked like before the change.
+// We used to listen on the `users` firehose and reconstruct the prior
+// verification state here (first from revert_blocks, then from a `users`
+// blocknumber lookback). Both broke under the Go ETL: it writes `users` in
+// place (one is_current row per user, no versioned history), so there is no
+// "previous" row to compare against and every profile edit by an
+// already-verified user re-fired. The transition is now detected in the
+// trigger via its OLD row, so this handler just announces — no lookback.
 export default async (
   app: App<AppData>,
   msg: { user_id: number; blocknumber: number }
 ): Promise<void> => {
   const { user_id, blocknumber } = msg
-  if (blocknumber === undefined) {
-    logger.warn('no block number returned')
+  if (user_id === undefined) {
+    logger.warn({ msg }, 'no user_id in user_verified payload')
     return
   }
 
@@ -58,31 +59,12 @@ export default async (
     return
   }
 
-  const prev = (await db('users')
-    .select('is_verified')
-    .where('user_id', '=', user_id)
-    .andWhere('blocknumber', '<', blocknumber)
-    .orderBy('blocknumber', 'desc')
-    .first()
-    .catch((err: unknown) => {
-      logger.error({ err, user_id, blocknumber }, 'users prev query')
-      return undefined
-    })) as { is_verified: boolean } | undefined
-
-  // Fire only on the actual false → true transition (or a brand-new user that
-  // arrives already verified). Re-firing on every is_current write to an
-  // already-verified user — which is what was happening prior to this rewrite
-  // — is exactly the noise we're trying to kill.
-  const newly_signed_up_verified = prev === undefined && current.is_verified
-  const became_verified =
-    prev !== undefined && !prev.is_verified && current.is_verified
-
-  logger.info(
-    { user_id, blocknumber, current, prev, newly_signed_up_verified, became_verified },
-    'user verification check'
-  )
-
-  if (!(newly_signed_up_verified || became_verified)) return
+  // Belt-and-suspenders: the trigger already gated on the transition, but guard
+  // against a verification that was reverted between the NOTIFY and this read.
+  if (!current.is_verified) {
+    logger.info({ user_id, blocknumber }, 'no longer verified, skipping')
+    return
+  }
 
   let source: string
   if (current.verified_with_twitter) source = 'twitter'

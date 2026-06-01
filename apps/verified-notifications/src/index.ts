@@ -35,7 +35,7 @@ const main = async (): Promise<void> => {
     })
 
   if (!shouldToggleOff('tracks')) app = app.listen('tracks', tracksHandler)
-  if (!shouldToggleOff('users')) app = app.listen('users', usersHandler)
+  if (!shouldToggleOff('user_verified')) app = app.listen('user_verified', usersHandler)
   if (!shouldToggleOff('usdc_purchases')) app = app.listen('usdc_purchases', purchasesHandler)
   if (!shouldToggleOff('artist_coins')) app = app.listen('artist_coins', artistCoinsHandler)
 
