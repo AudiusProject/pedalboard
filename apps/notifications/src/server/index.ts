@@ -6,6 +6,7 @@ import { router as healthCheckRouter } from './routes/healthCheck'
 import { router as memStatsRouter } from './routes/memStats'
 import { createSendNotificationRouter } from './routes/sendNotification'
 import { createSendWelcomeEmailRouter } from './routes/sendWelcomeEmail'
+import { createInactiveUsersRouter } from './routes/inactiveUsers'
 
 const DEFAULT_PORT = 6000
 
@@ -31,6 +32,10 @@ export class Server {
       this.app.use(
         '/internal/send-welcome-email',
         createSendWelcomeEmailRouter(identityDb)
+      )
+      this.app.use(
+        '/internal/inactive-users',
+        createInactiveUsersRouter(discoveryDb)
       )
     }
 
