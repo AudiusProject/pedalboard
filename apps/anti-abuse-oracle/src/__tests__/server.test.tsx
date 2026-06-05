@@ -80,7 +80,8 @@ vi.mock('keccak256', () => ({
 }))
 
 vi.mock('secp256k1', () => ({
-  ecdsaSign: vi.fn(() => ({ signature: new Uint8Array(64).fill(2), recid: 1 }))
+  ecdsaSign: vi.fn(() => ({ signature: new Uint8Array(64).fill(2), recid: 1 })),
+  publicKeyCreate: vi.fn(() => new Uint8Array(65).fill(3))
 }))
 
 const setBasicAuthEnv = () => {
@@ -104,7 +105,10 @@ describe('server', () => {
       const { app } = await import('../server')
       const res = await app.request('/health_check')
       expect(res.status).toBe(200)
-      expect(await res.json()).toEqual({ status: 'ok' })
+      expect(await res.json()).toEqual({
+        status: 'ok',
+        antiAbuseWalletPubkey: expect.any(String)
+      })
     })
   })
 
