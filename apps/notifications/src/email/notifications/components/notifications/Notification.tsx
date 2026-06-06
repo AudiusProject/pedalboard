@@ -578,6 +578,23 @@ const getTitle = (notification) => {
         </span>
       )
     }
+    case 'announcement': {
+      // Render the announcement heading (data.title) above the body. Older
+      // rows without a title fall back to no heading.
+      if (!notification.title) return null
+      return (
+        <span
+          className={'avenir notificationText'}
+          style={{
+            color: '#858199',
+            fontSize: '16px',
+            fontWeight: 'bold'
+          }}
+        >
+          {notification.title}
+        </span>
+      )
+    }
     default:
       return null
   }

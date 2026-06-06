@@ -59,9 +59,25 @@ export const sendNotificationEmail = async ({
       (n) => !notificationsWithoutEmail.has(n.type)
     )
     const notificationCount = validNotifications.length
-    const emailSubject = `${notificationCount} unread notification${
+    let emailSubject = `${notificationCount} unread notification${
       notificationCount > 1 ? 's' : ''
     } on Audius`
+    // A single announcement (e.g. a re-engagement campaign) gets its heading as
+    // the subject instead of the generic unread-notification count. Falls back
+    // to the generic subject when there's no heading or multiple notifications.
+    if (notificationCount === 1) {
+      const only = validNotifications[0]
+      const announcementTitle =
+        'type' in only &&
+        only.type === 'announcement' &&
+        'data' in only &&
+        typeof only.data?.title === 'string'
+          ? only.data.title.trim()
+          : ''
+      if (announcementTitle.length > 0) {
+        emailSubject = announcementTitle
+      }
+    }
     if (notificationCount === 0) {
       logger.debug(
         `renderAndSendNotificationEmail | 0 notifications detected for user ${userId}, bypassing email`
