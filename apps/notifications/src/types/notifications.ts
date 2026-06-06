@@ -248,6 +248,9 @@ export type TrendingUndergroundNotification = {
   time_range: string
 }
 
+/** Which delivery channels an announcement should fire. Defaults to `both`. */
+export type NotificationChannel = 'email' | 'push' | 'both'
+
 export type AnnouncementNotification = {
   title: string
   short_description: string
@@ -258,6 +261,8 @@ export type AnnouncementNotification = {
   image_url?: string
   /** First-party campaign id (e.g. notifications-dashboard `announcements.id`). */
   notification_campaign_id?: string
+  /** Delivery channels to fire. Absent is treated as `both` for back-compat. */
+  notification_channels?: NotificationChannel
 }
 
 export type USDCPurchaseBuyerNotification = {

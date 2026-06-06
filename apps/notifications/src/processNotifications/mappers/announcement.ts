@@ -81,13 +81,21 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
       this.identityDB,
       userIds
     )
+    // Absent channels (older rows / non-dashboard callers) default to 'both'.
+    const channels = this.notification.data.notification_channels ?? 'both'
+    const sendPush = channels === 'push' || channels === 'both'
+    const sendEmail = channels === 'email' || channels === 'both'
     for (const userId of userIds) {
-      await this.broadcastPushNotificationAnnouncements(
-        userId,
-        userNotificationSettings,
-        isBrowserPushEnabled
-      )
-      await this.broadcastEmailAnnouncements(userId, userNotificationSettings)
+      if (sendPush) {
+        await this.broadcastPushNotificationAnnouncements(
+          userId,
+          userNotificationSettings,
+          isBrowserPushEnabled
+        )
+      }
+      if (sendEmail) {
+        await this.broadcastEmailAnnouncements(userId, userNotificationSettings)
+      }
     }
   }
 
