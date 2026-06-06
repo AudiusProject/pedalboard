@@ -1,8 +1,14 @@
 import { Router, Request, Response } from 'express'
 import { Knex } from 'knex'
 import { logger } from '../../logger'
+import { NotificationChannel } from '../../types/notifications'
 
 const containsHtml = (value: string): boolean => /<[^>]*>/.test(value)
+const NOTIFICATION_CHANNELS: readonly NotificationChannel[] = [
+  'email',
+  'push',
+  'both'
+]
 const normalizeRoute = (value: string): string | null => {
   const input = value.trim()
   if (!input) return null
@@ -34,11 +40,29 @@ export function createSendNotificationRouter(discoveryDb: Knex): Router {
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
-    const { title, body, image_url, route, userIds, notification_campaign_id } =
-      req.body
+    const {
+      title,
+      body,
+      image_url,
+      route,
+      userIds,
+      notification_campaign_id,
+      notificationTypes
+    } = req.body
     if (!title || !body || !Array.isArray(userIds) || userIds.length === 0) {
       res.status(400).json({
         error: 'Missing required fields: title, body, userIds (non-empty array)'
+      })
+      return
+    }
+    // Default to 'both' so existing callers that omit notificationTypes are unaffected.
+    const channels: NotificationChannel =
+      notificationTypes == null ? 'both' : notificationTypes
+    if (!NOTIFICATION_CHANNELS.includes(channels)) {
+      res.status(400).json({
+        error: `Invalid notificationTypes. Use one of: ${NOTIFICATION_CHANNELS.join(
+          ', '
+        )}`
       })
       return
     }
@@ -102,7 +126,8 @@ export function createSendNotificationRouter(discoveryDb: Knex): Router {
           push_body: bodyText,
           ...(normalizedRoute ? { route: normalizedRoute } : {}),
           ...(imageUrlText ? { image_url: imageUrlText } : {}),
-          ...(campaignIdRaw ? { notification_campaign_id: campaignIdRaw } : {})
+          ...(campaignIdRaw ? { notification_campaign_id: campaignIdRaw } : {}),
+          notification_channels: channels
         }
       })
       logger.info(
