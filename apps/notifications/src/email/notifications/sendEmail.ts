@@ -103,6 +103,16 @@ export const sendNotificationEmail = async ({
       subject: emailSubject,
       asm: {
         groupId: NOTIFICATION_EMAIL_UNSUBSCRIBE_GROUP_ID
+      },
+      // Explicitly enable click tracking so SendGrid rewrites links and emits
+      // `click` events (consumed by the notifications-dashboard webhook for
+      // email engagement analytics) rather than relying on the account-global
+      // toggle. Open tracking is disabled: Apple Mail Privacy Protection
+      // pre-fetches the open pixel for ~half of traffic, making opens noise —
+      // clicks are the trustworthy email signal.
+      trackingSettings: {
+        clickTracking: { enable: true, enableText: true },
+        openTracking: { enable: false }
       }
     }
 
