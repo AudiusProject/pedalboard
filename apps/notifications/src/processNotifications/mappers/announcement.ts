@@ -69,7 +69,12 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
     return {
       type: this.notification.type,
       title: this.notification.data.title,
-      text: this.notification.data.short_description
+      text: this.notification.data.short_description,
+      // Surfaced in the email so the announcement heading, campaign artwork,
+      // and CTA deep-link render instead of being dropped. All optional —
+      // older announcement rows omit them and fall back gracefully.
+      route: this.notification.data.route,
+      image_url: this.notification.data.image_url
     }
   }
 

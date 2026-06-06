@@ -95,10 +95,22 @@ const OpenAudiusLink = () => (
   </a>
 )
 
+const DEFAULT_NOTIFICATION_LINK =
+  'https://audius.co/feed?openNotifications=true'
+
+// Announcement rows carry a `route` (app path like `/rewards`, or a full
+// audius.co URL already normalized to a path). Build an absolute link so the
+// email CTA deep-links to the campaign target. Absent route → feed fallback.
+const buildAnnouncementLink = (route?: string): string => {
+  if (!route) return DEFAULT_NOTIFICATION_LINK
+  if (route.startsWith('http')) return route
+  return `https://audius.co${route.startsWith('/') ? route : `/${route}`}`
+}
+
 const WrapLink = (props) => {
   return (
     <a
-      href="https://audius.co/feed?openNotifications=true"
+      href={props.href || DEFAULT_NOTIFICATION_LINK}
       style={{ textDecoration: 'none' }}
     >
       {props.children}
@@ -127,7 +139,13 @@ const Body = (props) => {
     >
       <tr>
         <td>
-          <WrapLink>
+          <WrapLink
+            href={
+              String(props.type).toLowerCase() === 'announcement'
+                ? buildAnnouncementLink(props.route)
+                : undefined
+            }
+          >
             <table
               border="0"
               cellPadding="0"
@@ -155,6 +173,27 @@ const Body = (props) => {
                     }}
                   >
                     {props.title}
+                  </td>
+                </tr>
+              )}
+              {props.image_url && (
+                <tr>
+                  <td
+                    colSpan={'12'}
+                    style={{
+                      padding: '12px 16px 0px'
+                    }}
+                  >
+                    <img
+                      src={props.image_url}
+                      alt=""
+                      style={{
+                        width: '100%',
+                        maxWidth: '364px',
+                        borderRadius: '4px',
+                        display: 'block'
+                      }}
+                    />
                   </td>
                 </tr>
               )}
