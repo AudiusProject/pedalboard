@@ -34,7 +34,10 @@ export const getChallengesDisbursementsUserbanks = async (
       'u.specifier',
       'c.slot'
     )
-    .leftJoin('v_challenge_disbursements as c', function () {
+    // Slot comes straight from sol_reward_disbursements (one row per
+    // challenge_id+specifier); the v_challenge_disbursements compatibility
+    // view was dropped in api migration 0212.
+    .leftJoin('sol_reward_disbursements as c', function () {
       this.on('u.specifier', '=', 'c.specifier').andOn(
         'u.challenge_id',
         '=',
@@ -66,7 +69,10 @@ export const getChallengesDisbursementsUserbanksFriendly = async (
       'u.completed_blocknumber',
       'c.slot'
     )
-    .leftJoin('v_challenge_disbursements as c', function () {
+    // Slot comes straight from sol_reward_disbursements (one row per
+    // challenge_id+specifier); the v_challenge_disbursements compatibility
+    // view was dropped in api migration 0212.
+    .leftJoin('sol_reward_disbursements as c', function () {
       this.on('u.specifier', '=', 'c.specifier').andOn(
         'u.challenge_id',
         '=',
