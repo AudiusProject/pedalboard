@@ -35,6 +35,8 @@ import {
   TrackAddedToPurchasedAlbumNotification,
   RequestManagerNotification,
   ApproveManagerNotification,
+  TrackCollaboratorInviteNotification,
+  TrackCollaboratorAcceptNotification,
   ClaimableRewardNotification,
   RewardInCooldownNotification,
   CommentNotification,
@@ -81,6 +83,8 @@ import { USDCPurchaseBuyer } from './usdcPurchaseBuyer'
 import { USDCWithdrawal } from './usdcWithdrawal'
 import { USDCTransfer } from './usdcTransfer'
 import { RequestManager } from './requestManager'
+import { TrackCollaboratorInvite } from './trackCollaboratorInvite'
+import { TrackCollaboratorAccept } from './trackCollaboratorAccept'
 import { TrackAddedToPurchasedAlbum } from './trackAddedToPurchasedAlbum'
 import { RewardInCooldown } from './rewardInCooldown'
 import { ClaimableReward } from './claimableReward'
@@ -282,6 +286,24 @@ const mapNotification = (
       dnDb,
       identityDb,
       approveManagerNotification
+    )
+  } else if (notification.type === 'track_collaborator_invite') {
+    const trackCollaboratorInviteNotification = notification as NotificationRow & {
+      data: TrackCollaboratorInviteNotification
+    }
+    return new TrackCollaboratorInvite(
+      dnDb,
+      identityDb,
+      trackCollaboratorInviteNotification
+    )
+  } else if (notification.type === 'track_collaborator_accept') {
+    const trackCollaboratorAcceptNotification = notification as NotificationRow & {
+      data: TrackCollaboratorAcceptNotification
+    }
+    return new TrackCollaboratorAccept(
+      dnDb,
+      identityDb,
+      trackCollaboratorAcceptNotification
     )
   } else if (notification.type === 'claimable_reward') {
     const challengeCooldownCompleteNotification =

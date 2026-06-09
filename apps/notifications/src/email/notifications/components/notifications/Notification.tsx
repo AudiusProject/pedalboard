@@ -332,6 +332,26 @@ const notificationMap = {
       </span>
     )
   },
+  ['track_collaborator_invite'](notification) {
+    const [user] = notification.users
+    return (
+      <span className={'notificationText'}>
+        <BodyText
+          text={`${user.name} invited you to collaborate on a track.`}
+        />
+      </span>
+    )
+  },
+  ['track_collaborator_accept'](notification) {
+    const [user] = notification.users
+    return (
+      <span className={'notificationText'}>
+        <BodyText
+          text={`${user.name} accepted your invitation to collaborate.`}
+        />
+      </span>
+    )
+  },
   ['create'](notification) {
     const [user] = notification.users
     if (

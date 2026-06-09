@@ -124,6 +124,14 @@ const snippetMap = {
     const { users } = notification
     return `${users[0].name} has been added as a manager on your account.`
   },
+  ['track_collaborator_invite'](notification) {
+    const { users } = notification
+    return `${users[0].name} invited you to collaborate on a track.`
+  },
+  ['track_collaborator_accept'](notification) {
+    const { users } = notification
+    return `${users[0].name} accepted your invitation to collaborate.`
+  },
   ['create'](notification) {
     const [user] = notification.users
     if (
