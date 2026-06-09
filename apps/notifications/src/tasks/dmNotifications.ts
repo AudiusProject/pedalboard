@@ -83,14 +83,20 @@ async function getUnreadMessages(
     .from('chat_message')
     .innerJoin('chat_member', 'chat_message.chat_id', 'chat_member.chat_id')
     .where('chat_message.blast_id', null)
-    // Javascript dates are limited to 3 decimal places (milliseconds). Truncate the postgresql timestamp to match.
+    // Javascript dates are limited to 3 decimal places (milliseconds). Move
+    // truncation to the bounds so chat_message.created_at remains indexable.
     .whereRaw(
-      `date_trunc('milliseconds', chat_message.created_at) > greatest(chat_member.last_active_at, ?::timestamp)`,
+      `chat_message.created_at >= date_trunc('milliseconds', ?::timestamp) + interval '1 millisecond'`,
       [minTimestamp.toISOString()]
     )
-    .andWhereRaw(`date_trunc('milliseconds', chat_message.created_at) <= ?`, [
-      maxTimestamp.toISOString()
-    ])
+    .andWhereRaw(
+      `chat_message.created_at < date_trunc('milliseconds', ?::timestamp) + interval '1 millisecond'`,
+      [maxTimestamp.toISOString()]
+    )
+    .andWhereRaw(
+      `chat_message.created_at >= date_trunc('milliseconds', greatest(chat_member.last_active_at, ?::timestamp)) + interval '1 millisecond'`,
+      [minTimestamp.toISOString()]
+    )
     .andWhereRaw('chat_message.user_id != chat_member.user_id')
 }
 
@@ -117,14 +123,20 @@ async function getUnreadReactions(
     .joinRaw(
       'join chat_member on chat_member.chat_id = chat_message.chat_id and chat_member.user_id = chat_message.user_id'
     )
-    // Javascript dates are limited to 3 decimal places (milliseconds). Truncate the postgresql timestamp to match.
+    // Javascript dates are limited to 3 decimal places (milliseconds). Move
+    // truncation to the bounds so chat_message_reactions.updated_at remains
+    // indexable.
     .whereRaw(
-      `date_trunc('milliseconds', chat_message_reactions.updated_at) > greatest(chat_member.last_active_at, ?)`,
+      `chat_message_reactions.updated_at >= date_trunc('milliseconds', ?::timestamp) + interval '1 millisecond'`,
       [minTimestamp.toISOString()]
     )
     .andWhereRaw(
-      `date_trunc('milliseconds', chat_message_reactions.updated_at) <= ? `,
+      `chat_message_reactions.updated_at < date_trunc('milliseconds', ?::timestamp) + interval '1 millisecond'`,
       [maxTimestamp.toISOString()]
+    )
+    .andWhereRaw(
+      `chat_message_reactions.updated_at >= date_trunc('milliseconds', greatest(chat_member.last_active_at, ?::timestamp)) + interval '1 millisecond'`,
+      [minTimestamp.toISOString()]
     )
     .andWhereRaw('chat_message_reactions.user_id != chat_member.user_id')
 }
