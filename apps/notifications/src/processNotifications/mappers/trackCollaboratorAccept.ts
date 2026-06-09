@@ -52,7 +52,8 @@ export class TrackCollaboratorAccept extends BaseNotification<TrackCollaboratorA
     }
 
     const tracks = await this.fetchEntities([this.trackId], EntityType.Track)
-    const trackTitle = tracks?.[this.trackId]?.title ?? 'a track'
+    const track = tracks?.[this.trackId]
+    const trackTitle = track && 'title' in track ? track.title : 'a track'
     const collaboratorName = users[this.collaboratorUserId].name
 
     // Notify the inviter (track owner)
