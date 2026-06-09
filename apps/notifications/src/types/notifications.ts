@@ -157,6 +157,18 @@ export type ApproveManagerNotification = {
   user_id: number
 }
 
+export type TrackCollaboratorInviteNotification = {
+  track_id: number
+  collaborator_user_id: number
+  inviter_user_id: number
+}
+
+export type TrackCollaboratorAcceptNotification = {
+  track_id: number
+  collaborator_user_id: number
+  inviter_user_id: number
+}
+
 export type RewardInCooldownNotification = {
   amount: number
   specifier: string
