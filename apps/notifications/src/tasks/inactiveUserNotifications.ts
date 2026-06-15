@@ -1,8 +1,8 @@
 /**
  * Inactive-user notification helpers.
  *
- * findInactiveUsers: queries the discovery DB plays table for users who just
- * crossed an inactivity window.
+ * findInactiveUsers: queries the discovery DB users table for users whose
+ * last_active_at timestamp just crossed an inactivity window.
  *
  * insertTriggerNotification: inserts a single announcement notification row
  * into the discovery DB for the given user IDs (picked up by the existing push
@@ -28,10 +28,11 @@ export type TriggerPayload = {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns user IDs whose most recent play aged into the
- * [hours, hours + windowHours) band with no subsequent activity.
- * Callers should run this on a cadence equal to windowHours so each
- * user is returned exactly once per inactivity episode.
+ * Returns user IDs whose last_active_at timestamp falls in the
+ * [hours, hours + windowHours) band — i.e. they went inactive exactly
+ * that long ago.  Callers should run this on a cadence equal to
+ * windowHours so each user is returned exactly once per inactivity
+ * episode.
  */
 export async function findInactiveUsers(
   discoveryDb: Knex,
@@ -40,22 +41,14 @@ export async function findInactiveUsers(
   limit: number
 ): Promise<number[]> {
   const rows = await discoveryDb
-    .select<{ user_id: number }[]>('p.user_id')
-    .from({ p: 'plays' })
-    .whereNotNull('p.user_id')
-    .andWhereRaw("p.created_at >= now() - (? * interval '1 hour')", [
+    .select<{ user_id: number }[]>('user_id')
+    .from('users')
+    .where('is_current', true)
+    .whereNotNull('last_active_at')
+    .andWhereRaw("last_active_at >= now() - (? * interval '1 hour')", [
       hours + windowHours
     ])
-    .andWhereRaw("p.created_at < now() - (? * interval '1 hour')", [hours])
-    .whereNotExists(function () {
-      this.select(discoveryDb.raw('1'))
-        .from({ p2: 'plays' })
-        .whereRaw('p2.user_id = p.user_id')
-        .andWhereRaw("p2.created_at >= now() - (? * interval '1 hour')", [
-          hours
-        ])
-    })
-    .groupBy('p.user_id')
+    .andWhereRaw("last_active_at < now() - (? * interval '1 hour')", [hours])
     .limit(limit)
   return rows.map((r) => r.user_id)
 }
