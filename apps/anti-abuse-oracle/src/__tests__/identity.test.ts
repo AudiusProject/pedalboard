@@ -7,10 +7,14 @@ type SqlCall = {
 
 const sqlCalls: SqlCall[] = []
 let nextResult: unknown[] = []
+let nextError: unknown
 
 const mockSqlFn = vi.fn(
   (strings: readonly string[], ...values: unknown[]): Promise<unknown[]> => {
     sqlCalls.push({ strings, values })
+    if (nextError) {
+      return Promise.reject(nextError)
+    }
     return Promise.resolve(nextResult)
   }
 )
@@ -31,6 +35,7 @@ describe('identity', () => {
   beforeEach(() => {
     sqlCalls.length = 0
     nextResult = []
+    nextError = undefined
     mockSqlFn.mockClear()
   })
 
@@ -52,6 +57,18 @@ describe('identity', () => {
     expect(call.strings.join('?')).toContain('"Fingerprints"')
   })
 
+  it('userFingerprints returns no rows when the Fingerprints table is missing', async () => {
+    nextError = { code: '42P01' }
+    const { userFingerprints } = await import('../identity')
+    await expect(userFingerprints(42)).resolves.toEqual([])
+  })
+
+  it('userFingerprints throws non-Fingerprints-table errors', async () => {
+    nextError = { code: '53300' }
+    const { userFingerprints } = await import('../identity')
+    await expect(userFingerprints(42)).rejects.toEqual({ code: '53300' })
+  })
+
   it('useFingerprintDeviceCount returns maxUserCount from the first row', async () => {
     nextResult = [{ maxUserCount: 7 }]
     const { useFingerprintDeviceCount } = await import('../identity')
@@ -64,6 +81,20 @@ describe('identity', () => {
     nextResult = [{ maxUserCount: null }]
     const { useFingerprintDeviceCount } = await import('../identity')
     expect(await useFingerprintDeviceCount(99)).toBe(0)
+  })
+
+  it('useFingerprintDeviceCount falls back to 0 when the Fingerprints table is missing', async () => {
+    nextError = { code: '42P01' }
+    const { useFingerprintDeviceCount } = await import('../identity')
+    await expect(useFingerprintDeviceCount(99)).resolves.toBe(0)
+  })
+
+  it('useFingerprintDeviceCount throws non-Fingerprints-table errors', async () => {
+    nextError = { code: '53300' }
+    const { useFingerprintDeviceCount } = await import('../identity')
+    await expect(useFingerprintDeviceCount(99)).rejects.toEqual({
+      code: '53300'
+    })
   })
 
   it('useEmailDeliverable looks up by wallet and returns isEmailDeliverable', async () => {

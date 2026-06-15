@@ -10,18 +10,32 @@ type FingerprintCount = {
   userIds: number[]
 }
 
+const isUndefinedTableError = (error: unknown) =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  (error as { code?: string }).code === '42P01'
+
 export async function userFingerprints(userId: number) {
-  const rows: FingerprintCount[] = await sql`
-    select
-      "visitorId" as "fingerprint",
-      count(distinct "userId") as "userCount",
-      array_agg("userId") as "userIds"
-    from "Fingerprints"
-    where "visitorId" in (
-      select "visitorId" from "Fingerprints" where "userId" = ${userId}
-    )
-    group by 1 order by 2 desc limit 90;
-  `
+  let rows: FingerprintCount[]
+  try {
+    rows = await sql`
+      select
+        "visitorId" as "fingerprint",
+        count(distinct "userId") as "userCount",
+        array_agg("userId") as "userIds"
+      from "Fingerprints"
+      where "visitorId" in (
+        select "visitorId" from "Fingerprints" where "userId" = ${userId}
+      )
+      group by 1 order by 2 desc limit 90;
+    `
+  } catch (error) {
+    if (isUndefinedTableError(error)) {
+      return []
+    }
+    throw error
+  }
 
   for (const row of rows) {
     row.userIds.sort()
@@ -31,20 +45,28 @@ export async function userFingerprints(userId: number) {
 }
 
 export async function useFingerprintDeviceCount(userId: number) {
-  const rows = await sql`
-    SELECT
-        MAX("userCount") AS "maxUserCount"
-    FROM (
-        SELECT
-            "visitorId",
-            COUNT(DISTINCT "userId") AS "userCount"
-        FROM "Fingerprints"
-        WHERE "visitorId" IN (
-            SELECT "visitorId" FROM "Fingerprints" WHERE "userId" = ${userId}
-        )
-        GROUP BY "visitorId"
-    ) t;
-  `
+  let rows
+  try {
+    rows = await sql`
+      SELECT
+          MAX("userCount") AS "maxUserCount"
+      FROM (
+          SELECT
+              "visitorId",
+              COUNT(DISTINCT "userId") AS "userCount"
+          FROM "Fingerprints"
+          WHERE "visitorId" IN (
+              SELECT "visitorId" FROM "Fingerprints" WHERE "userId" = ${userId}
+          )
+          GROUP BY "visitorId"
+      ) t;
+    `
+  } catch (error) {
+    if (isUndefinedTableError(error)) {
+      return 0
+    }
+    throw error
+  }
   return rows[0].maxUserCount ?? 0
 }
 
