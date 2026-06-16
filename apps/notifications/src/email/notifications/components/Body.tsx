@@ -3,6 +3,7 @@ import React from 'react'
 import { DMEntityType, EntityType } from '../types'
 import Footer from './Footer'
 import Notification from './notifications/Notification'
+import { logger } from '../../../logger'
 
 const AudiusImage = () => {
   return (
@@ -179,6 +180,9 @@ const snippetMap = {
   ['track_added_to_playlist'](notification) {
     return `${notification.playlistOwner.name} added your track ${notification.track.title} to their playlist ${notification.playlist.playlist_name}`
   },
+  ['track_added_to_purchased_album'](notification) {
+    return `${notification.playlistOwner.name} released a new track ${notification.track.title} on the album you purchased, ${notification.playlist.playlist_name}`
+  },
   [DMEntityType.Message](notification) {
     return `${notification.sendingUser.name} sent you ${
       notification.multiple ? 'new messages' : 'a new message'
@@ -277,15 +281,36 @@ const mapNotification = (notification) => {
   }
 }
 
+// Build the snippet text for a single notification, returning null when the
+// type has no snippet handler or the handler throws on malformed/missing data.
+// A single unmapped type (e.g. `usdc_transfer`) or a null field must not crash
+// the whole digest render and silently drop the email.
+const getNotificationSnippet = (notification): string | null => {
+  const buildSnippet = snippetMap[notification?.type]
+  if (typeof buildSnippet !== 'function') {
+    logger.info(
+      `getSnippet | no snippet handler for notification type: ${notification?.type}`
+    )
+    return null
+  }
+  try {
+    return buildSnippet(notification)
+  } catch (err) {
+    logger.error(
+      `getSnippet | failed to render snippet for type ${notification?.type}: ${err}`
+    )
+    return null
+  }
+}
+
 // Generate snippet for email composed of the first three notification texts,
 // but limited to 90 characters w/ an ellipsis
 const SNIPPET_ELLIPSIS_LENGTH = 90
 const getSnippet = (notifications) => {
-  const snippet = notifications
+  const snippet = (notifications ?? [])
+    .map(getNotificationSnippet)
+    .filter(Boolean)
     .slice(0, 3)
-    .map((notification) => {
-      return snippetMap[notification.type](notification)
-    })
     .join(', ')
   if (snippet.length <= SNIPPET_ELLIPSIS_LENGTH) return snippet
   const indexOfEllipsis =

@@ -1,5 +1,6 @@
 import React from 'react'
 
+import { logger } from '../../../../logger'
 import NotificationBody from './NotificationBody'
 import {
   WhiteHeavyCheckMarkIcon,
@@ -436,6 +437,17 @@ const notificationMap = {
       </span>
     )
   },
+  ['track_added_to_purchased_album'](notification) {
+    return (
+      <span className={'notificationText'}>
+        <HighlightText text={notification.playlistOwner.name} />
+        <BodyText text={` released a new track `} />
+        <HighlightText text={notification.track.title} />
+        <BodyText text={` on the album you purchased, `} />
+        <HighlightText text={notification.playlist.playlist_name} />
+      </span>
+    )
+  },
   ['reaction'](notification) {
     return (
       <span className={'notificationText'}>
@@ -582,9 +594,23 @@ const notificationMap = {
 }
 
 const getMessage = (notification) => {
-  const getNotificationMessage = notificationMap[notification.type]
-  if (!getNotificationMessage) return null
-  return getNotificationMessage(notification)
+  const getNotificationMessage = notificationMap[notification?.type]
+  if (typeof getNotificationMessage !== 'function') {
+    logger.info(
+      `getMessage | no message handler for notification type: ${notification?.type}`
+    )
+    return null
+  }
+  try {
+    return getNotificationMessage(notification)
+  } catch (err) {
+    // A single notification with malformed/missing data (e.g. a deleted
+    // entity not present in resources) must not crash the whole digest render.
+    logger.error(
+      `getMessage | failed to render message for type ${notification?.type}: ${err}`
+    )
+    return null
+  }
 }
 
 const getTitle = (notification) => {
@@ -673,7 +699,7 @@ const getTwitter = (notification) => {
         )}&text=${encodeURIComponent(text)}`
       }
     }
-    case 'trending_track': {
+    case 'trending': {
       const { entity } = notification
       const url = getTrackLink(entity)
       const text = `My track ${entity.title} is trending on @audius! Check it out!`
@@ -721,11 +747,30 @@ const getTwitter = (notification) => {
   }
 }
 
+// Wrap an individual render helper so a single notification with malformed or
+// missing data (e.g. a referenced track/user that wasn't hydrated) returns null
+// instead of throwing and crashing the render of the entire digest batch.
+const safeRender = (fn, notification) => {
+  try {
+    return fn(notification)
+  } catch (err) {
+    logger.error(
+      `Notification | ${fn.name} failed for type ${notification?.type}: ${err}`
+    )
+    return null
+  }
+}
+
 const Notification = (props) => {
   const message = getMessage(props)
-  const title = getTitle(props)
-  const trackMessage = getTrackMessage(props)
-  const twitter = getTwitter(props)
+  const title = safeRender(getTitle, props)
+  const trackMessage = safeRender(getTrackMessage, props)
+  const twitter = safeRender(getTwitter, props)
+  // Nothing renderable for this notification (unmapped type, or every field
+  // failed). Skip it entirely rather than emitting an empty bordered card.
+  if (message == null && title == null && trackMessage == null) {
+    return null
+  }
   return (
     <NotificationBody
       {...props}
