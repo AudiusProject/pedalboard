@@ -41,14 +41,14 @@ export async function findInactiveUsers(
   limit: number
 ): Promise<number[]> {
   const rows = await discoveryDb
-    .select<{ user_id: number }[]>('user_id')
-    .from('users')
-    .where('is_current', true)
-    .whereNotNull('last_active_at')
-    .andWhereRaw("last_active_at >= now() - (? * interval '1 hour')", [
+    .select<{ user_id: number }[]>('u.user_id')
+    .from({ u: 'users' })
+    .whereNotNull('u.last_active_at')
+    .andWhereRaw("u.last_active_at >= now() - (? * interval '1 hour')", [
       hours + windowHours
     ])
-    .andWhereRaw("last_active_at < now() - (? * interval '1 hour')", [hours])
+    .andWhereRaw("u.last_active_at < now() - (? * interval '1 hour')", [hours])
+    .groupBy('u.user_id')
     .limit(limit)
   return rows.map((r) => r.user_id)
 }
