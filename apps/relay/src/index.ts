@@ -6,14 +6,14 @@ import { logger } from './logger'
 import { initializeDiscoveryDb } from '@pedalboard/basekit'
 import { connectWeb3 } from './web3'
 import { app } from './server'
-import { AudiusSdk, sdk } from '@audius/sdk'
+import { AudiusSdkWithServices, createSdkWithServices } from '@audius/sdk'
 
 export type SharedData = {
   config: Config
   web3: ethers.providers.JsonRpcProvider
-  sdk: AudiusSdk
+  sdk: AudiusSdkWithServices
   wallets: WalletManager
-  audiusSdk: AudiusSdk
+  audiusSdk: AudiusSdkWithServices
 }
 
 export const config = readConfig()
@@ -28,17 +28,13 @@ export const discoveryDb = initializeDiscoveryDb(
 
 export let web3: providers.JsonRpcProvider
 export let wallets: WalletManager
-export let audiusSdk: AudiusSdk
+export let audiusSdk: AudiusSdkWithServices
 
 const main = async () => {
-  audiusSdk = sdk({
+  audiusSdk = createSdkWithServices({
     appName: 'relay',
     environment:
-      config.environment === 'dev'
-        ? 'development'
-        : config.environment === 'stage'
-          ? 'staging'
-          : 'production'
+      config.environment === 'dev' ? 'development' : 'production'
   })
   try {
     // async config
