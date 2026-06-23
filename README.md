@@ -62,7 +62,6 @@ This monorepo uses [Turborepo](https://turbo.build) for fast, efficient developm
 **Run a single app for development (with hot reload):**
 ```bash
 turbo run dev --filter=@pedalboard/app-template
-turbo run dev --filter=@pedalboard/relay
 ```
 
 **Run with dependencies (builds packages first):**
@@ -72,7 +71,7 @@ turbo run dev --filter=@pedalboard/app-template...
 
 **Run multiple apps:**
 ```bash
-turbo run dev --filter=@pedalboard/relay --filter=@pedalboard/staking
+turbo run dev --filter=@pedalboard/app-template --filter=@pedalboard/staking
 ```
 
 ## Building
@@ -234,7 +233,7 @@ git log ap/main --oneline -20 -- "*pedalboard*"
 git cherry-pick abc1234
 
 # Test the changes
-turbo run build --filter=@pedalboard/relay
+turbo run build --filter=@pedalboard/notifications
 ```
 
 # Notifications plugin and git history
