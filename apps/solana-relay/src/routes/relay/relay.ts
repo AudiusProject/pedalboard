@@ -90,7 +90,7 @@ export const relay = async (
     const feePayerKeyPair = getFeePayerKeyPair(feePayerKey)
 
     if (feePayerKeyPair) {
-      res.locals.logger.info(
+      res.locals.logger.debug(
         `Signing with fee payer '${feePayerKey.toBase58()}'`
       )
       try {
@@ -109,13 +109,13 @@ export const relay = async (
       transaction.sign([feePayerKeyPair])
     } else if (verifySignatures(transaction)) {
       if (res.locals.signerUser?.user_id) {
-        res.locals.logger.info('Associating external wallet...')
+        res.locals.logger.debug('Associating external wallet...')
         await associateExternalWallet(
           transaction,
           res.locals.signerUser?.user_id
         )
       }
-      res.locals.logger.info(
+      res.locals.logger.debug(
         `Transaction already signed by '${feePayerKey.toBase58()}'`
       )
     } else if (res.locals.signerUser) {
@@ -128,7 +128,7 @@ export const relay = async (
     const signature = bs58.encode(transaction.signatures[0])
 
     const logger = res.locals.logger.child({ signature })
-    logger.info(
+    logger.debug(
       { rpcEndpoints: connections.map((c) => c.rpcEndpoint) },
       'Sending transaction...'
     )
@@ -142,7 +142,7 @@ export const relay = async (
     })
     res.status(200).send({ signature })
     const responseTime = new Date().getTime() - res.locals.requestStartTime
-    logger.info({ responseTime, statusCode: res.statusCode }, 'response sent')
+    logger.debug({ responseTime, statusCode: res.statusCode }, 'response sent')
     await broadcastTransaction({ logger, signature })
     next()
   } catch (e) {

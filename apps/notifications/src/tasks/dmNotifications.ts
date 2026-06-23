@@ -305,7 +305,7 @@ export async function sendDMNotifications(
       cursors.maxTimestamp
     )
     if (unreadMessages.length > 0) {
-      console.log(
+      logger.debug(
         `dmNotifications: unread message notifications: ${JSON.stringify(
           unreadMessages
         )}`
@@ -320,7 +320,7 @@ export async function sendDMNotifications(
       cursors.maxTimestamp
     )
     if (unreadReactions.length > 0) {
-      console.log(
+      logger.debug(
         `dmNotifications: unread message reaction notifications: ${JSON.stringify(
           unreadReactions
         )}`
@@ -338,12 +338,12 @@ export async function sendDMNotifications(
       cursors.lastIndexedBlastUserId
     )
     if (newBlasts.length > 0) {
-      console.log(
+      logger.debug(
         `dmNotifications: last indexed blastId: ${lastIndexedBlastId}, last indexed userId: ${lastIndexedBlastUserId} new chat blast notifications: ${JSON.stringify(
           newBlasts
         )}`
       )
-      logger.info(
+      logger.debug(
         `dmNotifications: last indexed blastId: ${lastIndexedBlastId}, last indexed userId: ${lastIndexedBlastUserId} total new chat blast notifications: ${newBlasts.length}`
       )
     }
@@ -414,7 +414,7 @@ export async function sendDMNotifications(
 
     if (notifications.length > 0) {
       timer.logMessage(DMPhase.PUSH_NOTIFICATIONS)
-      logger.info(
+      logger.debug(
         {
           ...timer.getContext(),
           numberNotifications: toSend.length,

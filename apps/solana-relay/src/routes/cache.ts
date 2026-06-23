@@ -25,7 +25,7 @@ export const cache = async (
       result: TransactionResponse
     }
     const signature = transactionResponse.result.transaction.signatures[0]
-    res.locals.logger.info({ signature }, 'Caching transaction...')
+    res.locals.logger.debug({ signature }, 'Caching transaction...')
     await cacheTransaction(signature, transaction)
     res.status(200).send({ signature })
     next()

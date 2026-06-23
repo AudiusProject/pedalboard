@@ -20,7 +20,7 @@ export const relayTransaction = async (
   const { validatedRelayRequest, logger, requestId } = res.locals.ctx
   try {
     const receipt = await coreRelay(logger, requestId, validatedRelayRequest)
-    logger.info({ receipt }, "sending back")
+    logger.debug({ receipt }, "sending back")
     res.send({ receipt })
   } catch (e) {
     internalError(next, e)

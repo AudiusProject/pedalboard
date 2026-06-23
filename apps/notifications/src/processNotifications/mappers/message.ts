@@ -44,7 +44,7 @@ export class Message extends BaseNotification<DMNotification> {
     }, {} as Record<number, { name: string; isDeactivated: boolean }>)
 
     if (users?.[this.receiverUserId]?.isDeactivated) {
-      logger.info(
+      logger.debug(
         `Not sending notifications: receiver ${this.receiverUserId} is deactivated`
       )
       return
@@ -73,7 +73,7 @@ export class Message extends BaseNotification<DMNotification> {
         body
       )
     } else {
-      logger.info(
+      logger.debug(
         `Not sending browser notification: receiver ${this.receiverUserId} does not have browser notifications enabled for messages`
       )
     }
@@ -84,7 +84,7 @@ export class Message extends BaseNotification<DMNotification> {
         'messages'
       )
     if (!pushNotificationsEnabled) {
-      logger.info(
+      logger.debug(
         `Not sending push notification: receiver ${this.receiverUserId} does not have push notifications enabled for messages`
       )
     }

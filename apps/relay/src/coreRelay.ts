@@ -166,7 +166,7 @@ export const coreRelay = async (
       }
     }
 
-    logger.info(
+    logger.debug(
       {
         tx: res.transaction,
         txhash: txHash,

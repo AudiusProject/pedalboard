@@ -25,7 +25,7 @@ export default async (
   if (!isUpload) return
 
   if (isOldUpload(created_at)) {
-    logger.info({ created_at, track_id }, 'old upload')
+    logger.debug({ created_at, track_id }, 'old upload')
     return
   }
 

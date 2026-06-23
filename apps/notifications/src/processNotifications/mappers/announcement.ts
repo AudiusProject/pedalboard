@@ -113,7 +113,7 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
       receiverUserId: userId
     })
     if (!shouldSend) {
-      logger.info(
+      logger.debug(
         { userId, notificationId: this.notification.id },
         'announcement: skipping push — shouldSendPushNotification returned false'
       )
@@ -145,7 +145,7 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
         body
       )
       const devices: Device[] = userNotificationSettings.getDevices(userId)
-      logger.info(
+      logger.debug(
         {
           userId,
           deviceCount: devices.length,
@@ -155,7 +155,7 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
         'announcement: sending push to devices'
       )
       if (devices.length === 0) {
-        logger.info({ userId }, 'announcement: user has no registered devices')
+        logger.debug({ userId }, 'announcement: user has no registered devices')
         return
       }
       const rawImage = this.notification.data.image_url
@@ -191,7 +191,7 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
           )
         })
       )
-      logger.info(
+      logger.debug(
         {
           userId,
           pushResults: pushes.map((p) => ({

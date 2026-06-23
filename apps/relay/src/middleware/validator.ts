@@ -67,7 +67,7 @@ export const validator = async (
 
   const operation = getEntityManagerActionKey(encodedABI)
   loggerInfo.operation = operation
-  logger.info({ operation, encodedABI }, 'retrieved operation')
+  logger.debug({ operation, encodedABI }, 'retrieved operation')
 
   // Gather user from input data
   // @ts-ignore, partially populate for now
@@ -95,7 +95,7 @@ export const validator = async (
     loggerInfo.address = user.wallet || undefined
     loggerInfo.userId = user.user_id || undefined
 
-    logger.info(
+    logger.debug(
       {
         handle: user.handle_lc,
         address: user.wallet,
@@ -109,18 +109,18 @@ export const validator = async (
   if (signerIsUser) {
     const isDeactivated = (recoveredSigner as Users).is_deactivated
     if (isUserDeactivate(isDeactivated, encodedABI)) {
-      logger.info('user deactivation')
+      logger.debug('user deactivation')
       isAnonymousAllowed = true
     }
   }
 
   if (isUserCreate(encodedABI)) {
-    logger.info('user create')
+    logger.debug('user create')
     isAnonymousAllowed = true
   }
 
   if (isTrackDownload(encodedABI)) {
-    logger.info('track download')
+    logger.debug('track download')
     isAnonymousAllowed = true
   }
 
@@ -149,7 +149,7 @@ export const validator = async (
     loggerInfo.userId = developerApp.user_id || undefined
     loggerInfo.handle = developerApp.name
     loggerInfo.isApp = true
-    logger.info(
+    logger.debug(
       {
         address: developerApp.address,
         userId: developerApp.user_id,

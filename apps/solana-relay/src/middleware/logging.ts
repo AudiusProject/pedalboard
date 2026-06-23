@@ -18,7 +18,7 @@ export const incomingRequestLogger = (
     path,
     method
   })
-  response.locals.logger.info(
+  response.locals.logger.debug(
     { startTime: new Date(startTime), body: request.body },
     'incoming request'
   )
@@ -29,7 +29,7 @@ export const outgoingLog = (_request: Request, response: Response) => {
   // in milliseconds
   const requestTime = new Date().getTime() - response.locals.requestStartTime
   const statusCode = response.statusCode
-  response.locals.logger.info({ requestTime, statusCode }, 'request completed')
+  response.locals.logger.debug({ requestTime, statusCode }, 'request completed')
 }
 
 export const outgoingRequestLogger = (

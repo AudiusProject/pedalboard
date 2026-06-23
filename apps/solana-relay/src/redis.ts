@@ -100,7 +100,7 @@ export const rateLimitTokenAccountCreation = async (
   const currentUserCount = await redis.get(userKey)
   const currentSystemCount = await redis.get(key)
 
-  logger.info(
+  logger.debug(
     {
       wallet,
       isVerified,
@@ -150,7 +150,7 @@ export const rateLimitTokenAccountCreation = async (
     throw new Error('System has created too many token accounts')
   }
 
-  logger.info(
+  logger.debug(
     {
       wallet,
       isVerified,

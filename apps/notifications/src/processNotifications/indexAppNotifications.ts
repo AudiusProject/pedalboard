@@ -155,7 +155,7 @@ export class AppNotificationsProcessor {
   ) {
     if (notifications.length == 0) return
 
-    logger.info(
+    logger.debug(
       {
         count: notifications.length,
         types: notifications.map((n) => n.type),
@@ -210,7 +210,7 @@ export class AppNotificationsProcessor {
         )
 
         const shadowBannedUsers = res.rows.map((row) => String(row.user_id))
-        logger.info(
+        logger.debug(
           `Skipping notifications triggered by users: ${shadowBannedUsers}`
         )
 
@@ -272,7 +272,7 @@ export class AppNotificationsProcessor {
         }
       } else {
         status.skipped += 1
-        logger.info(
+        logger.debug(
           `Skipping push notification of type ${notification.notification.type}`
         )
         if (options?.requeuePoppedRetries) {

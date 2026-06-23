@@ -24,7 +24,7 @@ export const incomingRequestLogger = (
   const { route, method } = request
   const path: string = route.path
   if (!path.includes('health')) {
-    logger.info({ requestId, path, method }, 'incoming request')
+    logger.debug({ requestId, path, method }, 'incoming request')
   }
   next()
 }
@@ -39,7 +39,7 @@ export const outgoingLog = (request: Request, response: Response) => {
   const statusCode = response.statusCode
   const path: string = route.path
   if (!path.includes('health')) {
-    response.locals.ctx.logger.info(
+    response.locals.ctx.logger.debug(
       { responseTime, statusCode },
       'request completed'
     )

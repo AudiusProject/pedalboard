@@ -62,7 +62,7 @@ export default async (
   // Belt-and-suspenders: the trigger already gated on the transition, but guard
   // against a verification that was reverted between the NOTIFY and this read.
   if (!current.is_verified) {
-    logger.info({ user_id, blocknumber }, 'no longer verified, skipping')
+    logger.debug({ user_id, blocknumber }, 'no longer verified, skipping')
     return
   }
 

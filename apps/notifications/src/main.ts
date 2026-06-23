@@ -284,13 +284,13 @@ async function main() {
         return d
       })
       if (pendingIds.length > 0) {
-        logger.info(
+        logger.debug(
           { pendingIds, count: pendingIds.length },
           'tick: draining pending notification IDs'
         )
         try {
           const rows = await fetchNotificationsByIds(self.getDnDb(), pendingIds)
-          logger.info(
+          logger.debug(
             {
               requestedIds: pendingIds.length,
               fetchedRows: rows.length,
