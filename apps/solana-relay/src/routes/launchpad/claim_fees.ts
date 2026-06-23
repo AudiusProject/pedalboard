@@ -211,7 +211,7 @@ export const claimFees = async (
       try {
         const dammV2ClaimFeeTxs = await getDammV2PoolTxs(
           connection,
-          tokenMint as string,
+          pools.damm_v2_pool,
           ownerWallet,
           receiverWallet,
           ownerWalletAudioATA
