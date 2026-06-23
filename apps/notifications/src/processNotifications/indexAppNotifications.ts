@@ -155,15 +155,6 @@ export class AppNotificationsProcessor {
   ) {
     if (notifications.length == 0) return
 
-    logger.debug(
-      {
-        count: notifications.length,
-        types: notifications.map((n) => n.type),
-        ids: notifications.map((n) => n.id)
-      },
-      `Processing ${notifications.length} push notifications`
-    )
-
     const redis = await getRedisConnection()
 
     const timer = new Timer('Processing notifications duration')
@@ -272,9 +263,6 @@ export class AppNotificationsProcessor {
         }
       } else {
         status.skipped += 1
-        logger.debug(
-          `Skipping push notification of type ${notification.notification.type}`
-        )
         if (options?.requeuePoppedRetries) {
           await redis.lPush(
             NOTIFICATION_RETRY_QUEUE_REDIS_KEY,

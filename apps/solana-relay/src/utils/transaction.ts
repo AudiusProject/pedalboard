@@ -28,7 +28,6 @@ const CONFIRM_POLL_DELAY_MS = 5 * 1000
  */
 const forwardTransaction = async (logger: Logger, transaction: string) => {
   const endpoints = await getCachedDiscoveryNodes()
-  logger.debug(`Forwarding to ${endpoints.length} endpoints...`)
   const body = JSON.stringify({ transaction })
   await Promise.all(
     endpoints
@@ -45,12 +44,7 @@ const forwardTransaction = async (logger: Logger, transaction: string) => {
           }
         })
           .then((res) => {
-            if (res.ok) {
-              logger.debug(
-                { endpoint, status: res.status },
-                `Forwarded successfully`
-              )
-            } else {
+            if (!res.ok) {
               logger.warn(
                 { endpoint },
                 `Failed to forward transaction to endpoint: ${res.statusText}`
@@ -152,7 +146,6 @@ export const sendTransactionWithRetries = async ({
         if (res.value) {
           const value = res.value
           if (isConfirmed(value, commitment)) {
-            logger.debug({ signature }, 'Confirmed transaction via polling.')
             return res as RpcResponseAndContext<SignatureStatus>
           }
         }
@@ -210,10 +203,6 @@ export const sendTransactionWithRetries = async ({
           !confirmationRes.value?.err
         ) {
           success = true
-          logger.debug(
-            { signature: confirmationStrategy.signature },
-            'Confirmed transaction at final check.'
-          )
           return confirmationStrategy.signature
         }
       } catch (error) {
@@ -258,12 +247,10 @@ export const broadcastTransaction = async ({
     // Confirm, fetch, cache and forward after success response.
     // The transaction may be confirmed from specifying commitment before,
     // but that may have been a different RPC. So confirm again.
-    logger.debug(`Confirming transaction before fetching...`)
     const strategy = await connection.getLatestBlockhash()
     const confirmationStrategy = { ...strategy, signature }
     await connection.confirmTransaction(confirmationStrategy, 'confirmed')
   }
-  logger.debug('Fetching transaction for caching...')
   // Dangerously relying on the internals of connection to do the fetch.
   // Calling connection.getTransaction will result in the library parsing the
   // results and getting us back our object again, but we need the raw JSON
@@ -284,8 +271,6 @@ export const broadcastTransaction = async ({
     }
   ])
   const formattedResponse = JSON.stringify(rpcResponse)
-  logger.debug('Caching transaction...')
   await cacheTransaction(signature, formattedResponse)
-  logger.debug('Forwarding transaction to other nodes to cache...')
   await forwardTransaction(logger, formattedResponse)
 }

@@ -38,7 +38,6 @@ export const antiAbuseMiddleware = async (
 
   // no AAO to check and creates / deactivates should always be allowed
   if (signerIsApp || isAnonymousAllowed || isSenderVerifier) {
-    logger.debug({ isAnonymousAllowed, isSenderVerifier }, 'antiabuse skipped')
     next()
     return
   }
@@ -98,20 +97,6 @@ export const detectAbuse = async (
     return
   }
   const userAbuseRules = determineAbuseRules(aaoConfig, rules)
-  const {
-    appliedRules,
-    blockedFromRelay,
-    blockedFromNotifications,
-    blockedFromEmails
-  } = userAbuseRules
-  logger.debug(
-    `detectAbuse: got info for handle ${user.handle}: ${JSON.stringify({
-      appliedRules,
-      blockedFromRelay,
-      blockedFromNotifications,
-      blockedFromEmails
-    })}`
-  )
   storeAAOState(user.user_id, userAbuseRules)
 }
 

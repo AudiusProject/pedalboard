@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import { AppError, isAppError } from '../error'
 import { StatusCodes } from 'http-status-codes'
-import { outgoingLog } from './logging'
 
 export const errorHandler = (
   error: any,
@@ -19,7 +18,6 @@ export const errorHandler = (
     response
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ name: 'INTERNAL_ERROR' })
-    outgoingLog(request, response)
     next()
     return
   }
@@ -42,6 +40,5 @@ export const errorHandler = (
     errorMessage = message
   }
   response.status(statusCode).json({ name, errorMessage })
-  outgoingLog(request, response)
   next()
 }

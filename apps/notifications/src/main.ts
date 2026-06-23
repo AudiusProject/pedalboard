@@ -113,7 +113,6 @@ export class Processor {
   }
 
   start = async () => {
-    logger.info('processing events')
     this.isRunning = true
     while (this.isRunning) {
       logger.debug('Processing app notifications (new)')
@@ -284,21 +283,8 @@ async function main() {
         return d
       })
       if (pendingIds.length > 0) {
-        logger.debug(
-          { pendingIds, count: pendingIds.length },
-          'tick: draining pending notification IDs'
-        )
         try {
           const rows = await fetchNotificationsByIds(self.getDnDb(), pendingIds)
-          logger.debug(
-            {
-              requestedIds: pendingIds.length,
-              fetchedRows: rows.length,
-              types: rows.map((r) => r.type),
-              fetchedIds: rows.map((r) => r.id)
-            },
-            'tick: fetched notification rows'
-          )
           const byId = new Map<number, (typeof rows)[0]>()
           for (const row of rows) {
             const id = row.id
@@ -421,7 +407,6 @@ async function main() {
       await server.init(identityDb, discoveryDb)
     })
 
-  logger.info('processing events')
   await app.run()
 }
 

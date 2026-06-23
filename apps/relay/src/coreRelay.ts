@@ -166,15 +166,6 @@ export const coreRelay = async (
       }
     }
 
-    logger.debug(
-      {
-        tx: res.transaction,
-        txhash: txHash,
-        block: blockHeight,
-        blockhash: blockHash
-      },
-      'core relay success'
-    )
     return {
       status: true,
       transactionHash: txHash,

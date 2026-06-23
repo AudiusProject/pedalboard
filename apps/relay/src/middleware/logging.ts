@@ -2,6 +2,9 @@ import { NextFunction, Request, Response } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import { logger } from '../logger'
 
+// Establishes a request-scoped child logger (used by downstream middleware and
+// error handlers). Does not emit an access log of its own — request/response
+// access logging is handled by the ingress in front of relay.
 export const incomingRequestLogger = (
   request: Request,
   response: Response,
@@ -20,37 +23,5 @@ export const incomingRequestLogger = (
     requestId,
     logger: requestLogger
   }
-
-  const { route, method } = request
-  const path: string = route.path
-  if (!path.includes('health')) {
-    logger.debug({ requestId, path, method }, 'incoming request')
-  }
-  next()
-}
-
-export const outgoingLog = (request: Request, response: Response) => {
-  // in milliseconds
-  const responseTime =
-    new Date().getTime() - response.locals.ctx.startTime.getTime()
-  const { route, method } = request
-  const { locals: ctx } = response
-  const requestId = ctx.ctx.requestId
-  const statusCode = response.statusCode
-  const path: string = route.path
-  if (!path.includes('health')) {
-    response.locals.ctx.logger.debug(
-      { responseTime, statusCode },
-      'request completed'
-    )
-  }
-}
-
-export const outgoingRequestLogger = (
-  request: Request,
-  response: Response,
-  next: NextFunction
-) => {
-  outgoingLog(request, response)
   next()
 }
