@@ -155,15 +155,6 @@ export class AppNotificationsProcessor {
   ) {
     if (notifications.length == 0) return
 
-    logger.info(
-      {
-        count: notifications.length,
-        types: notifications.map((n) => n.type),
-        ids: notifications.map((n) => n.id)
-      },
-      `Processing ${notifications.length} push notifications`
-    )
-
     const redis = await getRedisConnection()
 
     const timer = new Timer('Processing notifications duration')
@@ -210,7 +201,7 @@ export class AppNotificationsProcessor {
         )
 
         const shadowBannedUsers = res.rows.map((row) => String(row.user_id))
-        logger.info(
+        logger.debug(
           `Skipping notifications triggered by users: ${shadowBannedUsers}`
         )
 
@@ -272,9 +263,6 @@ export class AppNotificationsProcessor {
         }
       } else {
         status.skipped += 1
-        logger.info(
-          `Skipping push notification of type ${notification.notification.type}`
-        )
         if (options?.requeuePoppedRetries) {
           await redis.lPush(
             NOTIFICATION_RETRY_QUEUE_REDIS_KEY,

@@ -97,21 +97,6 @@ export const rateLimitTokenAccountCreation = async (
     ? TOKEN_ACCOUNT_CREATION_VERIFIED_USER_LIMIT
     : TOKEN_ACCOUNT_CREATION_USER_LIMIT
 
-  const currentUserCount = await redis.get(userKey)
-  const currentSystemCount = await redis.get(key)
-
-  logger.info(
-    {
-      wallet,
-      isVerified,
-      currentUserCount: currentUserCount ? parseInt(currentUserCount) : 0,
-      currentSystemCount: currentSystemCount ? parseInt(currentSystemCount) : 0,
-      userLimit: limit,
-      systemLimit: TOKEN_ACCOUNT_CREATION_SYSTEM_LIMIT
-    },
-    'Token account creation rate limit check'
-  )
-
   const [userCount] = await redis
     .multi()
     .incr(userKey)
@@ -149,14 +134,4 @@ export const rateLimitTokenAccountCreation = async (
     )
     throw new Error('System has created too many token accounts')
   }
-
-  logger.info(
-    {
-      wallet,
-      isVerified,
-      newUserCount: userCount,
-      newSystemCount: systemCount
-    },
-    'Token account creation rate limit passed'
-  )
 }

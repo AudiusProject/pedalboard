@@ -90,9 +90,6 @@ export const relay = async (
     const feePayerKeyPair = getFeePayerKeyPair(feePayerKey)
 
     if (feePayerKeyPair) {
-      res.locals.logger.info(
-        `Signing with fee payer '${feePayerKey.toBase58()}'`
-      )
       try {
         // Only care about what the instructions are if signing/paying
         await assertRelayAllowedInstructions(decompiled.instructions, {
@@ -109,15 +106,11 @@ export const relay = async (
       transaction.sign([feePayerKeyPair])
     } else if (verifySignatures(transaction)) {
       if (res.locals.signerUser?.user_id) {
-        res.locals.logger.info('Associating external wallet...')
         await associateExternalWallet(
           transaction,
           res.locals.signerUser?.user_id
         )
       }
-      res.locals.logger.info(
-        `Transaction already signed by '${feePayerKey.toBase58()}'`
-      )
     } else if (res.locals.signerUser) {
       throw new BadRequestError(
         `No fee payer for address '${feePayerKey?.toBase58()}' and signature missing or invalid`
@@ -128,10 +121,6 @@ export const relay = async (
     const signature = bs58.encode(transaction.signatures[0])
 
     const logger = res.locals.logger.child({ signature })
-    logger.info(
-      { rpcEndpoints: connections.map((c) => c.rpcEndpoint) },
-      'Sending transaction...'
-    )
     const confirmationStrategy = { ...strategy, signature }
     await sendTransactionWithRetries({
       transaction,
@@ -141,8 +130,6 @@ export const relay = async (
       logger
     })
     res.status(200).send({ signature })
-    const responseTime = new Date().getTime() - res.locals.requestStartTime
-    logger.info({ responseTime, statusCode: res.statusCode }, 'response sent')
     await broadcastTransaction({ logger, signature })
     next()
   } catch (e) {

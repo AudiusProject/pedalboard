@@ -75,7 +75,6 @@ export const rateLimiterMiddleware = async (
       signer,
       limit
     })
-    logger.info({ limit }, 'calculated rate limit')
     insertReplyHeaders(res, rateLimitData)
   } catch (e) {
     if (e instanceof RateLimiterRes) {

@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid'
 
 import { logger } from '../logger'
 
+// Establishes a request-scoped child logger (used by route handlers and the
+// error handler). Does not emit an access log of its own — request/response
+// access logging is handled by the ingress in front of solana-relay.
 export const incomingRequestLogger = (
   request: Request,
   response: Response,
@@ -18,25 +21,5 @@ export const incomingRequestLogger = (
     path,
     method
   })
-  response.locals.logger.info(
-    { startTime: new Date(startTime), body: request.body },
-    'incoming request'
-  )
-  next()
-}
-
-export const outgoingLog = (_request: Request, response: Response) => {
-  // in milliseconds
-  const requestTime = new Date().getTime() - response.locals.requestStartTime
-  const statusCode = response.statusCode
-  response.locals.logger.info({ requestTime, statusCode }, 'request completed')
-}
-
-export const outgoingRequestLogger = (
-  request: Request,
-  response: Response,
-  next: NextFunction
-) => {
-  outgoingLog(request, response)
   next()
 }

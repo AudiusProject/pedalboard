@@ -10,7 +10,7 @@ export type MemoryStats = {
 
 export const logMemStats = () => {
   const stats = getMemStats()
-  const logFmt = (key: string, val: string) => logger.info(`${key}: ${val}MB`)
+  const logFmt = (key: string, val: string) => logger.debug(`${key}: ${val}MB`)
   logFmt('Heap Total', stats.heapTotal)
   logFmt('Heap Used', stats.heapUsed)
   logFmt('Heap Available', stats.heapAvailable)

@@ -304,14 +304,6 @@ export async function sendDMNotifications(
       cursors.minMessageTimestamp,
       cursors.maxTimestamp
     )
-    if (unreadMessages.length > 0) {
-      console.log(
-        `dmNotifications: unread message notifications: ${JSON.stringify(
-          unreadMessages
-        )}`
-      )
-    }
-
     timer.logMessage(DMPhase.GET_UNREAD_REACTIONS)
 
     const unreadReactions = await getUnreadReactions(
@@ -319,14 +311,6 @@ export async function sendDMNotifications(
       cursors.minReactionTimestamp,
       cursors.maxTimestamp
     )
-    if (unreadReactions.length > 0) {
-      console.log(
-        `dmNotifications: unread message reaction notifications: ${JSON.stringify(
-          unreadReactions
-        )}`
-      )
-    }
-
     timer.logMessage(DMPhase.GET_NEW_BLASTS)
     const {
       lastIndexedBlastId,
@@ -337,16 +321,6 @@ export async function sendDMNotifications(
       cursors.lastIndexedBlastId,
       cursors.lastIndexedBlastUserId
     )
-    if (newBlasts.length > 0) {
-      console.log(
-        `dmNotifications: last indexed blastId: ${lastIndexedBlastId}, last indexed userId: ${lastIndexedBlastUserId} new chat blast notifications: ${JSON.stringify(
-          newBlasts
-        )}`
-      )
-      logger.info(
-        `dmNotifications: last indexed blastId: ${lastIndexedBlastId}, last indexed userId: ${lastIndexedBlastUserId} total new chat blast notifications: ${newBlasts.length}`
-      )
-    }
 
     // Convert to notifications
     const messageNotifications = unreadMessages.map(

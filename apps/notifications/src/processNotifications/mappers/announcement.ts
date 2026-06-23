@@ -112,12 +112,6 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
     const shouldSend = userNotificationSettings.shouldSendPushNotification({
       receiverUserId: userId
     })
-    if (!shouldSend) {
-      logger.info(
-        { userId, notificationId: this.notification.id },
-        'announcement: skipping push — shouldSendPushNotification returned false'
-      )
-    }
     if (shouldSend) {
       const title = this.notification.data.title ?? ''
       const body = this.notification.data.short_description ?? ''
@@ -145,17 +139,7 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
         body
       )
       const devices: Device[] = userNotificationSettings.getDevices(userId)
-      logger.info(
-        {
-          userId,
-          deviceCount: devices.length,
-          deviceTypes: devices.map((d) => d.type),
-          notificationId: this.notification.id
-        },
-        'announcement: sending push to devices'
-      )
       if (devices.length === 0) {
-        logger.info({ userId }, 'announcement: user has no registered devices')
         return
       }
       const rawImage = this.notification.data.image_url
@@ -190,15 +174,6 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
             }
           )
         })
-      )
-      logger.info(
-        {
-          userId,
-          pushResults: pushes.map((p) => ({
-            endpointDisabled: p?.endpointDisabled ?? false
-          }))
-        },
-        'announcement: push results'
       )
       await disableDeviceArns(this.identityDB, pushes)
       await this.incrementBadgeCount(userId)

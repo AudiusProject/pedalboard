@@ -17,7 +17,12 @@ export function createLogger (name: string, level: string = 'info'): Logger {
     name,
     base: undefined,
     timestamp: stdTimeFunctions.isoTime,
-    level: process.env.NODE_ENV === 'test' ? 'error' : level,
+    // LOG_LEVEL allows turning verbose (debug) logging back on in prod without a
+    // code change; defaults to the level passed in (info), which filters debug.
+    level:
+      process.env.NODE_ENV === 'test'
+        ? 'error'
+        : process.env.LOG_LEVEL || level,
     formatters
   })
 }

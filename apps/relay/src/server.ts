@@ -1,10 +1,7 @@
 import { healthCheck } from './routes/health'
 import express from 'express'
 import { errorHandler } from './middleware/errorHandler'
-import {
-  incomingRequestLogger,
-  outgoingRequestLogger
-} from './middleware/logging'
+import { incomingRequestLogger } from './middleware/logging'
 import { validator } from './middleware/validator'
 import cors from 'cors'
 import bodyParser from 'body-parser'
@@ -22,12 +19,7 @@ app.use(bodyParser.text())
 app.use(cors())
 
 /** Reads */
-app.get(
-  '/relay/health',
-  incomingRequestLogger,
-  healthCheck,
-  outgoingRequestLogger
-)
+app.get('/relay/health', incomingRequestLogger, healthCheck)
 
 /** Writes */
 app.post(
@@ -36,8 +28,7 @@ app.post(
   validator,
   // rateLimiterMiddleware,
   // antiAbuseMiddleware,
-  relayTransaction,
-  outgoingRequestLogger
+  relayTransaction
 )
 
 /** Register top level middlewares */

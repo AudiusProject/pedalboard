@@ -1,5 +1,4 @@
 import { Knex } from 'knex'
-import { logger } from '../../logger'
 import moment from 'moment'
 
 export type DeviceType = 'ios' | 'android'
@@ -126,23 +125,8 @@ export class UserNotificationSettings {
     const isInitiatorAbusive = initiatorUserId
       ? this.userIsAbusive[initiatorUserId.toString()]
       : false
-    if (isInitiatorAbusive) {
-      logger.info(
-        `Not sending push notification: initiator ${initiatorUserId} is abusive`
-      )
-    }
-    if (this.userIsAbusive[receiverUserId]) {
-      logger.info(
-        `Not sending push notification: receiver ${receiverUserId} is abusive`
-      )
-    }
     const receiverHasDevices =
       (this.mobile?.[receiverUserId]?.devices ?? []).length > 0
-    if (!receiverHasDevices) {
-      logger.info(
-        `Not sending push notification: receiver ${receiverUserId} has no devices`
-      )
-    }
 
     return (
       receiverHasDevices &&

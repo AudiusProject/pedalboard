@@ -6,10 +6,7 @@ import multer from 'multer'
 import { config } from './config'
 import { logger } from './logger'
 import { errorHandlerMiddleware } from './middleware/errorHandler'
-import {
-  incomingRequestLogger,
-  outgoingRequestLogger
-} from './middleware/logging'
+import { incomingRequestLogger } from './middleware/logging'
 import {
   userSignerRecoveryMiddleware,
   discoveryNodeSignerRecoveryMiddleware
@@ -62,7 +59,6 @@ const main = async () => {
   app.post('/solana/cache', cache)
   app.get('/solana/feePayer', feePayer)
   app.get('/solana/instruction/location', location)
-  app.use(outgoingRequestLogger)
   app.use(errorHandlerMiddleware)
 
   const server = app.listen(serverPort, serverHost, () => {

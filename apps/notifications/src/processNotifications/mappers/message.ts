@@ -1,5 +1,4 @@
 import { Knex } from 'knex'
-import { logger } from './../../logger'
 import { BaseNotification } from './base'
 import { UserRow } from '../../types/dn'
 import { DMNotification } from '../../types/notifications'
@@ -44,9 +43,6 @@ export class Message extends BaseNotification<DMNotification> {
     }, {} as Record<number, { name: string; isDeactivated: boolean }>)
 
     if (users?.[this.receiverUserId]?.isDeactivated) {
-      logger.info(
-        `Not sending notifications: receiver ${this.receiverUserId} is deactivated`
-      )
       return
     }
 
@@ -72,10 +68,6 @@ export class Message extends BaseNotification<DMNotification> {
         title,
         body
       )
-    } else {
-      logger.info(
-        `Not sending browser notification: receiver ${this.receiverUserId} does not have browser notifications enabled for messages`
-      )
     }
 
     const pushNotificationsEnabled =
@@ -83,11 +75,6 @@ export class Message extends BaseNotification<DMNotification> {
         this.receiverUserId,
         'messages'
       )
-    if (!pushNotificationsEnabled) {
-      logger.info(
-        `Not sending push notification: receiver ${this.receiverUserId} does not have push notifications enabled for messages`
-      )
-    }
 
     // If the user has devices to the notification to, proceed
     if (
