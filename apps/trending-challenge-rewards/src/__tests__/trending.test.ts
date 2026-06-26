@@ -1,6 +1,6 @@
 import { describe, it, expect, jest } from '@jest/globals'
 import { Knex } from 'knex'
-import { queryTopTrending, composeTweet } from '../trending'
+import { queryTopTrending, queryHandles, composeTweet } from '../trending'
 
 // Builds a chainable knex mock. Each `db(table)` call returns a fresh builder
 // that records its `whereIn` args and resolves `.first()` / `.limit()`.
@@ -74,6 +74,35 @@ describe('queryTopTrending', () => {
 
     expect(tracks).toEqual([])
     expect(underground).toEqual([])
+  })
+})
+
+describe('queryHandles', () => {
+  it('uses twitter handles from discovery users with audius handle fallback', async () => {
+    const q: any = {
+      select: jest.fn(() => q),
+      whereIn: jest.fn(() => q),
+      andWhere: jest.fn(() =>
+        Promise.resolve([
+          { user_id: 1, handle: 'first', twitter_handle: 'twitter_first' },
+          { user_id: 2, handle: 'second', twitter_handle: null },
+          { user_id: 3, handle: 'third', twitter_handle: '@third_prefixed' }
+        ])
+      )
+    }
+    const db: any = jest.fn(() => q)
+
+    const handles = await queryHandles(db as unknown as Knex, [
+      { user_id: 1 },
+      { user_id: 2 },
+      { user_id: 3 }
+    ] as any[])
+
+    expect(q.select).toHaveBeenCalledWith('user_id', 'handle', 'twitter_handle')
+    expect(q.whereIn).toHaveBeenCalledWith('user_id', [1, 2, 3])
+    expect(handles.get(1)).toBe('@twitter_first')
+    expect(handles.get(2)).toBe('@/second')
+    expect(handles.get(3)).toBe('@third_prefixed')
   })
 })
 

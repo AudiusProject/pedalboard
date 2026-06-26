@@ -20,6 +20,8 @@ export type ChallengeDisbursementUserbankFriendly = {
   slot: null | string
 }
 
+const TRENDING_REWARD_IDS = ['tt', 'tut']
+
 export const getChallengesDisbursementsUserbanks = async (
   discoveryDb: Knex,
   specifier: string
@@ -52,6 +54,7 @@ export const getChallengesDisbursementsUserbanks = async (
       'users.wallet'
     )
     .where('u.specifier', '~', specifier)
+    .whereIn('u.challenge_id', TRENDING_REWARD_IDS)
     .where('users.is_current', true)
 
 export const getChallengesDisbursementsUserbanksFriendly = async (
@@ -81,6 +84,7 @@ export const getChallengesDisbursementsUserbanksFriendly = async (
     })
     .join('users', 'users.user_id', '=', 'u.user_id')
     .where('u.specifier', '~', specifier)
+    .whereIn('u.challenge_id', TRENDING_REWARD_IDS)
     .where('users.is_current', true)
     .orderBy('u.challenge_id')
     .orderBy('u.specifier')
@@ -124,14 +128,18 @@ export const getChallengesDisbursementsUserbanksFriendlyEnsureSlots = async (
 }
 
 export const getTrendingChallenges = async (
-  discoveryDb: Knex
+  discoveryDb: Knex,
+  maxSpecifierDate: string
 ): Promise<UserChallenges[]> =>
   discoveryDb
     .select()
     .from<UserChallenges>(Table.UserChallenges)
     // only use tt because we just need a trending challenge
     .where('challenge_id', '=', 'tt')
-    .orderBy('completed_blocknumber', 'desc')
+    .whereNotNull('completed_blocknumber')
+    .whereRaw("split_part(specifier, ':', 1) <= ?", [maxSpecifierDate])
+    .orderByRaw("split_part(specifier, ':', 1) DESC")
+    .orderBy('specifier', 'asc')
     .limit(100)
 
 // queries for trending challenges by a particular date in order to get the starting block number
@@ -145,5 +153,6 @@ export const getTrendingChallengesByDate = async (
     // only use tt because we just need a trending challenge
     .where('challenge_id', '=', 'tt')
     .where('specifier', 'like', `${specifierPrefix}%`)
+    .whereNotNull('completed_blocknumber')
+    .orderBy('specifier', 'asc')
     .limit(100)
-

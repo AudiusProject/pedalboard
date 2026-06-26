@@ -1,7 +1,7 @@
 import { App } from '@pedalboard/basekit'
 import { Knex } from 'knex'
 import { SharedData } from './config'
-import { discoveryDb, identityDb } from './utils'
+import { discoveryDb } from './utils'
 import { WebClient } from '@slack/web-api'
 import moment from 'moment'
 import { Table, TrendingResults, Users } from '@pedalboard/storage'
@@ -19,7 +19,7 @@ const TRENDING_TYPES_UNDERGROUND = [
 ]
 
 type TrendingEntry = {
-  handle: string // instagram or discovery
+  handle: string // twitter or discovery
   rank: number
 }
 
@@ -36,12 +36,8 @@ export const announceTopTrending = async (
     week
   )
 
-  const trackHandles = await queryHandles(discoveryDb, identityDb, tracks)
-  const undergroundHandles = await queryHandles(
-    discoveryDb,
-    identityDb,
-    undergroundTracks
-  )
+  const trackHandles = await queryHandles(discoveryDb, tracks)
+  const undergroundHandles = await queryHandles(discoveryDb, undergroundTracks)
 
   const trackEntries = assembleEntries(trackHandles, tracks)
   const undergroundEntries = assembleEntries(
@@ -103,32 +99,29 @@ export const queryTopTrending = async (
 
 export const queryHandles = async (
   discoveryDb: Knex,
-  identityDb: Knex,
   trendingResults: TrendingResults[]
 ): Promise<Map<number, string>> => {
   const blockchainUserIds = trendingResults.map((res) => res.user_id)
-  const userHandles = await identityDb('Users')
-    .select('handle', 'blockchainUserId')
-    .whereIn('blockchainUserId', blockchainUserIds)
-  const handles = userHandles.map((handle) => handle.handle)
-  const instagramHandles = await discoveryDb<Users>(Table.Users)
-    .select('handle', 'instagram_handle')
-    .whereIn('handle', handles)
+  if (blockchainUserIds.length === 0) return new Map()
+
+  const users = await discoveryDb<Users>(Table.Users)
+    .select('user_id', 'handle', 'twitter_handle')
+    .whereIn('user_id', blockchainUserIds)
     .andWhere('is_current', true)
+  const usersById = new Map(users.map((user) => [user.user_id, user]))
   const handleMap = new Map<number, string>()
   for (const userId of blockchainUserIds) {
-    const userHandle = userHandles.find(
-      (handle) => handle.blockchainUserId === userId
-    )
-    const instagramHandle = instagramHandles.find(
-      (handle) =>
-        handle.handle === userHandle.handle && !!handle.instagram_handle
-    )
-    if (instagramHandle === undefined)
-      handleMap.set(userId, `@/${userHandle.handle}`)
-    else {
-      handleMap.set(userId, `@${instagramHandle.instagram_handle}`)
+    const user = usersById.get(userId)
+    if (user === undefined) {
+      console.warn(`no current discovery user found for user_id ${userId}`)
+      handleMap.set(userId, `@/user-${userId}`)
+      continue
     }
+    const twitterHandle = user.twitter_handle?.trim().replace(/^@/, '')
+    handleMap.set(
+      userId,
+      twitterHandle ? `@${twitterHandle}` : `@/${user.handle}`
+    )
   }
   return handleMap
 }
