@@ -12,6 +12,7 @@ import { formatDisbursementTable } from './slack'
 import { discoveryDb } from './utils'
 import { ChallengeId } from '@audius/sdk'
 import axios from 'axios'
+import moment from 'moment'
 
 type Challenge = {
   challenge_id: string
@@ -61,8 +62,12 @@ export const onDisburse = async (
   } else {
     const response = await getTrendingChallengesByDate(db, targetSpecifier)
     const challenge = response[0]
+    if (challenge === undefined)
+      return new Err(`no challenges found for ${targetSpecifier}`)
+    if (challenge.completed_blocknumber === null)
+      return new Err(`completed block number is null ${challenge}`)
     specifier = challenge.specifier
-    completedBlock = challenge.completed_blocknumber! - 1
+    completedBlock = challenge.completed_blocknumber - 1
   }
   console.log(
     'completed blockNumber = ',
@@ -79,7 +84,7 @@ export const onDisburse = async (
     console.log('endpoint = ', apiEndpoint)
     const toDisburse: Challenge[] = []
     for (const challengeId of TRENDING_REWARD_IDS) {
-      const url = `${apiEndpoint}/v1/challenges/undisbursed?challenge_id=${challengeId}&completed_blocknumber=${completedBlock}`
+      const url = `${apiEndpoint}/v1/challenges/undisbursed?challenge_id=${challengeId}&completed_blocknumber=${completedBlock}&limit=500`
       console.log('fetching undisbursed challenges from url = ', url)
       // Fetch all undisbursed challenges
       const res = await axios.get(url)
@@ -186,7 +191,10 @@ export const onDisburse = async (
 export const findStartingBlock = async (
   db: Knex
 ): Promise<Result<[number, string], string>> => {
-  const challenges = await getTrendingChallenges(db)
+  const challenges = await getTrendingChallenges(
+    db,
+    moment().format('YYYY-MM-DD')
+  )
   const firstChallenge = challenges[0]
   if (firstChallenge === undefined)
     return new Err(`no challenges found ${challenges}`)
