@@ -1,10 +1,19 @@
 name: 'Setup Services Matrix'
 description: 'Load services configuration and output as matrix for workflows'
 
+inputs:
+  services:
+    description: 'Optional JSON array of services to include'
+    required: false
+    default: ''
+
 outputs:
   services:
     description: 'JSON array of services for matrix strategy'
     value: ${{ steps.load-services.outputs.services }}
+  has_services:
+    description: 'Whether the services matrix contains at least one service'
+    value: ${{ steps.load-services.outputs.has_services }}
 
 runs:
   using: 'composite'
@@ -12,6 +21,43 @@ runs:
     - name: Load services configuration
       id: load-services
       shell: bash
+      env:
+        INPUT_SERVICES: ${{ inputs.services }}
       run: |
-        SERVICES=$(cat .github/config/services.json | jq -c .)
-        echo "services=$SERVICES" >> $GITHUB_OUTPUT
+        if [ -n "$INPUT_SERVICES" ]; then
+          SERVICES="$INPUT_SERVICES"
+        else
+          SERVICES=$(jq -c . .github/config/services.json)
+        fi
+
+        if ! jq -e 'type == "array" and all(.[]; type == "string")' <<< "$SERVICES" > /dev/null; then
+          echo "Error: services must be a JSON array of strings" >&2
+          exit 1
+        fi
+
+        UNKNOWN_SERVICES=$(
+          jq -r -n \
+            --argjson services "$SERVICES" \
+            --slurpfile allowed .github/config/services.json \
+            '$services[] as $service | select(($allowed[0] | index($service)) | not) | $service'
+        )
+
+        if [ -n "$UNKNOWN_SERVICES" ]; then
+          echo "Error: unknown service(s):" >&2
+          echo "$UNKNOWN_SERVICES" >&2
+          echo "Allowed services:" >&2
+          jq -r '.[]' .github/config/services.json >&2
+          exit 1
+        fi
+
+        SERVICES=$(
+          jq -c -n \
+            --argjson services "$SERVICES" \
+            --slurpfile allowed .github/config/services.json \
+            '[$allowed[0][] as $service | select($services | index($service)) | $service]'
+        )
+
+        HAS_SERVICES=$(jq -r 'length > 0' <<< "$SERVICES")
+
+        echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
+        echo "has_services=$HAS_SERVICES" >> "$GITHUB_OUTPUT"

@@ -9,36 +9,71 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # First build the services
-  build:
-    uses: ./.github/workflows/build-services.yml
-    with:
-      tag: ${{ github.sha }}
-    secrets: inherit
-
-  # Setup services matrix
-  setup:
-    name: Setup services matrix
+  # Detect the services with app-local changes in this push.
+  changes:
+    name: Detect changed services
     runs-on: ubuntu-latest
-    needs: build
     outputs:
       services: ${{ steps.setup-services.outputs.services }}
+      has_services: ${{ steps.setup-services.outputs.has_services }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
-      - name: Setup services matrix
+
+      - name: Detect changed apps
+        id: changed-apps
+        uses: dorny/paths-filter@v4
+        with:
+          base: ${{ github.ref }}
+          filters: |
+            backfill-audio-analyses:
+              - 'apps/backfill-audio-analyses/**'
+            notifications:
+              - 'apps/notifications/**'
+            verified-notifications:
+              - 'apps/verified-notifications/**'
+            publish-scheduled-releases:
+              - 'apps/publish-scheduled-releases/**'
+            crm:
+              - 'apps/crm/**'
+            archiver:
+              - 'apps/archiver/**'
+            staking:
+              - 'apps/staking/**'
+            trending-challenge-rewards:
+              - 'apps/trending-challenge-rewards/**'
+            solana-relay:
+              - 'apps/solana-relay/**'
+            sla-auditor:
+              - 'apps/sla-auditor/**'
+            anti-abuse-oracle:
+              - 'apps/anti-abuse-oracle/**'
+
+      - name: Setup changed services matrix
         id: setup-services
         uses: ./.github/actions/setup-services-matrix
+        with:
+          services: ${{ steps.changed-apps.outputs.changes }}
 
-  # Then retag the multiarch images as edge
+  # First build the changed services
+  build:
+    needs: changes
+    if: ${{ needs.changes.outputs.has_services == 'true' }}
+    uses: ./.github/workflows/build-services.yml
+    with:
+      tag: ${{ github.sha }}
+      services: ${{ needs.changes.outputs.services }}
+    secrets: inherit
+
+  # Then retag the changed multiarch images as edge
   retag-edge:
     name: Retag ${{ matrix.service }} as edge
     runs-on: ubuntu-latest
-    needs: setup
+    needs: [changes, build]
+    if: ${{ needs.changes.outputs.has_services == 'true' }}
     strategy:
       matrix:
-        service: ${{ fromJson(needs.setup.outputs.services) }}
+        service: ${{ fromJson(needs.changes.outputs.services) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,4 +90,3 @@ jobs:
           SOURCE_TAG="${REPO}:${{ github.sha }}"
           EDGE_TAG="${REPO}:edge"
           docker buildx imagetools create "$SOURCE_TAG" --tag "$EDGE_TAG"
-          
