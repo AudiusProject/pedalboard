@@ -18,7 +18,7 @@ npm run docker:verified-notifications
 
 ### CI/CD
 
-The GitHub Action automatically builds all apps on push to `main`/`develop` or PR to `main`. Each app is built in parallel as a separate job, so failures are isolated.
+The GitHub Action automatically builds changed apps on push to `main` and all apps on PRs to `main`. Each app is built in parallel as a separate job, so failures are isolated.
 
 ## Available Commands
 
@@ -91,7 +91,8 @@ npm run docker:archiver            # Build archiver
 ### CI/CD
 - Each app builds as a separate GitHub Actions job
 - Failures are isolated - one app failing doesn't affect others
-- Runs on push to `main`/`develop` and PRs to `main`
+- Pushes to `main` build and publish only apps with changes under their `apps/<app>` directory
+- PRs to `main` build all configured apps
 - Can be manually triggered via workflow dispatch
 
 ## Troubleshooting
@@ -130,5 +131,5 @@ npm run docker:archiver            # Build archiver
 ## Adding New Apps
 
 1. Create app directory in `apps/`
-2. Add entry to Makefile (or it will be auto-discovered)
-3. Add build job to `.github/workflows/build-apps.yml`
+2. Add an npm docker script if you want a named local shortcut
+3. Add the app name to `.github/config/services.json` if CI should build and publish it

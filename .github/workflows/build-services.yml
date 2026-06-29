@@ -7,6 +7,11 @@ on:
         description: 'Tag to apply to images'
         required: true
         type: string
+      services:
+        description: 'JSON array of services to build. Defaults to all services.'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   # Generate services list for matrix
@@ -15,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       services: ${{ steps.setup-services.outputs.services }}
+      has_services: ${{ steps.setup-services.outputs.has_services }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,10 +28,13 @@ jobs:
       - name: Setup services matrix
         id: setup-services
         uses: ./.github/actions/setup-services-matrix
+        with:
+          services: ${{ inputs.services }}
 
   # Build AMD64 images  
   build-amd64:
     name: Build ${{ matrix.service }} (amd64)
+    if: ${{ needs.setup.outputs.has_services == 'true' }}
     runs-on: ubuntu-latest
     needs: setup
     strategy:
@@ -47,6 +56,7 @@ jobs:
   # Build ARM64 images
   build-arm64:
     name: Build ${{ matrix.service }} (arm64)
+    if: ${{ needs.setup.outputs.has_services == 'true' }}
     runs-on: ubuntu-24.04-arm
     needs: setup
     strategy:
@@ -68,6 +78,7 @@ jobs:
   # Create multiarch manifests
   create-multiarch:
     name: Create multiarch manifest for ${{ matrix.service }}
+    if: ${{ needs.setup.outputs.has_services == 'true' }}
     runs-on: ubuntu-latest
     needs: [setup, build-amd64, build-arm64]
     strategy:
@@ -95,4 +106,3 @@ jobs:
             "$AMD64_TAG" \
             "$ARM64_TAG" \
             --tag "$MULTIARCH_TAG"
-          
