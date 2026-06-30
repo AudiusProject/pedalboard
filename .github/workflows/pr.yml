@@ -4,9 +4,67 @@ on:
   pull_request:
     branches: [ main ]
 
+# Cancel an in-flight PR build when the PR is updated with new commits.
+concurrency:
+  group: pr-build-${{ github.head_ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Only build the services whose app code changed in this PR, mirroring the
+  # change-detection that edge.yml already uses on main. A PR touching one
+  # service no longer rebuilds all of them.
+  changes:
+    name: Detect changed services
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.setup-services.outputs.services }}
+      has_services: ${{ steps.setup-services.outputs.has_services }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changed apps
+        id: changed-apps
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            backfill-audio-analyses:
+              - 'apps/backfill-audio-analyses/**'
+            notifications:
+              - 'apps/notifications/**'
+            verified-notifications:
+              - 'apps/verified-notifications/**'
+            publish-scheduled-releases:
+              - 'apps/publish-scheduled-releases/**'
+            crm:
+              - 'apps/crm/**'
+            archiver:
+              - 'apps/archiver/**'
+            staking:
+              - 'apps/staking/**'
+            trending-challenge-rewards:
+              - 'apps/trending-challenge-rewards/**'
+            solana-relay:
+              - 'apps/solana-relay/**'
+            sla-auditor:
+              - 'apps/sla-auditor/**'
+            anti-abuse-oracle:
+              - 'apps/anti-abuse-oracle/**'
+
+      - name: Setup changed services matrix
+        id: setup-services
+        uses: ./.github/actions/setup-services-matrix
+        with:
+          services: ${{ steps.changed-apps.outputs.changes }}
+
+  # Compile-check the changed services on amd64 only. PRs don't need arm64 or a
+  # pushed multi-arch manifest — edge.yml produces those on merge to main.
   build:
+    needs: changes
+    if: ${{ needs.changes.outputs.has_services == 'true' }}
     uses: ./.github/workflows/build-services.yml
     with:
       tag: ${{ github.sha }}
+      services: ${{ needs.changes.outputs.services }}
+      build_arm64: false
     secrets: inherit

@@ -12,6 +12,11 @@ on:
         required: false
         type: string
         default: ''
+      build_arm64:
+        description: 'Also build arm64 + multi-arch manifest. PRs pass false (amd64 compile check only) to halve build cost; releases leave it true.'
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   # Generate services list for matrix
@@ -56,7 +61,7 @@ jobs:
   # Build ARM64 images
   build-arm64:
     name: Build ${{ matrix.service }} (arm64)
-    if: ${{ needs.setup.outputs.has_services == 'true' }}
+    if: ${{ inputs.build_arm64 && needs.setup.outputs.has_services == 'true' }}
     runs-on: ubuntu-24.04-arm
     needs: setup
     strategy:
@@ -78,7 +83,7 @@ jobs:
   # Create multiarch manifests
   create-multiarch:
     name: Create multiarch manifest for ${{ matrix.service }}
-    if: ${{ needs.setup.outputs.has_services == 'true' }}
+    if: ${{ inputs.build_arm64 && needs.setup.outputs.has_services == 'true' }}
     runs-on: ubuntu-latest
     needs: [setup, build-amd64, build-arm64]
     strategy:
