@@ -78,7 +78,7 @@ describe('Fan Remix Contest Ended Notification', () => {
           entityId: 12345,
           entityUserId: 99
         }),
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       })
     )
   })

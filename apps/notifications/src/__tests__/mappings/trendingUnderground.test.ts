@@ -78,7 +78,7 @@ describe('Trending Underground Notification', () => {
         title: "📈 You're Trending",
         body: `track_title_10 is #3 on Underground Trending right now!`,
         data: {},
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })

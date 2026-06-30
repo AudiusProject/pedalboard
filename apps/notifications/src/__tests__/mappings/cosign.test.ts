@@ -84,7 +84,7 @@ describe('Cosign Notification', () => {
           id: 'timestamp:1589373217:group_id:cosign:parent_track10:original_track:20',
           type: 'RemixCosign'
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })

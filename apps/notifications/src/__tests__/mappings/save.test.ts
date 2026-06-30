@@ -68,7 +68,7 @@ describe('Save Notification', () => {
           type: 'Favorite',
           userIds: [2]
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })
@@ -112,7 +112,7 @@ describe('Save Notification', () => {
           type: 'Favorite',
           userIds: [2]
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })

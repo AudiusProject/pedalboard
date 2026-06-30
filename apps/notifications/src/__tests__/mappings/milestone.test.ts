@@ -173,7 +173,7 @@ describe('Milestone Notification', () => {
           id: 'timestamp:1589373217:group_id:milestone:TRACK_REPOST_COUNT:id:2:threshold:10',
           type: 'MilestoneRepost'
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })

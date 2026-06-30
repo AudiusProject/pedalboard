@@ -119,7 +119,7 @@ describe('Save Of Repost Notification', () => {
           entityType: 'Track',
           entityId: 10
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     ])
   })
@@ -149,7 +149,7 @@ describe('Save Of Repost Notification', () => {
           entityType: 'Playlist',
           entityId: 10
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     ])
   })
@@ -179,7 +179,7 @@ describe('Save Of Repost Notification', () => {
           entityType: 'Album',
           entityId: 10
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     ])
   })

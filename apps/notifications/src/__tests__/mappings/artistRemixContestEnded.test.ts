@@ -68,7 +68,7 @@ describe('Artist Remix Contest Ended Notification', () => {
           type: 'ArtistRemixContestEnded',
           entityId: 12345
         }),
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       })
     )
   })

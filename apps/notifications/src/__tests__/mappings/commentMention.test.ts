@@ -93,7 +93,7 @@ describe('Comment Mention Notification', () => {
           entityId: 1,
           commentId: 1
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })

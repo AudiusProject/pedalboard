@@ -89,7 +89,7 @@ describe('Tastemaker Notification', () => {
           entityType: 'Track',
           entityId: 3
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })

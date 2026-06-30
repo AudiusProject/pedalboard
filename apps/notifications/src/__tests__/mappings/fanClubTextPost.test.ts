@@ -72,7 +72,7 @@ describe('Fan Club Text Post Notification', () => {
           commentId: 100
         }),
         imageUrl:
-          'https://creatornode2.audius.co/content/artist-pfp-hash/150x150.jpg'
+          'https://api.audius.co/content/artist-pfp-hash/150x150.jpg'
       })
     )
   })
