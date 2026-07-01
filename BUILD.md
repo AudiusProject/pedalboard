@@ -91,9 +91,8 @@ npm run docker:archiver            # Build archiver
 ### CI/CD
 - Each app builds as a separate GitHub Actions job
 - Failures are isolated - one app failing doesn't affect others
-- Pushes to `main` build and publish only apps with changes under their `apps/<app>` directory
+- Pushes to `main` build only apps with changes under their `apps/<app>` directory, then publish those images as both `edge` and `latest`
 - PRs to `main` build all configured apps
-- Can be manually triggered via workflow dispatch
 
 ## Troubleshooting
 
