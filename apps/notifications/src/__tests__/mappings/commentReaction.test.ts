@@ -97,7 +97,7 @@ describe('Comment Reaction Notification', () => {
           userIds: [2],
           commentId: 1
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })
@@ -246,7 +246,7 @@ describe('Comment Reaction Notification', () => {
           commentId: 1
         },
         imageUrl:
-          'https://creatornode2.audius.co/content/contest-hash/150x150.jpg'
+          'https://api.audius.co/content/contest-hash/150x150.jpg'
       }
     )
   })

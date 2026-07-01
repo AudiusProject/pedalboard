@@ -100,7 +100,7 @@ describe('Comment Thread Notification', () => {
           userIds: [2],
           commentId: 2
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })

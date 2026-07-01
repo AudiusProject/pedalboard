@@ -95,7 +95,7 @@ describe('USDC Purchase Seller', () => {
           type: 'USDCPurchaseSeller',
           entityId: 10
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
 
@@ -250,7 +250,7 @@ describe('USDC Purchase Seller', () => {
           type: 'USDCPurchaseSeller',
           entityId: 15
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
 

@@ -91,6 +91,7 @@ To find `targetARN`: query identity DB table `NotificationDeviceTokens`, e.g. `s
 - `NOTIFICATIONS_LOG_REMOTE_CONFIG_SNAPSHOT` – set to **`1`** to log a one-shot **`Remote config snapshot (Optimizely)`** at startup (all push flags + raw vs effective)
 - `GIT_COMMIT`, `IMAGE_TAG`, `BUILD_TIME` – (optional) deploy metadata for logs and `/health_check`; see Dockerfile build-args
 - `SENDGRID_API_KEY` – email
+- `NOTIFICATIONS_CONTENT_NODE_ENDPOINT` – (optional) stable public `/content` gateway for email images; default **`https://api.audius.co`**
 - `ANNOUNCEMENT_SEND_SECRET` – (optional) if set, `POST /internal/send-notification` requires `Authorization: Bearer <this value>` (used by notifications-dashboard). Optional body field **`notification_campaign_id`** is stored on the notification row and included on mobile push payloads.
 
 ### Push pipeline logs

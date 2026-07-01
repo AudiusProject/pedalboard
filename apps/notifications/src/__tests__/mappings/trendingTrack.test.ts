@@ -85,7 +85,7 @@ describe('Trending Track Notification', () => {
           id: 'timestamp:1589373217:group_id:trending:time_range:week:genre:all:rank:3:track_id:10:timestamp:1677261600',
           type: 'TrendingTrack'
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })

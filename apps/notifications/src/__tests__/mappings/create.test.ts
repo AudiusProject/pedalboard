@@ -78,7 +78,7 @@ describe('Create Notification', () => {
           userId: 1,
           entityType: 'Track'
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })
@@ -138,7 +138,7 @@ describe('Create Notification', () => {
           userId: 1,
           entityType: 'Track'
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
 
@@ -162,7 +162,7 @@ describe('Create Notification', () => {
           userId: 1,
           entityType: 'Track'
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })
@@ -260,7 +260,7 @@ describe('Create Notification', () => {
           userId: 1,
           entityType: 'Playlist'
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })
@@ -350,7 +350,7 @@ describe('Create Notification', () => {
           userId: 1,
           entityType: 'Album'
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })

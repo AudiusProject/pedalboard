@@ -72,7 +72,7 @@ describe('Remix Notification', () => {
           id: 'timestamp:1589373217:group_id:remix:track:20:parent_track:10',
           type: 'RemixCreate'
         },
-        imageUrl: 'https://creatornode2.audius.co/content/test-hash/150x150.jpg'
+        imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )
   })
