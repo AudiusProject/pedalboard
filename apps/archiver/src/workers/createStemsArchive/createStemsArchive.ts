@@ -166,15 +166,14 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
       // Mirror list comes from the upload metadata. `track.download` is null
       // on tracks that aren't user-downloadable (stem-only uploads), so fall
       // back to the stream mirrors — same content node set, same placement.
-      // downloadFile shuffles this list, tries each with a per-mirror timeout,
-      // and falls back to the archive node when every mirror fails, so an
-      // empty/missing list is still safe.
       //
-      // Cast: the pinned @audius/sdk (10.0.0) Track type predates the
-      // download/stream UrlWithMirrors fields that the API has been returning
-      // for a while. The fields exist at runtime on api.audius.co — see the
-      // Track schema in the current OpenAPI spec — so we read them through a
-      // local shape rather than upgrading the SDK in this PR.
+      // CAVEAT: the pinned @audius/sdk (10.0.0) predates these fields, and
+      // its generated deserializer (TrackFromJSONTyped) drops unknown keys —
+      // so even though api.audius.co returns download/stream at runtime,
+      // this cast reads undefined and the list is effectively EMPTY until
+      // the SDK is upgraded (2026-07-16 stems incident). That's safe only
+      // because downloadFile tries the canonical redirect host first and the
+      // archive node last; the mirrors are an optional middle tier.
       const trackWithMirrors = track as typeof track & {
         download?: { mirrors?: string[] } | null
         stream?: { mirrors?: string[] } | null

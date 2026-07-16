@@ -25,6 +25,8 @@ type FetchBehavior = {
   brokenTrackIds?: string[]
   /** Track ids whose /download endpoint should fail to resolve entirely. */
   unresolvableTrackIds?: string[]
+  /** Origins whose cidstream endpoint should 404 for every track. */
+  brokenHosts?: string[]
 }
 
 // Stand-in for node-fetch: /v1/tracks/{id}/download resolves to a 302 whose
@@ -59,7 +61,10 @@ const createMockFetch = (behavior: FetchBehavior = {}) => {
     const cidstreamMatch = url.match(/\/tracks\/cidstream\/([^?/]+)/)
     if (cidstreamMatch) {
       const trackId = cidstreamMatch[1]
-      if (behavior.brokenTrackIds?.includes(trackId)) {
+      if (
+        behavior.brokenTrackIds?.includes(trackId) ||
+        behavior.brokenHosts?.includes(new URL(url).origin)
+      ) {
         return {
           ok: false,
           status: 404,
@@ -77,21 +82,31 @@ const createMockFetch = (behavior: FetchBehavior = {}) => {
 
     throw new Error(`Unexpected fetch in test: ${url}`)
   }
-  return mockFetch as unknown as WorkerServices['fetch']
+  return vi.fn(mockFetch) as unknown as WorkerServices['fetch']
 }
+
+// Origins of all cidstream requests made through the (vi.fn-wrapped) mock fetch.
+const cidstreamOrigins = (fetch: WorkerServices['fetch']): string[] =>
+  (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+    .map((call) => String(call[0]))
+    .filter((url) => url.includes('/tracks/cidstream/'))
+    .map((url) => new URL(url).origin)
 
 const createMockSdk = ({
   parentInspectFails = false
 }: { parentInspectFails?: boolean } = {}) => {
   const sdk = {
     tracks: {
+      // No download/stream fields: the pinned @audius/sdk (10.0.0) drops them
+      // during deserialization, so at runtime the archiver never sees mirrors.
+      // The mock must mirror that or it hides the empty-mirror-list path
+      // (2026-07-16 stems incident).
       getTrack: vi.fn(async () => ({
         data: {
           id: PARENT_ID,
           title: 'Parent Track',
           isDownloadable: true,
-          origFilename: 'parent.wav',
-          download: { mirrors: ['https://mirror-a.test'] }
+          origFilename: 'parent.wav'
         }
       })),
       getTrackStems: vi.fn(async () => ({
@@ -234,6 +249,34 @@ describe('createStemsArchiveWorker parent-track handling', () => {
     for (const call of sdk.tracks.getTrackDownloadUrl.mock.calls) {
       expect(call[0].trackId).not.toBe(PARENT_ID)
     }
+  })
+
+  it('downloads via the canonical redirect host when the SDK provides no mirrors', async () => {
+    const services = createServices()
+    const { processJob } = createStemsArchiveWorker(services)
+
+    const result = await processJob(createJob())
+
+    expect(fsSync.existsSync(result.outputFile)).toBe(true)
+    // Every file must come from the canonical host on the first try — no
+    // fallback traffic when the redirect target is healthy.
+    const origins = cidstreamOrigins(services.fetch)
+    expect(origins.length).toBeGreaterThan(0)
+    expect(new Set(origins)).toEqual(new Set(['https://mirror-a.test']))
+  })
+
+  it('falls back to the archive node when the canonical host cannot serve the file', async () => {
+    const services = createServices({
+      fetchBehavior: { brokenHosts: ['https://mirror-a.test'] }
+    })
+    const { processJob } = createStemsArchiveWorker(services)
+
+    const result = await processJob(createJob())
+
+    expect(fsSync.existsSync(result.outputFile)).toBe(true)
+    expect(cidstreamOrigins(services.fetch)).toContain(
+      'https://creatornode.audius.co'
+    )
   })
 
   it('still fails the job when a stem download fails', async () => {

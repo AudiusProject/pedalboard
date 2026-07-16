@@ -61,10 +61,16 @@ const shuffle = <T>(items: readonly T[]): T[] => {
 }
 
 // Build the ordered list of hosts to try, preserving first-occurrence order
-// after dedupe. Mirrors are shuffled; the archive fallback is appended last
-// so it only gets hit when every mirror fails.
-const buildCandidateHosts = (mirrors: readonly string[]): string[] => {
-  const ordered = [...shuffle(mirrors), ARCHIVE_FALLBACK_HOST]
+// after dedupe. The canonical host goes first: the API's 302 already selected
+// it by rendezvous for this exact cid, so it's the host most likely to hold
+// the file — and mediorum peer-redirects on a miss anyway. Mirrors are
+// shuffled after it; the archive fallback is appended last so it only gets
+// hit when everything else fails.
+const buildCandidateHosts = (
+  canonicalUrl: string,
+  mirrors: readonly string[]
+): string[] => {
+  const ordered = [canonicalUrl, ...shuffle(mirrors), ARCHIVE_FALLBACK_HOST]
   const seen = new Set<string>()
   const result: string[] = []
   for (const m of ordered) {
@@ -408,7 +414,7 @@ export const createUtils = (services: WorkerServices) => {
       signal
     })
 
-    const candidateHosts = buildCandidateHosts(mirrors ?? [])
+    const candidateHosts = buildCandidateHosts(canonicalUrl, mirrors ?? [])
     const attempted: { host: string; error?: string }[] = []
 
     for (const host of candidateHosts) {
