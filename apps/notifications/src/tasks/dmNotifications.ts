@@ -204,7 +204,7 @@ async function getNewBlasts(
       ORDER BY to_user_id ASC
       LIMIT ?
     )
-    SELECT blast_id, from_user_id AS sender_user_id, to_user_id AS receiver_user_id, created_at FROM targ;
+    SELECT blast_id, from_user_id AS sender_user_id, to_user_id AS receiver_user_id, created_at AS timestamp FROM targ;
     `,
     [effectiveBlastId, userId, userId, config.blastUserBatchSize]
   )
