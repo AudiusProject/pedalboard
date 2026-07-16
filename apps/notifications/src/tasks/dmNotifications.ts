@@ -200,7 +200,7 @@ async function getNewBlasts(
       FROM blast
       JOIN chat_blast_audience(blast.blast_id) USING (blast_id)
       WHERE chat_allowed(from_user_id, to_user_id)
-      AND ?::INTEGER IS NULL OR to_user_id > ?
+      AND (?::INTEGER IS NULL OR to_user_id > ?)
       ORDER BY to_user_id ASC
       LIMIT ?
     )
@@ -342,12 +342,18 @@ export async function sendDMNotifications(
 
     // Only send notifications that are not too old (avoids flood after plugin downtime).
     // Cursor still advances for all so we don't reprocess old ones next tick.
+    // Blasts are exempt: every recipient carries the blast's created_at, so a
+    // blast that takes longer than maxAgeMs to work through its audience would
+    // have all remaining recipients dropped.
+    const blastSet = new Set<Message | MessageReaction>(blastNotifications)
     const maxAgeMs = config.dmNotificationMaxAgeMs
     const sendCutoff = maxAgeMs > 0 ? new Date(Date.now() - maxAgeMs) : null
     const toSend =
       sendCutoff === null
         ? notifications
-        : notifications.filter((n) => n.notification.timestamp >= sendCutoff)
+        : notifications.filter(
+            (n) => blastSet.has(n) || n.notification.timestamp >= sendCutoff
+          )
     const skipped = notifications.length - toSend.length
     if (skipped > 0) {
       logger.info(
