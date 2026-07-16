@@ -101,33 +101,52 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
         throw new Error('No stems found for track')
       }
 
-      const filesToDownload =
+      // The parent track is best-effort. Stem-only uploads can report
+      // isDownloadable while having no original file to serve (empty CID, so
+      // every mirror 404s) — the stems the user asked for shouldn't be held
+      // hostage by that. Any parent-track failure downgrades the job to a
+      // stems-only archive instead of failing it.
+      let parentTrackFile: { id: string; origFilename?: string } | null =
         includeParentTrack && track.isDownloadable
-          ? [
-              ...stems,
-              { ...track, origFilename: track.origFilename ?? track.title }
-            ]
-          : stems
+          ? { ...track, origFilename: track.origFilename ?? track.title }
+          : null
 
-      logger.debug({ files: filesToDownload }, 'Getting file sizes')
+      const inspectFileSize = async (file: { id: string }) => {
+        const inspection = await sdk.tracks.inspectTrack(
+          {
+            trackId: file.id,
+            original: true
+          },
+          sdkRequestInit
+        )
+        if (!inspection.data?.size) {
+          throw new Error(`File size not found for ${file.id}`)
+        }
+        return inspection.data.size
+      }
 
-      const fileSizes = await Promise.all(
-        filesToDownload.map(async (file: { id: string }) => {
-          const inspection = await sdk.tracks.inspectTrack(
-            {
-              trackId: file.id,
-              original: true
-            },
-            sdkRequestInit
-          )
-          if (!inspection.data?.size) {
-            throw new Error(`File size not found for ${file.id}`)
+      logger.debug({ stems, parentTrackFile }, 'Getting file sizes')
+
+      const fileSizes = await Promise.all(stems.map(inspectFileSize))
+
+      let parentSizeBytes = 0
+      if (parentTrackFile) {
+        try {
+          parentSizeBytes = await inspectFileSize(parentTrackFile)
+        } catch (error) {
+          if (abortController.signal.aborted) {
+            throw error
           }
-          return inspection.data.size
-        })
-      )
+          logger.warn(
+            { err: error, parentTrackId: parentTrackFile.id },
+            'Skipping parent track: original file not available'
+          )
+          parentTrackFile = null
+        }
+      }
 
-      const totalSizeBytes = fileSizes.reduce((sum, size) => sum + size, 0)
+      const totalSizeBytes =
+        fileSizes.reduce((sum, size) => sum + size, 0) + parentSizeBytes
       logger.debug({ totalSizeBytes }, 'Calculated required disk space')
 
       logger.debug({ stems }, 'Downloading stems')
@@ -173,34 +192,57 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
       // swapping the host. The signed path is host-agnostic so any mirror
       // that holds the file can serve it; if none can, we fall back to the
       // archive node (creatornode2) which is guaranteed to.
-      const downloadPromises = filesToDownload.map(
-        async (stem: { id: string; origFilename?: string }) => {
-          const url = await sdk.tracks.getTrackDownloadUrl({
-            trackId: stem.id,
-            userId: hashedUserId,
-            userSignature: signatureHeader,
-            userData: messageHeader,
-            filename: stem.origFilename ?? ''
-          })
+      const downloadTrackFile = async (stem: {
+        id: string
+        origFilename?: string
+      }) => {
+        const url = await sdk.tracks.getTrackDownloadUrl({
+          trackId: stem.id,
+          userId: hashedUserId,
+          userSignature: signatureHeader,
+          userData: messageHeader,
+          filename: stem.origFilename ?? ''
+        })
 
-          const filePath = path.join(jobTempDir, stem.origFilename ?? 'file')
-          return downloadFile({
-            url,
-            filePath,
-            jobId,
-            mirrors: trackMirrors,
-            signal: abortController.signal
+        const filePath = path.join(jobTempDir, stem.origFilename ?? 'file')
+        return downloadFile({
+          url,
+          filePath,
+          jobId,
+          mirrors: trackMirrors,
+          signal: abortController.signal
+        })
+      }
+
+      const downloadPromises = stems.map(downloadTrackFile)
+      // The parent download never rejects — it resolves to null on failure so
+      // a broken or missing original can't fail the stems that did download.
+      // (On abort it also resolves null; the stem promises reject in that case
+      // and fail the job through the catch below.)
+      const parentDownloadPromise = parentTrackFile
+        ? downloadTrackFile(parentTrackFile).catch((error) => {
+            if (!abortController.signal.aborted) {
+              logger.warn(
+                { err: error, parentTrackId: parentTrackFile?.id },
+                'Skipping parent track: download failed'
+              )
+            }
+            return null
           })
-        }
-      )
+        : Promise.resolve(null)
 
       let downloadedFiles: string[]
       try {
         downloadedFiles = await Promise.all(downloadPromises)
       } catch (error) {
         abortController.abort()
-        await Promise.allSettled(downloadPromises)
+        await Promise.allSettled([...downloadPromises, parentDownloadPromise])
         throw error
+      }
+
+      const parentFilePath = await parentDownloadPromise
+      if (parentFilePath) {
+        downloadedFiles.push(parentFilePath)
       }
 
       logger.debug(
