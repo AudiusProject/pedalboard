@@ -97,16 +97,16 @@ const createMockSdk = ({
 }: { parentInspectFails?: boolean } = {}) => {
   const sdk = {
     tracks: {
-      // No download/stream fields: the pinned @audius/sdk (10.0.0) drops them
-      // during deserialization, so at runtime the archiver never sees mirrors.
-      // The mock must mirror that or it hides the empty-mirror-list path
-      // (2026-07-16 stems incident).
+      // @audius/sdk >= 15 deserializes the download/stream fields, so the
+      // mirror tier is real again. mirror-b is deliberately different from
+      // the canonical host (mirror-a) so tests can tell the tiers apart.
       getTrack: vi.fn(async () => ({
         data: {
           id: PARENT_ID,
           title: 'Parent Track',
           isDownloadable: true,
-          origFilename: 'parent.wav'
+          origFilename: 'parent.wav',
+          download: { mirrors: ['https://mirror-b.test'] }
         }
       })),
       getTrackStems: vi.fn(async () => ({
@@ -251,7 +251,7 @@ describe('createStemsArchiveWorker parent-track handling', () => {
     }
   })
 
-  it('downloads via the canonical redirect host when the SDK provides no mirrors', async () => {
+  it('downloads via the canonical redirect host first', async () => {
     const services = createServices()
     const { processJob } = createStemsArchiveWorker(services)
 
@@ -259,15 +259,32 @@ describe('createStemsArchiveWorker parent-track handling', () => {
 
     expect(fsSync.existsSync(result.outputFile)).toBe(true)
     // Every file must come from the canonical host on the first try — no
-    // fallback traffic when the redirect target is healthy.
+    // mirror or fallback traffic when the redirect target is healthy.
     const origins = cidstreamOrigins(services.fetch)
     expect(origins.length).toBeGreaterThan(0)
     expect(new Set(origins)).toEqual(new Set(['https://mirror-a.test']))
   })
 
-  it('falls back to the archive node when the canonical host cannot serve the file', async () => {
+  it('falls back to a mirror when the canonical host cannot serve the file', async () => {
     const services = createServices({
       fetchBehavior: { brokenHosts: ['https://mirror-a.test'] }
+    })
+    const { processJob } = createStemsArchiveWorker(services)
+
+    const result = await processJob(createJob())
+
+    expect(fsSync.existsSync(result.outputFile)).toBe(true)
+    const origins = cidstreamOrigins(services.fetch)
+    expect(origins).toContain('https://mirror-b.test')
+    // The mirror served everything, so the archive node is never needed.
+    expect(origins).not.toContain('https://creatornode.audius.co')
+  })
+
+  it('falls back to the archive node when the canonical host and every mirror fail', async () => {
+    const services = createServices({
+      fetchBehavior: {
+        brokenHosts: ['https://mirror-a.test', 'https://mirror-b.test']
+      }
     })
     const { processJob } = createStemsArchiveWorker(services)
 
