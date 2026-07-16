@@ -68,7 +68,7 @@ async function getCursors(redis: RedisClientType): Promise<{
   }
 }
 
-async function getUnreadMessages(
+export async function getUnreadMessages(
   discoveryDB: Knex,
   minTimestamp: Date,
   maxTimestamp: Date
@@ -100,7 +100,7 @@ async function getUnreadMessages(
     .andWhereRaw('chat_message.user_id != chat_member.user_id')
 }
 
-async function getUnreadReactions(
+export async function getUnreadReactions(
   discoveryDB: Knex,
   minTimestamp: Date,
   maxTimestamp: Date
@@ -143,7 +143,7 @@ async function getUnreadReactions(
 
 // We use the last indexed blast_id and user_id to get the next batch of blasts.
 // Cursor on user_id because we prefer skipping a user to duplicate notifs.
-async function getNewBlasts(
+export async function getNewBlasts(
   discoveryDB: Knex,
   lastIndexedBlastId?: string,
   lastIndexedBlastUserId?: number
