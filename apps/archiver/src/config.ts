@@ -22,6 +22,21 @@ export type Config = {
   concurrentJobs: number
   /** How many attempts to make to create a stems archive (default: 3) */
   maxStemsArchiveAttempts: number
+  /**
+   * How long a stems archive job may sit in a non-terminal state before a new
+   * request for the same track replaces it rather than joining it
+   * (default: 15 minutes).
+   *
+   * Job ids are deterministic, so without this a job that can never finish —
+   * a worker that died or lost its Redis lock still holding the slot — is
+   * handed back to every subsequent retry from that user, and the download is
+   * permanently unrecoverable from the client.
+   *
+   * Kept in step with STEMS_ARCHIVE_POLL_TIMEOUT_MS in the client's
+   * useDownloadTrackStems: past that point the client has already given up on
+   * the job, so its output would never be collected anyway.
+   */
+  staleJobSeconds: number
   redisUrl: string
   serverHost: string
   serverPort: number
@@ -66,6 +81,7 @@ export const readConfig = (): Config => {
     archiver_orphaned_jobs_lifetime_seconds: num({ default: 60 * 10 }),
     archiver_log_level: str<LogLevel>({ default: 'info' }),
     archiver_max_stems_archive_attempts: num({ default: 3 }),
+    archiver_stale_job_seconds: num({ default: 60 * 15 }),
     archiver_max_disk_space_bytes: num({
       default: 32 * 1024 * 1024 * 1024
     }), // 32GB
@@ -84,6 +100,7 @@ export const readConfig = (): Config => {
       env.archiver_cleanup_orphaned_files_interval_seconds,
     orphanedJobsLifetimeSeconds: env.archiver_orphaned_jobs_lifetime_seconds,
     maxStemsArchiveAttempts: env.archiver_max_stems_archive_attempts,
+    staleJobSeconds: env.archiver_stale_job_seconds,
     maxDiskSpaceBytes: env.archiver_max_disk_space_bytes,
     maxDiskSpaceWaitSeconds: env.archiver_max_disk_space_wait_seconds,
     logLevel: env.archiver_log_level,

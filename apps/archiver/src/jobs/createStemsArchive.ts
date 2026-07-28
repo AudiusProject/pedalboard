@@ -77,6 +77,30 @@ const getJobStatus = async (
   }
 }
 
+/**
+ * Whether a job has been sitting in a non-terminal state long enough that we
+ * should assume nobody is going to finish it.
+ *
+ * Measured from when the job was last picked up, falling back to when it was
+ * queued — a job wedged in `waiting` never gets a `processedOn` at all, and
+ * that is the case we most need to catch.
+ */
+export const isStaleJob = (
+  // Deliberately wider than bullmq's `Job`, which types `timestamp` as always
+  // present. These come back off a Redis hash that a previous process wrote,
+  // so treat both fields as possibly missing rather than trusting the type.
+  job: { processedOn?: number | null; timestamp?: number | null },
+  staleAfterMs: number,
+  now: number = Date.now()
+): boolean => {
+  const startedAt = job.processedOn ?? job.timestamp
+  if (typeof startedAt !== 'number') {
+    // No usable timestamp — treat as fresh rather than churning a live job.
+    return false
+  }
+  return now - startedAt > staleAfterMs
+}
+
 export const getOrCreateStemsArchiveJob = async (
   data: Omit<StemsArchiveJobData, 'jobId'>
 ) => {
@@ -87,9 +111,28 @@ export const getOrCreateStemsArchiveJob = async (
   const existingJob = await queue.getJob(jobId)
   if (existingJob) {
     const state = await existingJob.getState()
-    if (state !== 'failed') {
+
+    // Completed means the archive is on disk waiting to be collected — hand
+    // it straight back so the client downloads it instead of rebuilding it.
+    if (state === 'completed') {
       return getJobStatus(jobId, existingJob)
     }
+
+    // Job ids are deterministic (`{userId}-{trackId}`), so a user retrying the
+    // same track always lands on their existing job. Rejoining it is right
+    // while it's making progress — that's what dedupes double-clicks and
+    // multiple tabs — but it's a trap once the job can no longer finish. A
+    // worker that died or lost its Redis lock leaves the job parked in
+    // `waiting`/`active` forever, and because that isn't `failed`, every
+    // retry used to be handed the same dead job. Retry was a no-op and the
+    // download was unrecoverable from the client. Replace it instead.
+    if (
+      state !== 'failed' &&
+      !isStaleJob(existingJob, config.staleJobSeconds * 1000)
+    ) {
+      return getJobStatus(jobId, existingJob)
+    }
+
     await existingJob.remove()
   }
 
