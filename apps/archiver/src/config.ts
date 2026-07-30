@@ -37,6 +37,18 @@ export type Config = {
    * the job, so its output would never be collected anyway.
    */
   staleJobSeconds: number
+  /**
+   * How far the timestamp inside a request signature may be from now before
+   * the signature is rejected, in seconds (default: 1 hour). Set to 0 to skip
+   * the age check entirely.
+   *
+   * Signatures are bearer credentials, so this bounds how long a leaked one
+   * stays replayable. The default is deliberately generous: client clocks
+   * drift, and refusing a legitimate download because someone's device clock
+   * is off is a worse failure than a wide replay window. Tighten once we have
+   * data on real-world skew.
+   */
+  signatureMaxAgeSeconds: number
   redisUrl: string
   serverHost: string
   serverPort: number
@@ -82,6 +94,7 @@ export const readConfig = (): Config => {
     archiver_log_level: str<LogLevel>({ default: 'info' }),
     archiver_max_stems_archive_attempts: num({ default: 3 }),
     archiver_stale_job_seconds: num({ default: 60 * 15 }),
+    archiver_signature_max_age_seconds: num({ default: 60 * 60 }),
     archiver_max_disk_space_bytes: num({
       default: 32 * 1024 * 1024 * 1024
     }), // 32GB
@@ -101,6 +114,7 @@ export const readConfig = (): Config => {
     orphanedJobsLifetimeSeconds: env.archiver_orphaned_jobs_lifetime_seconds,
     maxStemsArchiveAttempts: env.archiver_max_stems_archive_attempts,
     staleJobSeconds: env.archiver_stale_job_seconds,
+    signatureMaxAgeSeconds: env.archiver_signature_max_age_seconds,
     maxDiskSpaceBytes: env.archiver_max_disk_space_bytes,
     maxDiskSpaceWaitSeconds: env.archiver_max_disk_space_wait_seconds,
     logLevel: env.archiver_log_level,

@@ -11,6 +11,7 @@ import { stat } from 'fs/promises'
 import { basename } from 'path'
 import { OptionalHashId } from '@audius/sdk'
 import { queryParamToBoolean } from './utils'
+import { UserSignatureVerifier } from '../auth/verifyUserSignature'
 
 const removeInternalStatusFields = (jobStatus: JobStatus) => {
   const { returnvalue: _, ...rest } = jobStatus
@@ -19,10 +20,12 @@ const removeInternalStatusFields = (jobStatus: JobStatus) => {
 
 export const stemsRouter = ({
   removeStemsArchiveJob,
-  cancelStemsArchiveJob
+  cancelStemsArchiveJob,
+  verifyUserSignature
 }: {
   removeStemsArchiveJob: (jobId: string) => Promise<void>
   cancelStemsArchiveJob: (jobId: string) => Promise<void>
+  verifyUserSignature: UserSignatureVerifier
 }) => {
   const router = express.Router()
   router.post('/:trackId', async (req, res) => {
@@ -38,6 +41,31 @@ export const stemsRouter = ({
         return res.status(400).json({
           error: 'Missing required parameters'
         })
+      }
+
+      // Prove the caller controls the wallet behind `user_id` before doing any
+      // work. Enqueuing first and letting the downstream content fetches fail
+      // on their own auth meant an unauthenticated caller could spend our disk,
+      // bandwidth and api.audius.co rate-limit budget at will.
+      const verification = await verifyUserSignature({
+        userId,
+        messageHeader,
+        signatureHeader
+      })
+
+      if (!verification.ok) {
+        if (verification.reason === 'user lookup failed') {
+          // Our dependency failed, not their credentials. Saying 401 here
+          // would send a legitimate user off chasing a login problem during a
+          // discovery outage.
+          return res.status(503).json({ error: 'Could not verify request' })
+        }
+        logger.warn(
+          { userId, trackId, reason: verification.reason },
+          'Rejected stems archive request with invalid signature'
+        )
+        // Deliberately generic to the caller; the specific reason is logged.
+        return res.status(401).json({ error: 'Invalid signature' })
       }
 
       const jobStatus = await getOrCreateStemsArchiveJob({

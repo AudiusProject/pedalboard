@@ -10,6 +10,7 @@ import { getCleanupOrphanedFilesQueue } from './jobs/cleanupOrphanedFiles'
 import { logger, httpLogger } from './logger'
 import { createDefaultWorkerServices } from './workers/services'
 import { ensureTempDirectory } from './workers/ensureTempDirectory'
+import { createUserSignatureVerifier } from './auth/verifyUserSignature'
 
 const health = (_req: express.Request, res: express.Response) => {
   res.json({ status: 'healthy' })
@@ -44,7 +45,15 @@ const main = async () => {
   app.use(httpLogger)
   app.use(
     '/archive/stems',
-    stemsRouter({ removeStemsArchiveJob, cancelStemsArchiveJob })
+    stemsRouter({
+      removeStemsArchiveJob,
+      cancelStemsArchiveJob,
+      verifyUserSignature: createUserSignatureVerifier({
+        sdk: services.sdk,
+        config,
+        logger
+      })
+    })
   )
 
   app.listen(config.serverPort, config.serverHost, () => {
