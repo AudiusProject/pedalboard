@@ -11,6 +11,7 @@ import { stat } from 'fs/promises'
 import { basename } from 'path'
 import { OptionalHashId } from '@audius/sdk'
 import { queryParamToBoolean } from './utils'
+import { verifyRequestSignature } from '../auth/verifySignature'
 
 const removeInternalStatusFields = (jobStatus: JobStatus) => {
   const { returnvalue: _, ...rest } = jobStatus
@@ -38,6 +39,18 @@ export const stemsRouter = ({
         return res.status(400).json({
           error: 'Missing required parameters'
         })
+      }
+
+      // Verify that the signature was produced by the wallet registered to
+      // this Audius user. Without this check any caller can enqueue expensive
+      // multi-GB archive jobs for arbitrary users/tracks.
+      const isValid = await verifyRequestSignature({
+        userId,
+        messageHeader,
+        signatureHeader
+      })
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid signature' })
       }
 
       const jobStatus = await getOrCreateStemsArchiveJob({
