@@ -19,6 +19,10 @@ type StemsArchiveWorkerListener = WorkerListener<
   StemsArchiveJobResult
 >
 
+const DOWNLOAD_PROGRESS_COMPLETE = 90
+const ZIP_PROGRESS_STARTED = 95
+const JOB_PROGRESS_COMPLETE = 100
+
 export const createStemsArchiveWorker = (services: WorkerServices) => {
   const { config, spaceManager, fs, sdk } = services
   const workerLogger = services.logger.child({
@@ -60,6 +64,7 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
     }
 
     try {
+      await job.updateProgress(0)
       logger.info('Starting stems archive creation job')
 
       const hashedTrackId = OptionalId.parse(trackId)
@@ -173,6 +178,7 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
       // swapping the host. The signed path is host-agnostic so any mirror
       // that holds the file can serve it; if none can, we fall back to the
       // archive node (creatornode2) which is guaranteed to.
+      let completedDownloads = 0
       const downloadPromises = filesToDownload.map(
         async (stem: { id: string; origFilename?: string }) => {
           const url = await sdk.tracks.getTrackDownloadUrl({
@@ -184,13 +190,23 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
           })
 
           const filePath = path.join(jobTempDir, stem.origFilename ?? 'file')
-          return downloadFile({
+          const downloadedFile = await downloadFile({
             url,
             filePath,
             jobId,
             mirrors: trackMirrors,
             signal: abortController.signal
           })
+
+          completedDownloads += 1
+          await job.updateProgress(
+            Math.round(
+              (completedDownloads / filesToDownload.length) *
+                DOWNLOAD_PROGRESS_COMPLETE
+            )
+          )
+
+          return downloadedFile
         }
       )
 
@@ -209,6 +225,7 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
       )
 
       logger.debug({ files: downloadedFiles }, 'Creating archive')
+      await job.updateProgress(ZIP_PROGRESS_STARTED)
       const outputFile = await createArchive({
         files: downloadedFiles,
         jobId,
@@ -222,6 +239,7 @@ export const createStemsArchiveWorker = (services: WorkerServices) => {
         }
       }
 
+      await job.updateProgress(JOB_PROGRESS_COMPLETE)
       logger.info({ outputFile }, 'Successfully created stems archive')
 
       return { outputFile }
