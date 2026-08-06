@@ -2,6 +2,7 @@ import { Knex } from 'knex'
 import moment, { Moment } from 'moment-timezone'
 import { config } from '../../config'
 import {
+  AppEmailNotification,
   DMEmailNotification,
   EmailNotification
 } from '../../types/notifications'
@@ -146,6 +147,150 @@ JOIN members_can_notify on members_can_notify.chat_id = chat_message.chat_id AND
 WHERE chat_message_reactions.updated_at > :start_offset AND chat_message_reactions.updated_at <= :end_offset AND chat_message_reactions.user_id != members_can_notify.user_id
 `
 
+
+// ---------------------------------------------------------------------------
+// Follower-blast email gate
+// ---------------------------------------------------------------------------
+
+/** Notification types that fan out to all of an artist's followers/subscribers. */
+const FOLLOWER_BLAST_TYPES = new Set([
+  'create',
+  'fan_remix_contest_started',
+  'fan_remix_contest_ended',
+  'fan_remix_contest_ending_soon',
+  'fan_remix_contest_winners_selected',
+  'fan_remix_contest_submission',
+])
+
+/**
+ * Artists with >= this many followers skip email for follower-blast events.
+ * Push notifications are unaffected — this filter is email-only.
+ */
+const FOLLOWER_BLAST_EMAIL_FOLLOWER_THRESHOLD = 10_000
+
+/**
+ * Removes follower-blast notifications whose initiating artist has
+ * >= FOLLOWER_BLAST_EMAIL_FOLLOWER_THRESHOLD followers.
+ *
+ * For each follower-blast notification the artist ID is resolved as follows:
+ *   - 'create' (track)              → parsed from group_id ('create:track:user_id:{N}')
+ *   - 'create' (playlist/album)     → queried from playlists table via data.playlist_id
+ *   - 'fan_remix_contest_*'         → data.entity_user_id
+ *
+ * If the artist ID cannot be determined the notification is allowed through
+ * (conservative fallback).
+ */
+const filterHighFollowerBlasts = async (
+  notifications: EmailNotification[],
+  dnDb: Knex
+): Promise<EmailNotification[]> => {
+  const blasts = notifications.filter((n) => FOLLOWER_BLAST_TYPES.has(n.type))
+  if (blasts.length === 0) return notifications
+
+  // Step 1: resolve the initiating artist user_id for each blast.
+  const notifArtistId = new Map<EmailNotification, number | null>()
+  const playlistIds: number[] = []
+
+  for (const n of blasts) {
+    // AppEmailNotification extends NotificationRow and carries group_id + data.
+    // DMEmailNotifications are never blast types, but cast defensively.
+    const appN = n as AppEmailNotification
+    const data = appN.data as Record<string, unknown> | undefined
+
+    if (n.type === 'create') {
+      // Track create: group_id = 'create:track:user_id:{N}'
+      const m = appN.group_id?.match(/^create:track:user_id:(\d+)/)
+      if (m) {
+        notifArtistId.set(n, Number(m[1]))
+        continue
+      }
+      // Playlist/album create: need to resolve owner from DB.
+      if (typeof data?.playlist_id === 'number') {
+        playlistIds.push(data.playlist_id as number)
+        notifArtistId.set(n, null) // resolved in step 2
+        continue
+      }
+    } else {
+      // fan_remix_contest_* types all carry entity_user_id in data.
+      if (typeof data?.entity_user_id === 'number') {
+        notifArtistId.set(n, data.entity_user_id as number)
+        continue
+      }
+    }
+    // Artist ID indeterminate — allow the email (conservative fallback).
+    notifArtistId.set(n, null)
+  }
+
+  // Step 2: resolve playlist owners in one batch query.
+  if (playlistIds.length > 0) {
+    const rows: { playlist_id: number; playlist_owner_id: number }[] =
+      await dnDb
+        .select('playlist_id', 'playlist_owner_id')
+        .from('playlists')
+        .where('is_current', true)
+        .whereIn('playlist_id', [...new Set(playlistIds)])
+
+    const playlistOwner = new Map(
+      rows.map((r) => [r.playlist_id, r.playlist_owner_id])
+    )
+    for (const n of blasts) {
+      if (notifArtistId.get(n) !== null) continue
+      const d = (n as AppEmailNotification).data as
+        | Record<string, unknown>
+        | undefined
+      if (typeof d?.playlist_id === 'number') {
+        notifArtistId.set(
+          n,
+          playlistOwner.get(d.playlist_id as number) ?? null
+        )
+      }
+    }
+  }
+
+  // Step 3: batch-fetch follower_count for all resolved artist IDs.
+  const artistIds = [
+    ...new Set(
+      [...notifArtistId.values()].filter((id): id is number => id !== null)
+    ),
+  ]
+  if (artistIds.length === 0) return notifications
+
+  const userRows: { user_id: number; follower_count: number }[] = await dnDb
+    .select('user_id', 'follower_count')
+    .from('users')
+    .where('is_current', true)
+    .whereIn('user_id', artistIds)
+
+  const followerCounts = new Map(
+    userRows.map((r) => [r.user_id, r.follower_count])
+  )
+
+  // Step 4: suppress emails for artists at or above the threshold.
+  const suppressed = new Set<EmailNotification>()
+  for (const n of blasts) {
+    const artistId = notifArtistId.get(n)
+    if (artistId == null) continue
+    if (
+      (followerCounts.get(artistId) ?? 0) >=
+      FOLLOWER_BLAST_EMAIL_FOLLOWER_THRESHOLD
+    ) {
+      suppressed.add(n)
+    }
+  }
+
+  if (suppressed.size > 0) {
+    logger.info(
+      {
+        suppressed: suppressed.size,
+        threshold: FOLLOWER_BLAST_EMAIL_FOLLOWER_THRESHOLD,
+      },
+      `filterHighFollowerBlasts: skipping email for ${suppressed.size} follower-blast notification(s) — artist follower_count >= ${FOLLOWER_BLAST_EMAIL_FOLLOWER_THRESHOLD}`
+    )
+  }
+
+  return notifications.filter((n) => !suppressed.has(n))
+}
+
 const getNotifications = async (
   dnDb: Knex,
   frequency: EmailFrequency,
@@ -172,6 +317,8 @@ const getNotifications = async (
     }
     return false
   })
+
+  appNotifications = await filterHighFollowerBlasts(appNotifications, dnDb)
 
   const messageUserIds: string[] | number[] = userIds
 
