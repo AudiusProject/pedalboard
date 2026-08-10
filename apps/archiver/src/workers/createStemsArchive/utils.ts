@@ -1,7 +1,8 @@
 import { WorkerServices } from '../services'
 import {
   ARCHIVE_FALLBACK_HOST,
-  MIRROR_DOWNLOAD_TIMEOUT_MS
+  MIRROR_DOWNLOAD_TIMEOUT_MS,
+  REDIRECT_RESOLVE_TIMEOUT_MS
 } from '../../constants'
 
 // Retry budget for the initial redirect-resolve hop against api.audius.co.
@@ -195,10 +196,46 @@ export const createUtils = (services: WorkerServices) => {
       attempt < MAX_REDIRECT_RESOLVE_ATTEMPTS;
       attempt++
     ) {
-      const res = await fetch(authedUrl, {
-        redirect: 'manual',
-        signal
-      })
+      // Per-attempt timeout: a slow or unresponsive api.audius.co blocks a
+      // worker slot indefinitely — node-fetch has no default timeout, so
+      // without this, all five concurrency slots fill up with hanging fetches
+      // and every subsequent job queues in `waiting` forever. An AbortError
+      // here is retried (like a 429/5xx) so a transient stall doesn't fail
+      // the whole job. The job-level signal propagates through so a cancelled
+      // job still surfaces its own error rather than a timeout message.
+      const linked = linkAbort(signal, REDIRECT_RESOLVE_TIMEOUT_MS)
+      let res: Awaited<ReturnType<typeof fetch>>
+      try {
+        res = await fetch(authedUrl, {
+          redirect: 'manual',
+          signal: linked.signal
+        })
+      } catch (fetchError) {
+        linked.cleanup()
+        if (signal?.aborted) throw fetchError
+        const attemptsLeft = MAX_REDIRECT_RESOLVE_ATTEMPTS - attempt - 1
+        if (attemptsLeft > 0) {
+          const delayMs = computeBackoffMs(attempt, null)
+          logger.warn(
+            {
+              jobId,
+              url,
+              filePath,
+              attempt: attempt + 1,
+              attemptsLeft,
+              delayMs,
+              timedOut: linked.timedOut()
+            },
+            'Redirect-resolve timed out or network error, retrying'
+          )
+          await sleep(delayMs, signal)
+          continue
+        }
+        throw new Error(
+          `Failed to resolve download URL after network error — ${filePath}`
+        )
+      }
+      linked.cleanup()
       const { status, statusText, body } = res
 
       // 3xx is the success case here — we want the Location, not the body.

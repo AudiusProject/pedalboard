@@ -14,3 +14,8 @@ export const ARCHIVE_FALLBACK_HOST = 'https://creatornode.audius.co'
 // Per-mirror download timeout. A hung node otherwise blocks the whole job —
 // node-fetch has no default timeout, so without this we'd wait indefinitely.
 export const MIRROR_DOWNLOAD_TIMEOUT_MS = 30_000
+// Per-attempt timeout for the redirect-resolution hop against api.audius.co.
+// Without this a slow or unresponsive API blocks a worker slot indefinitely:
+// node-fetch has no default timeout, so the fetch hangs until the pod is
+// restarted, filling all concurrency slots and starving waiting jobs.
+export const REDIRECT_RESOLVE_TIMEOUT_MS = 30_000
