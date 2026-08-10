@@ -132,8 +132,9 @@ export function createSpaceManager(options: SpaceManagerOptions) {
       }
     })()
 
+    let timeoutTimer: ReturnType<typeof setTimeout> | undefined
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
+      timeoutTimer = setTimeout(() => {
         loopController.abort()
         reject(
           new SpaceManagerError(
@@ -151,6 +152,13 @@ export function createSpaceManager(options: SpaceManagerOptions) {
         loopController.abort()
         await removeFromQueue(token)
         throw error
+      } finally {
+        // Clear the timer on the success path too. Without this every
+        // satisfied claim leaves a pending timer alive for the full
+        // maxDiskSpaceWaitSeconds — harmless in isolation, but this is a
+        // long-lived worker and the whole point of this change is to stop
+        // leaking per-job resources.
+        clearTimeout(timeoutTimer)
       }
     })()
   }
