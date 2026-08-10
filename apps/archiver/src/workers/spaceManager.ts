@@ -96,12 +96,15 @@ export function createSpaceManager(options: SpaceManagerOptions) {
     timeoutSeconds: number
     signal?: AbortSignal
   }): Promise<void> => {
-    const shouldContinue = true
+    // loopController stops the background polling loop once the race
+    // settles so the loop cannot claim space after a timeout and leak it
+    // into usedSpace with no corresponding release.
+    const loopController = new AbortController()
 
     const claimSpacePromise = (async () => {
       try {
-        while (shouldContinue) {
-          if (signal?.aborted) {
+        while (true) {
+          if (signal?.aborted || loopController.signal.aborted) {
             throw new SpaceManagerError(
               'Space claim cancelled',
               SpaceManagerErrorCode.CANCELLED
@@ -110,6 +113,15 @@ export function createSpaceManager(options: SpaceManagerOptions) {
 
           const claimed = await claimSpace({ token, bytes })
           if (claimed) {
+            // Double-check after the mutex: if the race settled while we
+            // were inside claimSpace, release the slot we just claimed.
+            if (loopController.signal.aborted || signal?.aborted) {
+              await releaseSpace(token)
+              throw new SpaceManagerError(
+                'Space claim cancelled',
+                SpaceManagerErrorCode.CANCELLED
+              )
+            }
             return
           }
           await new Promise((resolve) => setTimeout(resolve, 100))
@@ -122,6 +134,7 @@ export function createSpaceManager(options: SpaceManagerOptions) {
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
+        loopController.abort()
         reject(
           new SpaceManagerError(
             `Timeout waiting for space after ${timeoutSeconds} seconds`,
@@ -135,6 +148,7 @@ export function createSpaceManager(options: SpaceManagerOptions) {
       try {
         await Promise.race([claimSpacePromise, timeoutPromise])
       } catch (error) {
+        loopController.abort()
         await removeFromQueue(token)
         throw error
       }
