@@ -1,0 +1,83 @@
+import { logger } from '../../logger'
+
+/**
+ * Mediorum stores img_square/img_backdrop uploads synchronously: the POST
+ * response already carries the original CID with status "done", and the
+ * resized derivatives are generated on demand at serve time. So unlike audio
+ * uploads there is nothing to poll for here.
+ */
+type MediorumUpload = {
+  id: string
+  status: string
+  orig_file_cid: string
+  results?: Record<string, string>
+  error?: string
+}
+
+const UPLOAD_TIMEOUT_MS = 30_000
+
+const uploadToNode = async (
+  host: string,
+  image: Buffer,
+  filename: string
+): Promise<string> => {
+  const form = new FormData()
+  form.append('template', 'img_square')
+  form.append('files', new Blob([image], { type: 'image/png' }), filename)
+
+  const response = await fetch(`${host}/uploads`, {
+    method: 'POST',
+    body: form,
+    signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS)
+  })
+
+  if (!response.ok) {
+    throw new Error(
+      `Upload failed with ${response.status}: ${await response.text()}`
+    )
+  }
+
+  const uploads = (await response.json()) as MediorumUpload[]
+  const upload = uploads?.[0]
+  if (!upload) {
+    throw new Error('Upload response contained no uploads')
+  }
+  if (upload.error) {
+    throw new Error(`Upload rejected: ${upload.error}`)
+  }
+
+  const cid = upload.orig_file_cid ?? Object.values(upload.results ?? {})[0]
+  if (!cid) {
+    throw new Error('Upload response contained no CID')
+  }
+
+  return `${host}/content/${cid}`
+}
+
+/**
+ * Uploads a coin image to Audius content storage and returns the URL it is
+ * served from. Tries each configured node in order so a single unhealthy node
+ * doesn't fail a coin launch.
+ */
+export const uploadCoinImage = async ({
+  image,
+  filename,
+  hosts
+}: {
+  image: Buffer
+  filename: string
+  hosts: string[]
+}): Promise<string> => {
+  const errors: string[] = []
+  for (const host of hosts) {
+    try {
+      const url = await uploadToNode(host, image, filename)
+      logger.info({ message: 'Uploaded coin image', host, url })
+      return url
+    } catch (e) {
+      logger.warn({ message: 'Failed to upload coin image', host, e })
+      errors.push(`${host}: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+  throw new Error(`Failed to upload coin image to any node. ${errors.join('; ')}`)
+}
