@@ -44,6 +44,12 @@ type Config = {
   // - ephemeral launchpad keys (HKDF seed)
   // - reward pool authorities
   launchpadDeterministicSecret: string
+  // Content nodes to upload coin images to, tried in order
+  contentNodeUrls: string[]
+  // Public API base the on-chain coin metadata `uri` points at. This is baked
+  // into the DBC pool at launch and can never be changed, so it must be a
+  // stable, externally routable host.
+  audiusApiUrl: string
 }
 
 let cachedConfig: Config | null = null
@@ -118,6 +124,12 @@ audius_solana_waudio_mint: str({
     }),
     audius_launchpad_deterministic_secret: str({
       default: ''
+    }),
+    audius_content_node_urls: str({
+      default: 'http://audius-mediorum-1:1991'
+    }),
+    audius_api_url: str({
+      default: 'http://audius-discovery-provider-1'
     })
   })
   const solanaFeePayerWalletsParsed = env.audius_solana_fee_payer_wallets
@@ -153,7 +165,12 @@ usdcMintAddress: env.audius_solana_usdc_mint,
     launchpadPartnerPublicKey: env.audius_launchpad_partner_public_key,
     launchpadPartnerSignerPrivateKey:
       env.audius_launchpad_partner_signer_private_key,
-    launchpadDeterministicSecret: env.audius_launchpad_deterministic_secret
+    launchpadDeterministicSecret: env.audius_launchpad_deterministic_secret,
+    contentNodeUrls: env.audius_content_node_urls
+      .split(',')
+      .map((url) => url.trim().replace(/\/$/, ''))
+      .filter(Boolean),
+    audiusApiUrl: env.audius_api_url.replace(/\/$/, '')
   }
   return readConfig()
 }
