@@ -1,6 +1,13 @@
 import { describe, it, expect, jest } from '@jest/globals'
 import { Knex } from 'knex'
-import { queryTopTrending, queryHandles, composeTweet } from '../trending'
+import {
+  queryTopTrending,
+  queryHandles,
+  queryTrackLinks,
+  assembleEntries,
+  composeTweet,
+  composeTrackLinks
+} from '../trending'
 
 // Builds a chainable knex mock. Each `db(table)` call returns a fresh builder
 // that records its `whereIn` args and resolves `.first()` / `.limit()`.
@@ -92,11 +99,10 @@ describe('queryHandles', () => {
     }
     const db: any = jest.fn(() => q)
 
-    const handles = await queryHandles(db as unknown as Knex, [
-      { user_id: 1 },
-      { user_id: 2 },
-      { user_id: 3 }
-    ] as any[])
+    const handles = await queryHandles(
+      db as unknown as Knex,
+      [{ user_id: 1 }, { user_id: 2 }, { user_id: 3 }] as any[]
+    )
 
     expect(q.select).toHaveBeenCalledWith('user_id', 'handle', 'twitter_handle')
     expect(q.whereIn).toHaveBeenCalledWith('user_id', [1, 2, 3])
@@ -115,5 +121,101 @@ describe('composeTweet', () => {
 
     expect(out).toContain('Top 10 Trending Tracks 🔥 (2026-06-05)')
     expect(out.indexOf('@first')).toBeLessThan(out.indexOf('@second'))
+  })
+})
+
+describe('queryTrackLinks', () => {
+  it('builds audius.co permalinks from the current route and owner handle', async () => {
+    const q: any = {
+      select: jest.fn(() => q),
+      leftJoin: jest.fn(() => q),
+      whereIn: jest.fn(() => q),
+      andWhere: jest.fn(() =>
+        Promise.resolve([
+          {
+            track_id: 10,
+            title: 'First Track',
+            slug: 'first-track',
+            handle: 'artistOne'
+          },
+          { track_id: 11, title: 'No Route', slug: null, handle: 'artistTwo' }
+        ])
+      )
+    }
+    const db: any = jest.fn(() => q)
+
+    const links = await queryTrackLinks(
+      db as unknown as Knex,
+      [{ id: '10' }, { id: '11' }] as any[]
+    )
+
+    expect(q.whereIn).toHaveBeenCalledWith('tracks.track_id', [10, 11])
+    expect(links.get(10)).toEqual({
+      title: 'First Track',
+      url: 'https://audius.co/artistOne/first-track'
+    })
+    // rows without a current route are skipped rather than linked to nowhere
+    expect(links.get(11)).toBeUndefined()
+  })
+
+  it('skips the query entirely when no track ids are present', async () => {
+    const db: any = jest.fn()
+    const links = await queryTrackLinks(
+      db as unknown as Knex,
+      [{ id: null }] as any[]
+    )
+    expect(links.size).toBe(0)
+    expect(db).not.toHaveBeenCalled()
+  })
+})
+
+describe('assembleEntries', () => {
+  it('attaches the winning track title and url by trending_results.id', () => {
+    const entries = assembleEntries(
+      new Map([[1, '@artist']]),
+      new Map([
+        [10, { title: 'Winner', url: 'https://audius.co/artist/winner' }]
+      ]),
+      [{ user_id: 1, id: '10', rank: 1 }] as any[]
+    )
+
+    expect(entries[0]).toEqual({
+      handle: '@artist',
+      rank: 1,
+      title: 'Winner',
+      url: 'https://audius.co/artist/winner'
+    })
+  })
+})
+
+describe('composeTrackLinks', () => {
+  it('renders rank, handle and a slack link ordered by rank', () => {
+    const out = composeTrackLinks('Top 10 Trending Tracks 🔥', [
+      {
+        handle: '@second',
+        rank: 2,
+        title: 'Track Two',
+        url: 'https://audius.co/b/track-two'
+      },
+      {
+        handle: '@first',
+        rank: 1,
+        title: 'Track One',
+        url: 'https://audius.co/a/track-one'
+      }
+    ])
+
+    expect(out).toContain('*Top 10 Trending Tracks 🔥*')
+    expect(out).toContain(
+      '1. @first — <https://audius.co/a/track-one|Track One>'
+    )
+    expect(out.indexOf('Track One')).toBeLessThan(out.indexOf('Track Two'))
+  })
+
+  it('falls back to a placeholder when the track link is missing', () => {
+    const out = composeTrackLinks('Top 10 Trending Underground 🎵', [
+      { handle: '@first', rank: 1 }
+    ])
+    expect(out).toContain('1. @first — _track link unavailable_')
   })
 })
