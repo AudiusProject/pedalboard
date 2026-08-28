@@ -18,9 +18,26 @@ const TRENDING_TYPES_UNDERGROUND = [
   'TrendingType.UNDERGROUND_TRACKS'
 ]
 
+const AUDIUS_URL = 'https://audius.co'
+
 type TrendingEntry = {
   handle: string // twitter or discovery
   rank: number
+  title?: string
+  url?: string
+}
+
+// Track title + permalink for a winning track, keyed by trending_results.id.
+export type TrackLink = {
+  title: string
+  url: string
+}
+
+type TrackLinkRow = {
+  track_id: number
+  title: string | null
+  slug: string | null
+  handle: string | null
 }
 
 export const announceTopTrending = async (
@@ -31,31 +48,44 @@ export const announceTopTrending = async (
 
   console.log('getting top trending for week ', week)
 
-  const [tracks, undergroundTracks] = await queryTopTrending(
-    discoveryDb,
-    week
-  )
+  const [tracks, undergroundTracks] = await queryTopTrending(discoveryDb, week)
 
   const trackHandles = await queryHandles(discoveryDb, tracks)
   const undergroundHandles = await queryHandles(discoveryDb, undergroundTracks)
 
-  const trackEntries = assembleEntries(trackHandles, tracks)
+  const trackLinks = await queryTrackLinks(discoveryDb, tracks)
+  const undergroundLinks = await queryTrackLinks(discoveryDb, undergroundTracks)
+
+  const trackEntries = assembleEntries(trackHandles, trackLinks, tracks)
   const undergroundEntries = assembleEntries(
     undergroundHandles,
+    undergroundLinks,
     undergroundTracks
   )
 
   console.log('track entries', JSON.stringify(trackEntries))
   console.log('underground entries', JSON.stringify(undergroundEntries))
 
+  const trendingTracksTitle = 'Top 10 Trending Tracks 🔥'
+  const trendingUndergroundTitle = 'Top 10 Trending Underground 🎵'
+
   const trendingTracksTweet = composeTweet(
-    'Top 10 Trending Tracks 🔥',
+    trendingTracksTitle,
     week,
     trackEntries
   )
   const trendingUndergroundTweet = composeTweet(
-    'Top 10 Trending Underground 🎵',
+    trendingUndergroundTitle,
     week,
+    undergroundEntries
+  )
+
+  const trendingTracksLinks = composeTrackLinks(
+    trendingTracksTitle,
+    trackEntries
+  )
+  const trendingUndergroundLinks = composeTrackLinks(
+    trendingUndergroundTitle,
     undergroundEntries
   )
 
@@ -63,7 +93,10 @@ export const announceTopTrending = async (
   const webClient = new WebClient(slackBotToken)
   await sendTweet(
     webClient,
-    [trendingTracksTweet, trendingUndergroundTweet],
+    [
+      { tweet: trendingTracksTweet, links: trendingTracksLinks },
+      { tweet: trendingUndergroundTweet, links: trendingUndergroundLinks }
+    ],
     slackChannel
   )
 }
@@ -126,50 +159,119 @@ export const queryHandles = async (
   return handleMap
 }
 
+// Resolves the winning track's title and audius.co permalink.
+// `trending_results.id` holds the numeric track id as text (see the
+// handle_trending trigger in api/ddl/functions/handle_trending.sql).
+// Permalinks are `/{handle}/{slug}` from the current track_routes row,
+// matching how the API builds Track.permalink.
+export const queryTrackLinks = async (
+  discoveryDb: Knex,
+  trendingResults: TrendingResults[]
+): Promise<Map<number, TrackLink>> => {
+  const trackIds = trendingResults
+    .filter((res) => res.id !== null && res.id !== '')
+    .map((res) => Number(res.id))
+    .filter((trackId) => Number.isInteger(trackId) && trackId > 0)
+  if (trackIds.length === 0) return new Map()
+
+  const rows = await discoveryDb(Table.Tracks)
+    .select<TrackLinkRow[]>(
+      'tracks.track_id',
+      'tracks.title',
+      'track_routes.slug',
+      'users.handle'
+    )
+    .leftJoin(Table.Users, function () {
+      this.on('users.user_id', '=', 'tracks.owner_id').andOnVal(
+        'users.is_current',
+        true
+      )
+    })
+    .leftJoin(Table.TrackRoutes, function () {
+      this.on('track_routes.track_id', '=', 'tracks.track_id').andOnVal(
+        'track_routes.is_current',
+        true
+      )
+    })
+    .whereIn('tracks.track_id', trackIds)
+    .andWhere('tracks.is_current', true)
+
+  const linkMap = new Map<number, TrackLink>()
+  for (const row of rows) {
+    if (row.slug === null || row.handle === null) {
+      console.warn(`no current route found for track_id ${row.track_id}`)
+      continue
+    }
+    linkMap.set(row.track_id, {
+      title: row.title ?? `track ${row.track_id}`,
+      url: `${AUDIUS_URL}/${row.handle}/${row.slug}`
+    })
+  }
+  return linkMap
+}
+
 export const assembleEntries = (
   userIdToHandle: Map<number, string>,
+  trackIdToLink: Map<number, TrackLink>,
   trendingResults: TrendingResults[]
 ): TrendingEntry[] => {
   const trendingEntries = []
   for (const result of trendingResults) {
-    const { rank, user_id } = result
+    const { rank, user_id, id } = result
     const handle = userIdToHandle.get(user_id)!
+    const link = trackIdToLink.get(Number(id))
     trendingEntries.push({
       handle,
-      rank
+      rank,
+      title: link?.title,
+      url: link?.url
     })
   }
   return trendingEntries
 }
+
+// order by rank in case db queries reordered in some way
+const byRank = (entries: TrendingEntry[]): TrendingEntry[] =>
+  [...entries].sort((a, b) => a.rank - b.rank)
 
 export const composeTweet = (
   title: string,
   week: string,
   entries: TrendingEntry[]
 ): string => {
-  // order by rank in case db queries reordered in some way
-  const orderedEntries = entries.sort((a, b) => {
-    if (a.rank < b.rank) return -1 // a has a lower number, thus a higher rank
-    if (a.rank > b.rank) return 1 // a has a higher number, thus a lower rank
-    return 0 // ranks are equal, no sort to be done
-  })
   const newLine = '\n'
-  const handles = orderedEntries
+  const handles = byRank(entries)
     .map((entry) => `${entry.handle}${newLine}`)
     .join('')
   return '```\n' + `${title} (${week})` + newLine + handles + '```'
 }
 
+// Companion to the tweet block: the same winners with the track that actually
+// won and a clickable link, so artists with several trending tracks can be
+// told apart. Kept outside the code fence so Slack renders the links.
+export const composeTrackLinks = (
+  title: string,
+  entries: TrendingEntry[]
+): string => {
+  const lines = byRank(entries).map((entry) => {
+    if (entry.url === undefined || entry.title === undefined) {
+      return `${entry.rank}. ${entry.handle} — _track link unavailable_`
+    }
+    return `${entry.rank}. ${entry.handle} — <${entry.url}|${entry.title}>`
+  })
+  return [`*${title}*`, ...lines].join('\n')
+}
+
 const sendTweet = async (
   slack: WebClient,
-  tweets: string[],
+  tweets: { tweet: string; links: string }[],
   channel?: string
 ) => {
   if (channel === undefined) throw Error('SLACK_CHANNEL not defined')
-  for (const tweet of tweets) {
+  for (const { tweet, links } of tweets) {
     await slack.chat.postMessage({
       channel,
-      text: tweet
+      text: `${tweet}\n${links}`
     })
   }
 }
