@@ -22,10 +22,20 @@ const AUDIUS_URL = 'https://audius.co'
 
 type TrendingEntry = {
   handle: string // twitter or discovery
+  instagram?: string // instagram, when the user has one connected
   rank: number
   title?: string
   url?: string
 }
+
+// Social handles for a winning user, keyed by user_id.
+export type UserHandles = {
+  twitter: string // "@twitter" or "@/audiusHandle" fallback
+  instagram?: string // "@instagram", undefined when not connected
+}
+
+// Placeholder for the instagram column when a user has none connected.
+const NO_INSTAGRAM = '-'
 
 // Track title + permalink for a winning track, keyed by trending_results.id.
 export type TrackLink = {
@@ -130,31 +140,39 @@ export const queryTopTrending = async (
   return [tracks, undergroundTracks]
 }
 
+// Social handles are stored bare (no "@", no URL) but strip a leading "@"
+// defensively so the rendered column is always "@handle".
+const formatSocialHandle = (
+  raw: string | null | undefined
+): string | undefined => {
+  const handle = raw?.trim().replace(/^@/, '')
+  return handle ? `@${handle}` : undefined
+}
+
 export const queryHandles = async (
   discoveryDb: Knex,
   trendingResults: TrendingResults[]
-): Promise<Map<number, string>> => {
+): Promise<Map<number, UserHandles>> => {
   const blockchainUserIds = trendingResults.map((res) => res.user_id)
   if (blockchainUserIds.length === 0) return new Map()
 
   const users = await discoveryDb<Users>(Table.Users)
-    .select('user_id', 'handle', 'twitter_handle')
+    .select('user_id', 'handle', 'twitter_handle', 'instagram_handle')
     .whereIn('user_id', blockchainUserIds)
     .andWhere('is_current', true)
   const usersById = new Map(users.map((user) => [user.user_id, user]))
-  const handleMap = new Map<number, string>()
+  const handleMap = new Map<number, UserHandles>()
   for (const userId of blockchainUserIds) {
     const user = usersById.get(userId)
     if (user === undefined) {
       console.warn(`no current discovery user found for user_id ${userId}`)
-      handleMap.set(userId, `@/user-${userId}`)
+      handleMap.set(userId, { twitter: `@/user-${userId}` })
       continue
     }
-    const twitterHandle = user.twitter_handle?.trim().replace(/^@/, '')
-    handleMap.set(
-      userId,
-      twitterHandle ? `@${twitterHandle}` : `@/${user.handle}`
-    )
+    handleMap.set(userId, {
+      twitter: formatSocialHandle(user.twitter_handle) ?? `@/${user.handle}`,
+      instagram: formatSocialHandle(user.instagram_handle)
+    })
   }
   return handleMap
 }
@@ -211,17 +229,18 @@ export const queryTrackLinks = async (
 }
 
 export const assembleEntries = (
-  userIdToHandle: Map<number, string>,
+  userIdToHandles: Map<number, UserHandles>,
   trackIdToLink: Map<number, TrackLink>,
   trendingResults: TrendingResults[]
 ): TrendingEntry[] => {
   const trendingEntries = []
   for (const result of trendingResults) {
     const { rank, user_id, id } = result
-    const handle = userIdToHandle.get(user_id)!
+    const { twitter: handle, instagram } = userIdToHandles.get(user_id)!
     const link = trackIdToLink.get(Number(id))
     trendingEntries.push({
       handle,
+      instagram,
       rank,
       title: link?.title,
       url: link?.url
@@ -234,16 +253,28 @@ export const assembleEntries = (
 const byRank = (entries: TrendingEntry[]): TrendingEntry[] =>
   [...entries].sort((a, b) => a.rank - b.rank)
 
+// Two aligned columns inside a code block: twitter (or the "@/audius"
+// fallback) and instagram, so the team can credit artists on both platforms.
 export const composeTweet = (
   title: string,
   week: string,
   entries: TrendingEntry[]
 ): string => {
   const newLine = '\n'
-  const handles = byRank(entries)
-    .map((entry) => `${entry.handle}${newLine}`)
+  const ordered = byRank(entries)
+  const twitterColumn = ['twitter', ...ordered.map((entry) => entry.handle)]
+  const instagramColumn = [
+    'instagram',
+    ...ordered.map((entry) => entry.instagram ?? NO_INSTAGRAM)
+  ]
+  const twitterWidth = Math.max(...twitterColumn.map((cell) => cell.length))
+  const rows = twitterColumn
+    .map(
+      (twitter, i) =>
+        `${twitter.padEnd(twitterWidth)} | ${instagramColumn[i]}${newLine}`
+    )
     .join('')
-  return '```\n' + `${title} (${week})` + newLine + handles + '```'
+  return '```\n' + `${title} (${week})` + newLine + rows + '```'
 }
 
 // Companion to the tweet block: the same winners with the track that actually
