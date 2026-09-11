@@ -91,9 +91,24 @@ describe('queryHandles', () => {
       whereIn: jest.fn(() => q),
       andWhere: jest.fn(() =>
         Promise.resolve([
-          { user_id: 1, handle: 'first', twitter_handle: 'twitter_first' },
-          { user_id: 2, handle: 'second', twitter_handle: null },
-          { user_id: 3, handle: 'third', twitter_handle: '@third_prefixed' }
+          {
+            user_id: 1,
+            handle: 'first',
+            twitter_handle: 'twitter_first',
+            instagram_handle: 'insta_first'
+          },
+          {
+            user_id: 2,
+            handle: 'second',
+            twitter_handle: null,
+            instagram_handle: null
+          },
+          {
+            user_id: 3,
+            handle: 'third',
+            twitter_handle: '@third_prefixed',
+            instagram_handle: '@insta_prefixed'
+          }
         ])
       )
     }
@@ -101,14 +116,27 @@ describe('queryHandles', () => {
 
     const handles = await queryHandles(
       db as unknown as Knex,
-      [{ user_id: 1 }, { user_id: 2 }, { user_id: 3 }] as any[]
+      [{ user_id: 1 }, { user_id: 2 }, { user_id: 3 }, { user_id: 4 }] as any[]
     )
 
-    expect(q.select).toHaveBeenCalledWith('user_id', 'handle', 'twitter_handle')
-    expect(q.whereIn).toHaveBeenCalledWith('user_id', [1, 2, 3])
-    expect(handles.get(1)).toBe('@twitter_first')
-    expect(handles.get(2)).toBe('@/second')
-    expect(handles.get(3)).toBe('@third_prefixed')
+    expect(q.select).toHaveBeenCalledWith(
+      'user_id',
+      'handle',
+      'twitter_handle',
+      'instagram_handle'
+    )
+    expect(q.whereIn).toHaveBeenCalledWith('user_id', [1, 2, 3, 4])
+    expect(handles.get(1)).toEqual({
+      twitter: '@twitter_first',
+      instagram: '@insta_first'
+    })
+    expect(handles.get(2)).toEqual({ twitter: '@/second', instagram: undefined })
+    expect(handles.get(3)).toEqual({
+      twitter: '@third_prefixed',
+      instagram: '@insta_prefixed'
+    })
+    // users missing from discovery keep the synthetic fallback, no instagram
+    expect(handles.get(4)).toEqual({ twitter: '@/user-4' })
   })
 })
 
@@ -121,6 +149,26 @@ describe('composeTweet', () => {
 
     expect(out).toContain('Top 10 Trending Tracks 🔥 (2026-06-05)')
     expect(out.indexOf('@first')).toBeLessThan(out.indexOf('@second'))
+  })
+
+  it('renders aligned twitter | instagram columns with a dash when missing', () => {
+    const out = composeTweet('Top 10 Trending Underground 🎵', '2026-09-04', [
+      { handle: '@/zurglinbeatz', instagram: '@zurglin', rank: 1 },
+      { handle: '@AspireHigher', instagram: '@AspireHigherPA', rank: 2 },
+      { handle: '@noinsta', rank: 3 }
+    ])
+
+    expect(out).toBe(
+      [
+        '```',
+        'Top 10 Trending Underground 🎵 (2026-09-04)',
+        'twitter        | instagram',
+        '@/zurglinbeatz | @zurglin',
+        '@AspireHigher  | @AspireHigherPA',
+        '@noinsta       | -',
+        '```'
+      ].join('\n')
+    )
   })
 })
 
@@ -172,7 +220,7 @@ describe('queryTrackLinks', () => {
 describe('assembleEntries', () => {
   it('attaches the winning track title and url by trending_results.id', () => {
     const entries = assembleEntries(
-      new Map([[1, '@artist']]),
+      new Map([[1, { twitter: '@artist', instagram: '@artist_ig' }]]),
       new Map([
         [10, { title: 'Winner', url: 'https://audius.co/artist/winner' }]
       ]),
@@ -181,6 +229,7 @@ describe('assembleEntries', () => {
 
     expect(entries[0]).toEqual({
       handle: '@artist',
+      instagram: '@artist_ig',
       rank: 1,
       title: 'Winner',
       url: 'https://audius.co/artist/winner'
