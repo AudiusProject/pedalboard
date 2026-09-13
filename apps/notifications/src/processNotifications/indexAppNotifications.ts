@@ -99,6 +99,7 @@ export const notificationTypeMapping = {
   comment_mention: MappingVariable.PushCommentMention,
   comment_reaction: MappingVariable.PushCommentReaction,
   listen_streak_reminder: MappingVariable.PushListenStreakReminder,
+  weekly_rotation: MappingVariable.PushWeeklyRotation,
   artist_remix_contest_ended: MappingVariable.PushArtistRemixContestEnded,
   fan_remix_contest_ended: MappingVariable.PushFanRemixContestEnded,
   fan_remix_contest_ending_soon: MappingVariable.PushFanRemixContestEndingSoon,

@@ -346,6 +346,12 @@ export type ListenStreakReminderNotification = {
   streak: number
 }
 
+/** The Weekly Rotation period being announced, as an ISO (year, week) pair. */
+export type WeeklyRotationNotification = {
+  year: number
+  week: number
+}
+
 export type ArtistRemixContestEndedNotification = {
   entity_id: number
 }
@@ -436,6 +442,7 @@ export type NotificationData =
   | CommentMentionNotification
   | CommentReactionNotification
   | ListenStreakReminderNotification
+  | WeeklyRotationNotification
   | ArtistRemixContestEndedNotification
   | FanRemixContestEndedNotification
   | FanRemixContestEndingSoonNotification
