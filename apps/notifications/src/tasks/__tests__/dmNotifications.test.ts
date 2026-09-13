@@ -13,6 +13,7 @@ import { MessageReaction } from '../../processNotifications/mappers/messageReact
 import * as redisConnection from '../../utils/redisConnection'
 import { makeChatId } from '../../utils/chatId'
 import {
+  getGeneralInboxKeys,
   getNewBlasts,
   getUnreadMessages,
   getUnreadReactions,
@@ -463,6 +464,52 @@ describe('getNewBlasts', () => {
 // sendDMNotifications
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// getGeneralInboxKeys
+// ---------------------------------------------------------------------------
+
+describe('getGeneralInboxKeys', () => {
+  const wrap = (receiver_user_id: number, chat_id: string) => ({
+    notification: { receiver_user_id, chat_id }
+  })
+
+  test('returns the set of (receiver, chat) keys filed as General', async () => {
+    const db = createMockDb(() => [{ user_id: 2, chat_id: 'chat1' }])
+
+    const keys = await getGeneralInboxKeys(db, [
+      wrap(2, 'chat1'),
+      wrap(3, 'chat2')
+    ])
+
+    expect(keys).toEqual(new Set(['2:chat1']))
+  })
+
+  test('deduplicates pairs before querying', async () => {
+    const db = createMockDb(() => [])
+
+    await getGeneralInboxKeys(db, [
+      wrap(2, 'chat1'),
+      wrap(2, 'chat1'),
+      wrap(2, 'chat2')
+    ])
+
+    const [, pairs] = db.queries[0].callsOf('whereIn')[0]
+    expect(pairs).toEqual([
+      [2, 'chat1'],
+      [2, 'chat2']
+    ])
+  })
+
+  test('skips the query entirely for an empty batch', async () => {
+    const db = createMockDb(() => {
+      throw new Error('should not query')
+    })
+
+    await expect(getGeneralInboxKeys(db, [])).resolves.toEqual(new Set())
+    expect(db.queries).toHaveLength(0)
+  })
+})
+
 describe('sendDMNotifications', () => {
   const identityDB = createMockDb(() => {
     throw new Error('identityDB should not be queried in these tests')
@@ -492,7 +539,12 @@ describe('sendDMNotifications', () => {
     reactionRows = [] as any[],
     blastRows = [] as any[],
     blastCreatedAt = undefined as Date | undefined,
-    redisInit = {} as Record<string, string>
+    redisInit = {} as Record<string, string>,
+    // rows of user_conversation_preferences with category = 'general', or an
+    // Error to make that lookup fail
+    generalPreferences = [] as
+      | Array<{ user_id: number; chat_id: string }>
+      | Error
   } = {}) {
     redis = createMockRedis(redisInit)
     jest
@@ -508,6 +560,11 @@ describe('sendDMNotifications', () => {
           return messageRows
         case 'chat_message_reactions':
           return reactionRows
+        case 'user_conversation_preferences':
+          if (generalPreferences instanceof Error) {
+            throw generalPreferences
+          }
+          return generalPreferences
         case 'chat_blast':
           if (q.has('where')) {
             // created_at lookup for the blast id cursor
@@ -789,6 +846,132 @@ describe('sendDMNotifications', () => {
     expect(reactionQuery.callsOf('whereRaw')[0][1]).toEqual([
       reactionCursor.toISOString()
     ])
+  })
+
+  test('general inbox: skips pushes for chats the receiver filed as General but still advances cursors', async () => {
+    const messageRow = {
+      chat_id: 'chat1',
+      sender_user_id: 1,
+      receiver_user_id: 2,
+      timestamp: secondsAgo(30)
+    }
+    const reactionRow = {
+      chat_id: 'chat1',
+      message_id: 'message1',
+      sender_user_id: 2,
+      receiver_user_id: 1,
+      reaction: 'fire',
+      timestamp: secondsAgo(20)
+    }
+    const blastCreatedAt = secondsAgo(10)
+    const blastRow = {
+      blast_id: 'blast1',
+      sender_user_id: 5,
+      receiver_user_id: 6,
+      timestamp: blastCreatedAt
+    }
+    const discoveryDB = setup({
+      messageRows: [messageRow],
+      reactionRows: [reactionRow],
+      blastRows: [blastRow],
+      blastCreatedAt,
+      redisInit: { [config.lastIndexedBlastIdRedisKey]: 'blast1' },
+      // every receiver filed the relevant chat as General
+      generalPreferences: [
+        { user_id: 2, chat_id: 'chat1' },
+        { user_id: 1, chat_id: 'chat1' },
+        { user_id: 6, chat_id: makeChatId([5, 6]) }
+      ]
+    })
+
+    await sendDMNotifications(discoveryDB, identityDB)
+
+    expect(messageSpy).not.toHaveBeenCalled()
+    expect(reactionSpy).not.toHaveBeenCalled()
+    // cursors still advance so the silenced notifications are not reprocessed
+    expect(redis.store.get(config.lastIndexedMessageRedisKey)).toBe(
+      messageRow.timestamp.toISOString()
+    )
+    expect(redis.store.get(config.lastIndexedReactionRedisKey)).toBe(
+      reactionRow.timestamp.toISOString()
+    )
+    expect(redis.store.get(config.lastIndexedBlastUserIdRedisKey)).toBe('6')
+  })
+
+  test('general inbox: only silences the receiver who filed the chat', async () => {
+    // same chat, both directions: user 2 filed it as General, user 1 did not
+    const toUser2 = {
+      chat_id: 'chat1',
+      sender_user_id: 1,
+      receiver_user_id: 2,
+      timestamp: secondsAgo(30)
+    }
+    const toUser1 = {
+      chat_id: 'chat1',
+      sender_user_id: 2,
+      receiver_user_id: 1,
+      timestamp: secondsAgo(20)
+    }
+    const discoveryDB = setup({
+      messageRows: [toUser2, toUser1],
+      generalPreferences: [{ user_id: 2, chat_id: 'chat1' }]
+    })
+
+    await sendDMNotifications(discoveryDB, identityDB)
+
+    expect(messageSpy).toHaveBeenCalledTimes(1)
+    expect(sentNotifications()).toEqual([toUser1])
+
+    // the lookup is scoped to the (receiver, chat) pairs being sent
+    const prefQuery = discoveryDB.queries.find(
+      (q) => q.table() === 'user_conversation_preferences'
+    )
+    expect(prefQuery).toBeDefined()
+    expect(prefQuery.callsOf('where')[0]).toEqual(['category', 'general'])
+    const [columns, pairs] = prefQuery.callsOf('whereIn')[0]
+    expect(columns).toEqual(['user_id', 'chat_id'])
+    expect(pairs).toEqual(
+      expect.arrayContaining([
+        [2, 'chat1'],
+        [1, 'chat1']
+      ])
+    )
+    expect(pairs).toHaveLength(2)
+  })
+
+  test('general inbox: fails open and still sends when the preference lookup errors', async () => {
+    const messageRow = {
+      chat_id: 'chat1',
+      sender_user_id: 1,
+      receiver_user_id: 2,
+      timestamp: secondsAgo(30)
+    }
+    const discoveryDB = setup({
+      messageRows: [messageRow],
+      generalPreferences: new Error(
+        'relation "user_conversation_preferences" does not exist'
+      )
+    })
+
+    await sendDMNotifications(discoveryDB, identityDB)
+
+    expect(messageSpy).toHaveBeenCalledTimes(1)
+    expect(sentNotifications()).toEqual([messageRow])
+    expect(redis.store.get(config.lastIndexedMessageRedisKey)).toBe(
+      messageRow.timestamp.toISOString()
+    )
+  })
+
+  test('general inbox: does not query preferences when there is nothing to send', async () => {
+    const discoveryDB = setup()
+
+    await sendDMNotifications(discoveryDB, identityDB)
+
+    expect(
+      discoveryDB.queries.some(
+        (q) => q.table() === 'user_conversation_preferences'
+      )
+    ).toBe(false)
   })
 
   test('does not advance cursors when processing a notification fails', async () => {
