@@ -247,6 +247,39 @@ export async function getNewBlasts(
   }
 }
 
+// Chats the receiver has filed into their General inbox (chat.set_category)
+// are silent: the message still lands in the inbox and lights the General tab
+// dot in the clients, but no push or browser notification is sent. A chat with
+// no preference row (uncategorized) or filed as Priority notifies as normal.
+// The preference is per receiver, so the same chat can be silent for one
+// member and loud for the other.
+export const generalInboxKey = (receiverUserId: number, chatId: string) =>
+  `${receiverUserId}:${chatId}`
+
+export async function getGeneralInboxKeys(
+  discoveryDB: Knex,
+  notifications: Array<{
+    notification: { receiver_user_id: number; chat_id: string }
+  }>
+): Promise<Set<string>> {
+  const pairs = new Map<string, [number, string]>()
+  for (const { notification } of notifications) {
+    pairs.set(
+      generalInboxKey(notification.receiver_user_id, notification.chat_id),
+      [notification.receiver_user_id, notification.chat_id]
+    )
+  }
+  if (pairs.size === 0) {
+    return new Set()
+  }
+  const rows: Array<{ user_id: number; chat_id: string }> = await discoveryDB
+    .select('user_id', 'chat_id')
+    .from('user_conversation_preferences')
+    .where('category', 'general')
+    .whereIn(['user_id', 'chat_id'], [...pairs.values()])
+  return new Set(rows.map((row) => generalInboxKey(row.user_id, row.chat_id)))
+}
+
 function setLastIndexedTimestamp(
   redis: RedisClientType,
   redisKey: string,
@@ -362,12 +395,41 @@ export async function sendDMNotifications(
       )
     }
 
+    // Drop notifications for chats the receiver filed as General (silent).
+    // Fail open: if the lookup errors (e.g. the table has not been migrated
+    // yet), send everything rather than delaying every DM push.
+    let generalKeys = new Set<string>()
+    try {
+      generalKeys = await getGeneralInboxKeys(discoveryDB, toSend)
+    } catch (err) {
+      logger.warn(
+        { message: err.message },
+        'dmNotifications: general inbox lookup failed, sending all notifications'
+      )
+    }
+    const toPush = toSend.filter(
+      (n) =>
+        !generalKeys.has(
+          generalInboxKey(
+            n.notification.receiver_user_id,
+            n.notification.chat_id
+          )
+        )
+    )
+    const silenced = toSend.length - toPush.length
+    if (silenced > 0) {
+      logger.info(
+        { silenced, total: toSend.length },
+        'dmNotifications: skipping push for chats filed in the General inbox (cursor still advanced)'
+      )
+    }
+
     // Cap parallel processNotification calls: each holds discovery + identity
     // queries (and per-device work). Unbounded Promise.all easily exceeds
     // Knex pool max and causes timeouts.
     const concurrency = config.dmPushConcurrency
-    for (let i = 0; i < toSend.length; i += concurrency) {
-      const slice = toSend.slice(i, i + concurrency)
+    for (let i = 0; i < toPush.length; i += concurrency) {
+      const slice = toPush.slice(i, i + concurrency)
       await Promise.all(
         slice.map((notification) =>
           notification.processNotification({
@@ -397,8 +459,9 @@ export async function sendDMNotifications(
       logger.info(
         {
           ...timer.getContext(),
-          numberNotifications: toSend.length,
-          numberSkippedTooOld: skipped > 0 ? skipped : undefined
+          numberNotifications: toPush.length,
+          numberSkippedTooOld: skipped > 0 ? skipped : undefined,
+          numberSilencedGeneral: silenced > 0 ? silenced : undefined
         },
         'dmNotifications task: processed new DM push notifications'
       )
