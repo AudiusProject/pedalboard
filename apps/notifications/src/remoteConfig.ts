@@ -43,6 +43,7 @@ export enum MappingVariable {
   PushCommentMention = 'push_comment_mention',
   PushCommentReaction = 'push_comment_reaction',
   PushListenStreakReminder = 'push_listen_streak_reminder',
+  PushWeeklyRotation = 'push_weekly_rotation',
   PushArtistRemixContestEnded = 'push_artist_remix_contest_ended',
   PushFanRemixContestEnded = 'push_fan_remix_contest_ended',
   PushFanRemixContestEndingSoon = 'push_fan_remix_contest_ending_soon',
