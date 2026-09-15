@@ -19,7 +19,6 @@ type FeePayerWallet = {
 
 type Config = {
   environment: string
-  endpoint: string
   discoveryDbConnectionString: string
   redisUrl: string
   serverHost: string
@@ -33,7 +32,6 @@ type Config = {
   waudioMintAddress: string
   bonkMintAddress: string
   solanaFeePayerWallets: Keypair[]
-  delegatePrivateKey: Buffer
   antiAbuseOracle: string
   // The public key for the launchpad config partner (Squads multisig)
   launchpadPartnerPublicKey: string
@@ -56,9 +54,6 @@ const readConfig = (): Config => {
   const env = cleanEnv(process.env, {
     audius_discprov_env: str({
       default: 'dev'
-    }),
-    audius_discprov_url: str({
-      default: 'http://audius-discovery-provider-1'
     }),
     audius_db_url: str({
       default:
@@ -106,7 +101,6 @@ audius_solana_waudio_mint: str({
     }),
     solana_relay_server_host: str({ default: '0.0.0.0' }),
     solana_relay_server_port: num({ default: 6002 }),
-    audius_delegate_private_key: str({ default: '' }),
     audius_anti_abuse_oracle: str({
       default: 'http://audius-anti-abuse-oracle-1:8000'
     }),
@@ -127,14 +121,10 @@ audius_solana_waudio_mint: str({
       Keypair.fromSecretKey(Uint8Array.from(wallet.privateKey))
     )
   }
-  const delegatePrivateKey: Buffer = env.audius_delegate_private_key
-    ? Buffer.from(env.audius_delegate_private_key, 'hex')
-    : Buffer.from([])
   logger.level = env.audius_discprov_env !== 'prod' ? 'debug' : 'info'
 
   cachedConfig = {
     environment: env.audius_discprov_env,
-    endpoint: env.audius_discprov_url,
     discoveryDbConnectionString: env.audius_db_url,
     redisUrl: env.audius_redis_url,
     serverHost: env.solana_relay_server_host,
@@ -148,7 +138,6 @@ usdcMintAddress: env.audius_solana_usdc_mint,
     waudioMintAddress: env.audius_solana_waudio_mint,
     bonkMintAddress: env.audius_solana_bonk_mint,
     solanaFeePayerWallets,
-    delegatePrivateKey,
     antiAbuseOracle: env.audius_anti_abuse_oracle,
     launchpadPartnerPublicKey: env.audius_launchpad_partner_public_key,
     launchpadPartnerSignerPrivateKey:

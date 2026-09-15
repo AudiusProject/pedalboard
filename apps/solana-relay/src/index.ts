@@ -7,11 +7,7 @@ import { config } from './config'
 import { logger } from './logger'
 import { errorHandlerMiddleware } from './middleware/errorHandler'
 import { incomingRequestLogger } from './middleware/logging'
-import {
-  userSignerRecoveryMiddleware,
-  discoveryNodeSignerRecoveryMiddleware
-} from './middleware/signerRecovery'
-import { cache } from './routes/cache'
+import { userSignerRecoveryMiddleware } from './middleware/signerRecovery'
 import { feePayer } from './routes/feePayer'
 import { health } from './routes/health/health'
 import { location } from './routes/instruction/location'
@@ -53,10 +49,8 @@ const main = async () => {
 
   // Apply middleware for routes that need user/discovery validation
   app.use(userSignerRecoveryMiddleware)
-  app.use(discoveryNodeSignerRecoveryMiddleware)
   app.post('/solana/launchpad/confirm_launch_coin', confirmLaunchCoin)
   app.post('/solana/relay', relay)
-  app.post('/solana/cache', cache)
   app.get('/solana/feePayer', feePayer)
   app.get('/solana/instruction/location', location)
   app.use(errorHandlerMiddleware)
