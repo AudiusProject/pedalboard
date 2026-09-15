@@ -10,10 +10,7 @@ import { Request, Response, NextFunction } from 'express'
 import { config } from '../../config'
 import { BadRequestError, UnauthorizedError } from '../../errors'
 import { connections } from '../../utils/connections'
-import {
-  broadcastTransaction,
-  sendTransactionWithRetries
-} from '../../utils/transaction'
+import { sendTransactionWithRetries } from '../../utils/transaction'
 import { verifySignatures } from '../../utils/verifySignatures'
 
 import { InvalidRelayInstructionError } from './InvalidRelayInstructionError'
@@ -58,8 +55,6 @@ const getLookupTableAccounts = async (lookupTableKeys: PublicKey[]) => {
  *
  * This endpoint takes a transaction and some options in the POST body,
  * and signs the transaction (if necessary) and sends it (with retry logic).
- * If successful, it broadcasts the resulting transaction metadata to the
- * other discovery nodes to help them save on RPC calls when indexing.
  */
 export const relay = async (
   req: Request<unknown, unknown, RelayRequestBody>,
@@ -130,7 +125,6 @@ export const relay = async (
       logger
     })
     res.status(200).send({ signature })
-    await broadcastTransaction({ logger, signature })
     next()
   } catch (e) {
     next(e)

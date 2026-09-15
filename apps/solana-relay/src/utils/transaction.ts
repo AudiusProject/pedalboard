@@ -1,6 +1,5 @@
 import {
   Commitment,
-  Connection,
   SendOptions,
   SendTransactionError,
   TransactionConfirmationStrategy,
@@ -8,58 +7,13 @@ import {
   type RpcResponseAndContext,
   type SignatureStatus
 } from '@solana/web3.js'
-import fetch from 'cross-fetch'
-import { personalSign } from 'eth-sig-util'
 import { Logger } from 'pino'
-
-import { config } from '../config'
-import { logger as defaultLogger } from '../logger'
-import { cacheTransaction, getCachedDiscoveryNodes } from '../redis'
 
 import { connections, getConnection } from './connections'
 import { delay } from './delay'
 
 const RETRY_DELAY_MS = 2 * 1000
 const CONFIRM_POLL_DELAY_MS = 5 * 1000
-
-/**
- * Forwards the transaction response to other Solana Relays on other discovery
- * nodes so that they can cache it to lighten the RPC load on indexing.
- */
-const forwardTransaction = async (logger: Logger, transaction: string) => {
-  const endpoints = await getCachedDiscoveryNodes()
-  const body = JSON.stringify({ transaction })
-  await Promise.all(
-    endpoints
-      .filter((p) => p.endpoint !== config.endpoint)
-      .map(({ endpoint }) =>
-        fetch(`${endpoint}/solana/cache`, {
-          method: 'POST',
-          body,
-          headers: {
-            'content-type': 'application/json',
-            'Discovery-Signature': personalSign(config.delegatePrivateKey, {
-              data: body
-            })
-          }
-        })
-          .then((res) => {
-            if (!res.ok) {
-              logger.warn(
-                { endpoint },
-                `Failed to forward transaction to endpoint: ${res.statusText}`
-              )
-            }
-          })
-          .catch((e) => {
-            logger.warn(
-              { endpoint },
-              `Failed to forward transaction to endpoint: ${e}`
-            )
-          })
-      )
-  )
-}
 
 /**
  * Checks that a confirmation status is considered confirmed based on the
@@ -226,51 +180,4 @@ export const sendTransactionWithRetries = async ({
       'sendTransactionWithRetries completed.'
     )
   }
-}
-
-/**
- * Confirms a transaction if skipConfirmation is false or not passed. Stores the given transaction in
- * redis and then broadcasts it to all other discovery nodes using forwardTransaction.
- */
-export const broadcastTransaction = async ({
-  signature,
-  skipConfirmation = false,
-  logger
-}: {
-  signature: string
-  skipConfirmation?: boolean
-  logger?: Logger
-}) => {
-  logger = logger !== undefined ? logger : defaultLogger
-  const connection = getConnection()
-  if (!skipConfirmation) {
-    // Confirm, fetch, cache and forward after success response.
-    // The transaction may be confirmed from specifying commitment before,
-    // but that may have been a different RPC. So confirm again.
-    const strategy = await connection.getLatestBlockhash()
-    const confirmationStrategy = { ...strategy, signature }
-    await connection.confirmTransaction(confirmationStrategy, 'confirmed')
-  }
-  // Dangerously relying on the internals of connection to do the fetch.
-  // Calling connection.getTransaction will result in the library parsing the
-  // results and getting us back our object again, but we need the raw JSON
-  // for Solders to know what we're talking about when indexing.
-  const rpcResponse = await (
-    connection as Connection & {
-      _rpcRequest: (
-        methodName: string,
-        args: Array<unknown>
-      ) => Promise<unknown>
-    }
-  )._rpcRequest('getTransaction', [
-    signature,
-    {
-      maxSupportedTransactionVersion: 0,
-      commitment: 'confirmed',
-      encoding: 'json'
-    }
-  ])
-  const formattedResponse = JSON.stringify(rpcResponse)
-  await cacheTransaction(signature, formattedResponse)
-  await forwardTransaction(logger, formattedResponse)
 }

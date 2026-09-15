@@ -7,7 +7,6 @@ declare global {
     interface Locals {
       requestId: string
       signerUser?: Users
-      isSignedByDiscovery?: boolean
       logger: Logger
       requestStartTime: number
       [k: string]: never
