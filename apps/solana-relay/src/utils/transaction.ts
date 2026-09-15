@@ -265,7 +265,12 @@ export const broadcastTransaction = async ({
   )._rpcRequest('getTransaction', [
     signature,
     {
-      maxSupportedTransactionVersion: 0,
+      // Transaction v1 is live on mainnet and RPC providers require callers to
+      // declare the highest version they accept. This is a raw passthrough of
+      // the JSON response with no client-side decoding, and the relayed
+      // transaction was already deserialized by web3.js above (legacy or v0),
+      // so accepting v1 here is safe.
+      maxSupportedTransactionVersion: 1,
       commitment: 'confirmed',
       encoding: 'json'
     }
