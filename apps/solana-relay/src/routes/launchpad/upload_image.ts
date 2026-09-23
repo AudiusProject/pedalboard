@@ -1,11 +1,5 @@
 import { logger } from '../../logger'
 
-/**
- * Mediorum stores img_square/img_backdrop uploads synchronously: the POST
- * response already carries the original CID with status "done", and the
- * resized derivatives are generated on demand at serve time. So unlike audio
- * uploads there is nothing to poll for here.
- */
 type MediorumUpload = {
   id: string
   status: string
@@ -15,6 +9,8 @@ type MediorumUpload = {
 
 const UPLOAD_TIMEOUT_MS = 30_000
 
+// Image uploads complete synchronously; the response already has
+// orig_file_cid, so no polling is needed.
 const uploadToNode = async (
   host: string,
   image: Buffer,

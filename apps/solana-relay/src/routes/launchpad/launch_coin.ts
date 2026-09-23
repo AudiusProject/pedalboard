@@ -158,11 +158,8 @@ export const launchCoin = async (
       gatewayUrl: config.contentGatewayUrl
     })
 
-    // The metadata document itself is served by the Audius API off the
-    // artist_coins row, so there is nothing to upload here - just the URL the
-    // pool will point at. The row is written by the client's createCoin call
-    // after confirmLaunchCoin, so this URL starts resolving shortly after the
-    // pool lands on chain.
+    // artist_coins is written by the client's createCoin call after
+    // confirmLaunchCoin, so this URL 404s until then.
     const metadataUri = AUDIUS_COIN_METADATA_URL(mintKeypair.publicKey.toBase58())
     logger.info({
       message: 'Coin metadata creator',
