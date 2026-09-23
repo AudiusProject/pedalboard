@@ -9,8 +9,7 @@ import { logger } from '../../logger'
 type MediorumUpload = {
   id: string
   status: string
-  orig_file_cid: string
-  results?: Record<string, string>
+  orig_file_cid?: string
   error?: string
 }
 
@@ -46,32 +45,34 @@ const uploadToNode = async (
     throw new Error(`Upload rejected: ${upload.error}`)
   }
 
-  const cid = upload.orig_file_cid ?? Object.values(upload.results ?? {})[0]
-  if (!cid) {
+  if (!upload.orig_file_cid) {
     throw new Error('Upload response contained no CID')
   }
 
-  return `${host}/content/${cid}`
+  return upload.orig_file_cid
 }
 
 /**
- * Uploads a coin image to Audius content storage and returns the URL it is
- * served from. Tries each configured node in order so a single unhealthy node
+ * Uploads a coin image to Audius content storage and returns its URL on
+ * `gatewayUrl`. Tries each configured node in order so a single unhealthy node
  * doesn't fail a coin launch.
  */
 export const uploadCoinImage = async ({
   image,
   filename,
-  hosts
+  hosts,
+  gatewayUrl
 }: {
   image: Buffer
   filename: string
   hosts: string[]
+  gatewayUrl: string
 }): Promise<string> => {
   const errors: string[] = []
   for (const host of hosts) {
     try {
-      const url = await uploadToNode(host, image, filename)
+      const cid = await uploadToNode(host, image, filename)
+      const url = `${gatewayUrl}/content/${cid}`
       logger.info({ message: 'Uploaded coin image', host, url })
       return url
     } catch (e) {

@@ -46,6 +46,9 @@ type Config = {
   launchpadDeterministicSecret: string
   // Content nodes to upload coin images to, tried in order
   contentNodeUrls: string[]
+  // Base URL stored for uploaded coin images, independent of which node took
+  // the upload. Defaults to the first content node.
+  contentGatewayUrl: string
   // Public API base the on-chain coin metadata `uri` points at. This is baked
   // into the DBC pool at launch and can never be changed, so it must be a
   // stable, externally routable host.
@@ -128,7 +131,8 @@ audius_solana_waudio_mint: str({
     // No defaults: a wrong value here is baked into launched coins, so the
     // relay refuses to start without them.
     audius_content_node_urls: str(),
-    audius_api_url: url()
+    audius_api_url: url(),
+    audius_content_gateway_url: str({ default: '' })
   })
   const contentNodeUrls = env.audius_content_node_urls
     .split(',')
@@ -172,6 +176,8 @@ usdcMintAddress: env.audius_solana_usdc_mint,
       env.audius_launchpad_partner_signer_private_key,
     launchpadDeterministicSecret: env.audius_launchpad_deterministic_secret,
     contentNodeUrls,
+    contentGatewayUrl:
+      env.audius_content_gateway_url.replace(/\/$/, '') || contentNodeUrls[0],
     audiusApiUrl: env.audius_api_url.replace(/\/$/, '')
   }
   return readConfig()

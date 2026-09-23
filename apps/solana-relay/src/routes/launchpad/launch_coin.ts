@@ -154,7 +154,8 @@ export const launchCoin = async (
     const imageUri = await uploadCoinImage({
       image: resizedBuffer,
       filename: `${symbol}.png`,
-      hosts: config.contentNodeUrls
+      hosts: config.contentNodeUrls,
+      gatewayUrl: config.contentGatewayUrl
     })
 
     // The metadata document itself is served by the Audius API off the
