@@ -281,18 +281,17 @@ export const composeTweet = (
 const escapeSlack = (text: string): string =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-// Companion to the tweet block: the same winners with the track that actually
-// won and a clickable link, so artists with several trending tracks can be
-// told apart. Kept outside the code fence so Slack renders the links.
+// Winners with their track title and link. Outside the code block so Slack
+// renders the links.
 export const composeTrackLinks = (
   title: string,
   entries: TrendingEntry[]
 ): string => {
   const lines = byRank(entries).map((entry) => {
     if (entry.url === undefined || entry.title === undefined) {
-      return `${entry.rank}. ${entry.handle} — _track link unavailable_`
+      return `${entry.rank}. ${entry.handle} - _track link unavailable_`
     }
-    return `${entry.rank}. ${entry.handle} — <${entry.url}|${escapeSlack(
+    return `${entry.rank}. ${entry.handle} - <${entry.url}|${escapeSlack(
       entry.title
     )}>`
   })
