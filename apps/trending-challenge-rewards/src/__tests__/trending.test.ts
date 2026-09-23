@@ -261,6 +261,20 @@ describe('composeTrackLinks', () => {
     expect(out.indexOf('Track One')).toBeLessThan(out.indexOf('Track Two'))
   })
 
+  it('escapes slack control characters in track titles', () => {
+    const out = composeTrackLinks('Top 10 Trending Tracks 🔥', [
+      {
+        handle: '@first',
+        rank: 1,
+        title: 'Up > Down & <Left>',
+        url: 'https://audius.co/a/up-down'
+      }
+    ])
+    expect(out).toContain(
+      '<https://audius.co/a/up-down|Up &gt; Down &amp; &lt;Left&gt;>'
+    )
+  })
+
   it('falls back to a placeholder when the track link is missing', () => {
     const out = composeTrackLinks('Top 10 Trending Underground 🎵', [
       { handle: '@first', rank: 1 }
