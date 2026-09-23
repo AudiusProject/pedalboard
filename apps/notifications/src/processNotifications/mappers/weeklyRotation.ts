@@ -16,7 +16,7 @@ type WeeklyRotationNotificationRow = Omit<NotificationRow, 'data'> & {
 
 export const weeklyRotationMessages = {
   title: '🎧 Your Weekly Rotation Is Ready',
-  body: 'A fresh mix of tracks picked just for you. Give it a spin before it rotates next Wednesday.'
+  body: 'A fresh mix of tracks picked just for you. Updates every Wednesday.'
 }
 
 /**
