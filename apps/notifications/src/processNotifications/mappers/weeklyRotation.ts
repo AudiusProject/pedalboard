@@ -56,6 +56,14 @@ export class WeeklyRotation extends BaseNotification<WeeklyRotationNotificationR
 
     const { title, body } = weeklyRotationMessages
 
+    await sendBrowserNotification(
+      isBrowserPushEnabled,
+      userNotificationSettings,
+      this.receiverUserId,
+      title,
+      body
+    )
+
     if (
       !userNotificationSettings.shouldSendPushNotification({
         initiatorUserId: this.receiverUserId,
@@ -65,18 +73,9 @@ export class WeeklyRotation extends BaseNotification<WeeklyRotationNotificationR
       return
     }
 
-    await sendBrowserNotification(
-      isBrowserPushEnabled,
-      userNotificationSettings,
-      this.receiverUserId,
-      title,
-      body
-    )
-
     const devices: Device[] = userNotificationSettings.getDevices(
       this.receiverUserId
     )
-    if (devices.length === 0) return
 
     const pushes = await Promise.all(
       devices.map((device) =>
