@@ -1,6 +1,6 @@
 import { Keypair } from '@solana/web3.js'
 import dotenv from 'dotenv'
-import { cleanEnv, str, num, json } from 'envalid'
+import { cleanEnv, str, num, json, url } from 'envalid'
 
 import { logger } from './logger'
 
@@ -125,13 +125,18 @@ audius_solana_waudio_mint: str({
     audius_launchpad_deterministic_secret: str({
       default: ''
     }),
-    audius_content_node_urls: str({
-      default: 'http://audius-mediorum-1:1991'
-    }),
-    audius_api_url: str({
-      default: 'http://audius-discovery-provider-1'
-    })
+    // No defaults: a wrong value here is baked into launched coins, so the
+    // relay refuses to start without them.
+    audius_content_node_urls: str(),
+    audius_api_url: url()
   })
+  const contentNodeUrls = env.audius_content_node_urls
+    .split(',')
+    .map((nodeUrl) => nodeUrl.trim().replace(/\/$/, ''))
+    .filter(Boolean)
+  if (contentNodeUrls.length === 0) {
+    throw new Error('audius_content_node_urls must list at least one node')
+  }
   const solanaFeePayerWalletsParsed = env.audius_solana_fee_payer_wallets
   let solanaFeePayerWallets: Keypair[] = []
   if (Array.isArray(solanaFeePayerWalletsParsed)) {
@@ -166,10 +171,7 @@ usdcMintAddress: env.audius_solana_usdc_mint,
     launchpadPartnerSignerPrivateKey:
       env.audius_launchpad_partner_signer_private_key,
     launchpadDeterministicSecret: env.audius_launchpad_deterministic_secret,
-    contentNodeUrls: env.audius_content_node_urls
-      .split(',')
-      .map((url) => url.trim().replace(/\/$/, ''))
-      .filter(Boolean),
+    contentNodeUrls,
     audiusApiUrl: env.audius_api_url.replace(/\/$/, '')
   }
   return readConfig()
