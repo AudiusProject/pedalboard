@@ -9,6 +9,7 @@ import {
   Device
 } from './userNotificationSettings'
 import { disableDeviceArns } from '../../utils/disableArnEndpoint'
+import { logger } from '../../logger'
 
 type WeeklyRotationNotificationRow = Omit<NotificationRow, 'data'> & {
   data: WeeklyRotationNotification
@@ -52,13 +53,37 @@ export class WeeklyRotation extends BaseNotification<WeeklyRotationNotificationR
 
     const { title, body } = weeklyRotationMessages
 
-    await sendBrowserNotification(
-      isBrowserPushEnabled,
-      userNotificationSettings,
-      this.receiverUserId,
-      title,
-      body
+    const browserSent =
+      (await sendBrowserNotification(
+        isBrowserPushEnabled,
+        userNotificationSettings,
+        this.receiverUserId,
+        title,
+        body
+      )) ?? 0
+
+    const devices: Device[] = userNotificationSettings.getDevices(
+      this.receiverUserId
     )
+
+    // One line per notification so sends per period can be counted from logs.
+    const logSummary = (fields: {
+      mobileSent: number
+      mobileDisabled: number
+      skippedReason?: 'no_mobile_devices' | 'abusive'
+    }) =>
+      logger.info(
+        {
+          notificationType: 'weekly_rotation',
+          groupId: this.notification.group_id,
+          userId: this.receiverUserId,
+          browserPushEnabled: isBrowserPushEnabled,
+          browserSent,
+          mobileDevices: devices.length,
+          ...fields
+        },
+        'weekly rotation push processed'
+      )
 
     if (
       !userNotificationSettings.shouldSendPushNotification({
@@ -66,12 +91,13 @@ export class WeeklyRotation extends BaseNotification<WeeklyRotationNotificationR
         receiverUserId: this.receiverUserId
       })
     ) {
+      logSummary({
+        mobileSent: 0,
+        mobileDisabled: 0,
+        skippedReason: devices.length === 0 ? 'no_mobile_devices' : 'abusive'
+      })
       return
     }
-
-    const devices: Device[] = userNotificationSettings.getDevices(
-      this.receiverUserId
-    )
 
     const pushes = await Promise.all(
       devices.map((device) =>
@@ -100,5 +126,8 @@ export class WeeklyRotation extends BaseNotification<WeeklyRotationNotificationR
     )
     await disableDeviceArns(this.identityDB, pushes)
     await this.incrementBadgeCount(this.receiverUserId)
+
+    const mobileDisabled = pushes.filter((p) => p.endpointDisabled).length
+    logSummary({ mobileSent: pushes.length - mobileDisabled, mobileDisabled })
   }
 }
