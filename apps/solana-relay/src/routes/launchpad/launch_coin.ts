@@ -2,19 +2,6 @@ import { createHash } from 'crypto'
 
 import { RewardManagerProgram } from '@audius/spl'
 import {
-  createGenericFile,
-  signerIdentity,
-  createSignerFromKeypair,
-  sol,
-  subtractAmounts,
-  isLessThanAmount
-} from '@metaplex-foundation/umi'
-import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
-import {
-  irysUploader,
-  isIrysUploader
-} from '@metaplex-foundation/umi-uploader-irys'
-import {
   deriveDbcPoolAddress,
   DynamicBondingCurveClient
 } from '@meteora-ag/dynamic-bonding-curve-sdk'
@@ -32,7 +19,7 @@ import sharp from 'sharp'
 
 import { config } from '../../config'
 import { logger } from '../../logger'
-import { getConnection, connections } from '../../utils/connections'
+import { getConnection } from '../../utils/connections'
 import { sendTransactionWithRetries } from '../../utils/transaction'
 import { associateExternalWallet } from '../relay/associateExternalWallet'
 
@@ -40,6 +27,7 @@ import { AUDIO_MINT } from './constants'
 import { makeCurve, makeTestCurve } from './curve'
 import { getKeypair } from './getKeypair'
 import { createRewardPool } from './reward_pool'
+import { uploadCoinImage } from './upload_image'
 
 interface LaunchCoinRequestBody {
   name: string
@@ -49,60 +37,13 @@ interface LaunchCoinRequestBody {
   initialBuyAmountAudio?: string // NOTE: should be in big number format (no decimals)
 }
 
-const AUDIUS_COIN_URL = (ticker: string) => `https://audius.co/coins/${ticker}`
-
-const MIN_IRYS_BALANCE = sol(0.1) // Min balance to keep in Irys per fee payer
-const FUND_TO_IRYS_BALANCE = sol(0.15) // Amount to fund Irys balance to
-
-type FeePayerUmi = {
-  umi: ReturnType<typeof createUmi>
-}
-
-const feePayerUmis: FeePayerUmi[] = config.solanaFeePayerWallets.map(
-  (feePayer, i) => {
-    const endpoint = connections[i % connections.length].rpcEndpoint
-    const umi = createUmi(endpoint).use(irysUploader())
-    const umiKeypair = umi.eddsa.createKeypairFromSecretKey(feePayer.secretKey)
-    const signer = createSignerFromKeypair(umi, umiKeypair)
-    umi.use(signerIdentity(signer))
-    return { umi }
-  }
-)
-
-const topUpIrysBalances = async () => {
-  await Promise.all(
-    feePayerUmis.map(async ({ umi }, idx) => {
-      try {
-        const uploader = umi.uploader
-        if (!isIrysUploader(uploader)) return
-        const balance = await uploader.getBalance()
-        if (isLessThanAmount(balance, MIN_IRYS_BALANCE)) {
-          logger.info({
-            message: 'Irys balance is less than target balance',
-            balance,
-            targetBalance: FUND_TO_IRYS_BALANCE
-          })
-          const required = subtractAmounts(FUND_TO_IRYS_BALANCE, balance)
-          logger.info({
-            message: 'Required Irys balance',
-            required
-          })
-          if (required.basisPoints > BigInt(0)) {
-            await uploader.fund(required, true)
-            logger.info({
-              message: 'Topped up Irys balance',
-              feePayerIndex: idx
-            })
-          }
-        }
-      } catch (e) {
-        logger.warn({ message: 'Failed to top up Irys balance', idx, e })
-      }
-    })
-  )
-}
-topUpIrysBalances()
-setInterval(topUpIrysBalances, 5 * 60 * 1000)
+/**
+ * The off-chain metadata document the DBC pool's `uri` points at. Served by
+ * the Audius API from the artist_coins row rather than uploaded to Arweave,
+ * so the name/description/image stay editable after launch.
+ */
+const AUDIUS_COIN_METADATA_URL = (mint: string) =>
+  `${config.audiusApiUrl}/v1/coins/${mint}/metadata`
 
 /**
  * Launches a new coin on the launchpad with bonding curve.
@@ -125,8 +66,6 @@ export const launchCoin = async (
   res: Response
 ) => {
   try {
-    const { solanaFeePayerWallets } = config
-
     const {
       name,
       symbol,
@@ -175,10 +114,6 @@ export const launchCoin = async (
       config.launchpadPartnerPublicKey
     )
 
-    // Pick a random fee payer to pay for Tx's
-    // It also "owns" our new coin metadata and pay for the TX
-    const index = Math.floor(Math.random() * solanaFeePayerWallets.length)
-
     // The new mint keypair for the coin
     const mintKeypair = await getKeypair(logger)
 
@@ -207,7 +142,6 @@ export const launchCoin = async (
       name,
       symbol
     })
-    const umi = feePayerUmis[index].umi
 
     // Resize incoming image to 1000x1000 and convert to png for consistency
     const img = sharp(file.buffer)
@@ -217,25 +151,21 @@ export const launchCoin = async (
         ? await img.resize(1000, 1000, { fit: 'inside' }).png().toBuffer()
         : await img.png().toBuffer()
 
-    const umiImageFile = createGenericFile(resizedBuffer, '', {
-      tags: [{ name: 'Content-Type', value: 'image/png' }]
+    const imageUri = await uploadCoinImage({
+      image: resizedBuffer,
+      filename: `${symbol}.png`,
+      hosts: config.contentNodeUrls,
+      gatewayUrl: config.contentGatewayUrl
     })
-    const imageUris = await umi.uploader.upload([umiImageFile])
-    const imageUri = imageUris[0]
-    const metadata = {
-      name,
-      symbol,
-      description,
-      image: imageUri,
-      external_url: AUDIUS_COIN_URL(symbol),
-      attributes: [],
-      isMutable: false
-    }
-    const metadataUri = await umi.uploader.uploadJson(metadata)
+
+    // artist_coins is written by the client's createCoin call after
+    // confirmLaunchCoin, so this URL 404s until then.
+    const metadataUri = AUDIUS_COIN_METADATA_URL(mintKeypair.publicKey.toBase58())
     logger.info({
       message: 'Coin metadata creator',
       name,
       symbol,
+      imageUri,
       metadataUri
     })
 
