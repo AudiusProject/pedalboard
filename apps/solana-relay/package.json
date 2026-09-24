@@ -12,7 +12,7 @@
     "preset": "jest-presets/jest/node"
   },
   "dependencies": {
-    "@audius/spl": "2.1.0",
+    "@audius/spl": "2.2.0",
     "@jup-ag/api": "6.0.48",
     "@metaplex-foundation/umi": "1.4.1",
     "@metaplex-foundation/umi-bundle-defaults": "1.4.1",
