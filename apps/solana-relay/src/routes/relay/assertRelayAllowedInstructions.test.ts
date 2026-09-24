@@ -5,7 +5,9 @@ import {
   RewardManagerProgram,
   RewardManagerInstruction
 } from '@audius/spl'
+import { secp256k1 } from '@noble/curves/secp256k1'
 import {
+  AuthorityType,
   NATIVE_MINT,
   TOKEN_PROGRAM_ID,
   createApproveInstruction,
@@ -715,22 +717,222 @@ describe('Solana Relay', function () {
   })
 
   describe('Claimable Tokens Program', function () {
-    it('should not consume the recreation limit for first-time account creation', async function () {
-      const wallet = '0xe42b199d864489387bf64262874fc6472bcbc151'
-      const payer = getRandomPublicKey()
-      const mint = getRandomPublicKey()
-      const userBank = getRandomPublicKey()
+    const ethPrivateKey = secp256k1.utils.randomPrivateKey()
+    const blockhash = getRandomPublicKey().toBase58()
 
-      await assertRelayAllowedInstructions([
-        ClaimableTokensProgram.createAccountInstruction({
-          ethAddress: wallet,
-          payer,
-          mint,
-          authority: audioClaimableTokenAuthority,
-          userBank,
-          programId: CLAIMABLE_TOKEN_PROGRAM_ID
-        })
-      ])
+    // @audius/spl uses its own @solana/spl-token, whose AuthorityType enum
+    // has the same values but is a distinct type
+    type SplAuthorityType = Parameters<
+      typeof ClaimableTokensProgram.createSignedSetAuthorityData
+    >[0]['authorityType']
+
+    const toEthAddress = (privateKey: Uint8Array) =>
+      '0x' +
+      Buffer.from(
+        Secp256k1Program.publicKeyToEthAddress(
+          secp256k1.getPublicKey(privateKey, false).slice(1)
+        )
+      ).toString('hex')
+
+    /**
+     * Creates a user bank creation with the Secp256k1 and SetAuthority
+     * instructions that set its close authority, overridable to build
+     * invalid variants.
+     */
+    const createUserBankInstructions = async ({
+      authority = audioClaimableTokenAuthority,
+      privateKey = ethPrivateKey,
+      signerPrivateKey = privateKey,
+      instructionIndex = 0,
+      authorityType = AuthorityType.CloseAccount,
+      newAuthority = ClaimableTokensProgram.rentDestination,
+      signedUserBank
+    }: {
+      authority?: PublicKey
+      privateKey?: Uint8Array
+      signerPrivateKey?: Uint8Array
+      instructionIndex?: number
+      authorityType?: AuthorityType
+      newAuthority?: PublicKey
+      signedUserBank?: PublicKey
+    } = {}) => {
+      const ethAddress = toEthAddress(privateKey)
+      const userBank = await ClaimableTokensProgram.deriveUserBank({
+        ethAddress,
+        claimableTokensPDA: authority
+      })
+      const message = ClaimableTokensProgram.createSignedSetAuthorityData({
+        blockhash,
+        userBank: signedUserBank ?? userBank,
+        authorityType: authorityType as number as SplAuthorityType,
+        newAuthority
+      })
+      const create = ClaimableTokensProgram.createAccountInstruction({
+        ethAddress,
+        payer: getRandomPublicKey(),
+        mint: getRandomPublicKey(),
+        authority,
+        userBank,
+        programId: CLAIMABLE_TOKEN_PROGRAM_ID
+      })
+      const secp = Secp256k1Program.createInstructionWithPrivateKey({
+        privateKey: signerPrivateKey,
+        message,
+        instructionIndex: instructionIndex + 1
+      })
+      const setAuthority = ClaimableTokensProgram.createSetAuthorityInstruction({
+        userBank,
+        authority,
+        programId: CLAIMABLE_TOKEN_PROGRAM_ID
+      })
+      return {
+        ethAddress,
+        userBank,
+        create,
+        secp,
+        setAuthority,
+        instructions: [create, secp, setAuthority]
+      }
+    }
+
+    it('should allow creation that sets the close authority to the rent destination', async function () {
+      const { instructions } = await createUserBankInstructions()
+      await assertRelayAllowedInstructions(instructions)
+    })
+
+    it('should reject creation without setting the close authority', async function () {
+      const { create } = await createUserBankInstructions()
+      await expect(assertRelayAllowedInstructions([create])).rejects.toThrow(
+        'must set the close authority'
+      )
+    })
+
+    it('should reject creation that sets the close authority to another account', async function () {
+      const { instructions } = await createUserBankInstructions({
+        newAuthority: getRandomPublicKey()
+      })
+      await expect(assertRelayAllowedInstructions(instructions)).rejects.toThrow(
+        InvalidRelayInstructionError
+      )
+    })
+
+    it('should reject creation that transfers ownership instead', async function () {
+      const { instructions } = await createUserBankInstructions({
+        authorityType: AuthorityType.AccountOwner,
+        newAuthority: getRandomPublicKey()
+      })
+      await expect(assertRelayAllowedInstructions(instructions)).rejects.toThrow(
+        InvalidRelayInstructionError
+      )
+    })
+
+    it('should reject a close authority signed by a different wallet', async function () {
+      const { instructions } = await createUserBankInstructions({
+        signerPrivateKey: secp256k1.utils.randomPrivateKey()
+      })
+      await expect(assertRelayAllowedInstructions(instructions)).rejects.toThrow(
+        InvalidRelayInstructionError
+      )
+    })
+
+    it('should reject a close authority signed for a different user bank', async function () {
+      const { instructions } = await createUserBankInstructions({
+        signedUserBank: getRandomPublicKey()
+      })
+      await expect(assertRelayAllowedInstructions(instructions)).rejects.toThrow(
+        InvalidRelayInstructionError
+      )
+    })
+
+    it('should reject a close authority for a different user bank than the one created', async function () {
+      const first = await createUserBankInstructions()
+      const second = await createUserBankInstructions({
+        privateKey: secp256k1.utils.randomPrivateKey(),
+        instructionIndex: 1
+      })
+      // Creates the first user bank, but sets the close authority of the second
+      await expect(
+        assertRelayAllowedInstructions([
+          first.create,
+          second.secp,
+          second.setAuthority
+        ])
+      ).rejects.toThrow('must set the close authority')
+    })
+
+    it('should reject a Secp256k1 instruction with the wrong instruction index', async function () {
+      const { instructions } = await createUserBankInstructions({
+        instructionIndex: 1
+      })
+      await expect(assertRelayAllowedInstructions(instructions)).rejects.toThrow(
+        InvalidRelayInstructionError
+      )
+    })
+
+    it('should reject SetAuthority without a preceding Secp256k1 instruction', async function () {
+      const { create, setAuthority } = await createUserBankInstructions()
+      await expect(
+        assertRelayAllowedInstructions([create, setAuthority])
+      ).rejects.toThrow(InvalidRelayInstructionError)
+    })
+
+    it('should reject the mainnet ownership transfer SetAuthority', async function () {
+      // Transaction: 5P5QZjQhzhik7b4YGVmkBpiTRXzKKMqApL86bEjYXMjq8LJkvQkRJzbCyy5yTw7oJjqgcUQoExawXLMUpANuNyts
+      const userBank = new PublicKey(
+        'Bwde2Eu9FQMuV9RTwNj2vng8u92aRV1rjXzMyQJu83Ph'
+      )
+      await expect(
+        assertRelayAllowedInstructions([
+          new TransactionInstruction({
+            programId: Secp256k1Program.programId,
+            keys: [],
+            data: Buffer.from(
+              'ASAAAAwAAGEAZwAAqa3Sldm1AP3Y5pW+XrSKsPWTSCY10DPjmy9H41ybWn1qnOD228tHJKP+2HVAoPYR/cp2NzDisog8Dhz+WpNrj1uvhx0FxK6CFpFnb9JZDCvQvdznAZ5oFp2hVwxgLEHrv0cngiL0NOpUdI/Qgk9bYH/htvWJIwAAAAYCAWNLDNbw11p9JYiGsQAm7ZmCOYs7zB0BRLQWG/CxkJOkopOo9nn6aEg4D4369kn7ivc9gOWiruJ81acljr1S/yQ=',
+              'base64'
+            )
+          }),
+          ClaimableTokensProgram.createSetAuthorityInstruction({
+            userBank,
+            authority: audioClaimableTokenAuthority,
+            programId: CLAIMABLE_TOKEN_PROGRAM_ID
+          })
+        ])
+      ).rejects.toThrow(InvalidRelayInstructionError)
+    })
+
+    it('should reject Close instructions', async function () {
+      const { ethAddress, userBank } = await createUserBankInstructions()
+      await expect(
+        assertRelayAllowedInstructions([
+          new TransactionInstruction({
+            programId: CLAIMABLE_TOKEN_PROGRAM_ID,
+            keys: [
+              { pubkey: userBank, isSigner: false, isWritable: true },
+              {
+                pubkey: audioClaimableTokenAuthority,
+                isSigner: false,
+                isWritable: false
+              },
+              {
+                pubkey: ClaimableTokensProgram.rentDestination,
+                isSigner: false,
+                isWritable: true
+              },
+              { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
+            ],
+            data: Buffer.concat([
+              Buffer.from([3]),
+              Buffer.from(ethAddress.slice(2), 'hex')
+            ])
+          })
+        ])
+      ).rejects.toThrow('Unsupported Claimable Tokens Program instruction')
+    })
+
+    it('should not consume the recreation limit for first-time account creation', async function () {
+      const { userBank, instructions } = await createUserBankInstructions()
+
+      await assertRelayAllowedInstructions(instructions)
 
       expect(wasClaimableTokenAccountPreviouslyCreated).toHaveBeenCalledWith(
         userBank.toBase58()
@@ -742,21 +944,9 @@ describe('Solana Relay', function () {
       vi.mocked(wasClaimableTokenAccountPreviouslyCreated).mockResolvedValue(
         true
       )
-      const wallet = '0xe42b199d864489387bf64262874fc6472bcbc151'
-      const payer = getRandomPublicKey()
-      const mint = getRandomPublicKey()
-      const userBank = getRandomPublicKey()
+      const { userBank, instructions } = await createUserBankInstructions()
 
-      await assertRelayAllowedInstructions([
-        ClaimableTokensProgram.createAccountInstruction({
-          ethAddress: wallet,
-          payer,
-          mint,
-          authority: audioClaimableTokenAuthority,
-          userBank,
-          programId: CLAIMABLE_TOKEN_PROGRAM_ID
-        })
-      ])
+      await assertRelayAllowedInstructions(instructions)
 
       expect(rateLimitClaimableTokenAccountRecreation).toHaveBeenCalledWith(
         userBank.toBase58()
@@ -772,65 +962,40 @@ describe('Solana Relay', function () {
           'System has recreated too many claimable token accounts today'
         )
       )
-      const wallet = '0xe42b199d864489387bf64262874fc6472bcbc151'
-      const payer = getRandomPublicKey()
-      const mint = getRandomPublicKey()
-      const userBank = getRandomPublicKey()
+      const { instructions } = await createUserBankInstructions()
 
-      await expect(
-        assertRelayAllowedInstructions([
-          ClaimableTokensProgram.createAccountInstruction({
-            ethAddress: wallet,
-            payer,
-            mint,
-            authority: audioClaimableTokenAuthority,
-            userBank,
-            programId: CLAIMABLE_TOKEN_PROGRAM_ID
-          })
-        ])
-      ).rejects.toThrow(
+      await expect(assertRelayAllowedInstructions(instructions)).rejects.toThrow(
         'System has recreated too many claimable token accounts today'
       )
     })
 
     it('should allow claimable token program instructions with valid authority', async function () {
-      // Dummy eth address to make the encoder happy
-      const wallet = '0xe42b199d864489387bf64262874fc6472bcbc151'
       const payer = getRandomPublicKey()
-      const mint = getRandomPublicKey()
-      const userBank = getRandomPublicKey()
       const destination = getRandomPublicKey()
       const nonceAccount = getRandomPublicKey()
+      const usdc = await createUserBankInstructions({
+        authority: usdcClaimableTokenAuthority
+      })
+      const audio = await createUserBankInstructions({
+        authority: audioClaimableTokenAuthority,
+        instructionIndex: 4
+      })
       const instructions = [
-        ClaimableTokensProgram.createAccountInstruction({
-          ethAddress: wallet,
-          payer,
-          mint,
-          authority: usdcClaimableTokenAuthority,
-          userBank,
-          programId: CLAIMABLE_TOKEN_PROGRAM_ID
-        }),
+        ...usdc.instructions,
         ClaimableTokensProgram.createTransferInstruction({
           payer,
-          sourceEthAddress: wallet,
-          sourceUserBank: userBank,
+          sourceEthAddress: usdc.ethAddress,
+          sourceUserBank: usdc.userBank,
           destination,
           nonceAccount,
           authority: usdcClaimableTokenAuthority,
           programId: CLAIMABLE_TOKEN_PROGRAM_ID
         }),
-        ClaimableTokensProgram.createAccountInstruction({
-          ethAddress: wallet,
-          payer,
-          mint,
-          authority: audioClaimableTokenAuthority,
-          userBank,
-          programId: CLAIMABLE_TOKEN_PROGRAM_ID
-        }),
+        ...audio.instructions,
         ClaimableTokensProgram.createTransferInstruction({
           payer,
-          sourceEthAddress: wallet,
-          sourceUserBank: userBank,
+          sourceEthAddress: audio.ethAddress,
+          sourceUserBank: audio.userBank,
           destination,
           nonceAccount,
           authority: audioClaimableTokenAuthority,

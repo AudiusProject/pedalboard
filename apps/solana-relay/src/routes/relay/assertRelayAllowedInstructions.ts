@@ -11,6 +11,7 @@ import {
 import { Users } from '@pedalboard/storage'
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
+  AuthorityType,
   NATIVE_MINT,
   TOKEN_PROGRAM_ID,
   decodeInstruction,
@@ -385,16 +386,97 @@ const assertAllowedRewardsManagerProgramInstruction = (
   }
 }
 
+// Offsets the Claimable Tokens program requires of its Secp256k1 instructions
+const CLAIMABLE_TOKENS_SECP_ETH_ADDRESS_OFFSET = 12
+const CLAIMABLE_TOKENS_SECP_SIGNATURE_OFFSET = 32
+const CLAIMABLE_TOKENS_SECP_MESSAGE_DATA_OFFSET = 97
+
+/**
+ * Returns the user bank if the instruction at the given index is a Claimable
+ * Tokens SetAuthority instruction that sets the user bank's close authority
+ * to the program's rent destination, authorized by the user bank's owner in
+ * the Secp256k1 instruction immediately preceding it. Otherwise returns null.
+ */
+const getCloseAuthorityUserBank = async (
+  instructions: TransactionInstruction[],
+  instructionIndex: number
+) => {
+  const instruction = instructions[instructionIndex]
+  const secpIndex = instructionIndex - 1
+  const secpInstruction = instructions[secpIndex]
+  if (
+    !instruction ||
+    !secpInstruction ||
+    instruction.programId.toBase58() !== CLAIMABLE_TOKEN_PROGRAM_ID ||
+    !secpInstruction.programId.equals(Secp256k1Program.programId)
+  ) {
+    return null
+  }
+  try {
+    const decoded = ClaimableTokensProgram.decodeInstruction(instruction)
+    if (!ClaimableTokensProgram.isSetAuthorityInstruction(decoded)) {
+      return null
+    }
+    const secp = Secp256k1Program.decode(secpInstruction)
+    if (
+      secp.numSignatures !== 1 ||
+      secp.signatureInstructionIndex !== secpIndex ||
+      secp.ethAddressInstructionIndex !== secpIndex ||
+      secp.messageInstructionIndex !== secpIndex ||
+      secp.ethAddressOffset !== CLAIMABLE_TOKENS_SECP_ETH_ADDRESS_OFFSET ||
+      secp.signatureOffset !== CLAIMABLE_TOKENS_SECP_SIGNATURE_OFFSET ||
+      secp.messageDataOffset !== CLAIMABLE_TOKENS_SECP_MESSAGE_DATA_OFFSET
+    ) {
+      return null
+    }
+    const signed = ClaimableTokensProgram.decodeSignedSetAuthorityData(
+      secp.message
+    )
+    const userBank = decoded.keys.userBank.pubkey
+    const signerUserBank = await ClaimableTokensProgram.deriveUserBank({
+      ethAddress: '0x' + Buffer.from(secp.ethAddress).toString('hex'),
+      claimableTokensPDA: decoded.keys.authority.pubkey
+    })
+    if (
+      signed.authorityType !== AuthorityType.CloseAccount ||
+      !signed.newAuthority?.equals(ClaimableTokensProgram.rentDestination) ||
+      !signed.userBank.equals(userBank) ||
+      !signerUserBank.equals(userBank)
+    ) {
+      return null
+    }
+    return userBank
+  } catch {
+    return null
+  }
+}
+
 /**
  * Checks that the claimable token program instruction uses one of the
- * allowed mints by checking the authority.
+ * allowed mints by checking the authority, and protects against feePayer
+ * rent drain by only allowing user bank creations that set the user bank's
+ * close authority to the program's rent destination.
  */
 const assertAllowedClaimableTokenProgramInstruction = async (
   instructionIndex: number,
-  instruction: TransactionInstruction
+  instruction: TransactionInstruction,
+  instructions: TransactionInstruction[]
 ) => {
-  const decodedInstruction =
-    ClaimableTokensProgram.decodeInstruction(instruction)
+  let decodedInstruction
+  try {
+    decodedInstruction = ClaimableTokensProgram.decodeInstruction(instruction)
+  } catch {
+    throw new InvalidRelayInstructionError(
+      instructionIndex,
+      'Unsupported Claimable Tokens Program instruction'
+    )
+  }
+  if (ClaimableTokensProgram.isCloseInstruction(decodedInstruction)) {
+    throw new InvalidRelayInstructionError(
+      instructionIndex,
+      'Unsupported Claimable Tokens Program instruction'
+    )
+  }
   const authority = decodedInstruction.keys.authority.pubkey
   const allowedMints = await getAllowedMints()
   const authorities = allowedMints.map((mint) =>
@@ -410,7 +492,36 @@ const assertAllowedClaimableTokenProgramInstruction = async (
     )
   }
 
+  if (ClaimableTokensProgram.isSetAuthorityInstruction(decodedInstruction)) {
+    if (!(await getCloseAuthorityUserBank(instructions, instructionIndex))) {
+      throw new InvalidRelayInstructionError(
+        instructionIndex,
+        `Claimable Tokens SetAuthority must set the close authority to ${ClaimableTokensProgram.rentDestination.toBase58()}`
+      )
+    }
+  }
+
   if (ClaimableTokensProgram.isCreateAccountInstruction(decodedInstruction)) {
+    let hasCloseAuthority = false
+    for (let i = instructionIndex + 1; i < instructions.length; i++) {
+      const closeAuthorityUserBank = await getCloseAuthorityUserBank(
+        instructions,
+        i
+      )
+      if (
+        closeAuthorityUserBank?.equals(decodedInstruction.keys.userBank.pubkey)
+      ) {
+        hasCloseAuthority = true
+        break
+      }
+    }
+    if (!hasCloseAuthority) {
+      throw new InvalidRelayInstructionError(
+        instructionIndex,
+        `Claimable token account creation must set the close authority to ${ClaimableTokensProgram.rentDestination.toBase58()}`
+      )
+    }
+
     const userBank = decodedInstruction.keys.userBank.pubkey.toBase58()
     const wasPreviouslyCreated =
       await wasClaimableTokenAccountPreviouslyCreated(userBank)
@@ -702,7 +813,11 @@ export const assertRelayAllowedInstructions = async (
         assertAllowedRewardsManagerProgramInstruction(i, instruction)
         break
       case CLAIMABLE_TOKEN_PROGRAM_ID:
-        await assertAllowedClaimableTokenProgramInstruction(i, instruction)
+        await assertAllowedClaimableTokenProgramInstruction(
+          i,
+          instruction,
+          instructions
+        )
         break
       case JUPITER_AGGREGATOR_V6_PROGRAM_ID:
         await assertAllowedJupiterProgramInstruction(
