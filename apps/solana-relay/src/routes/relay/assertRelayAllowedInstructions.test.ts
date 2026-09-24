@@ -26,6 +26,7 @@ import {
 import { vi, beforeEach, afterEach, describe, it, expect } from 'vitest'
 
 import { config } from '../../config'
+import { rateLimitClaimableTokenAccountRecreation } from '../../redis'
 
 import { InvalidRelayInstructionError } from './InvalidRelayInstructionError'
 import {
@@ -34,6 +35,18 @@ import {
   JUPITER_ROUTE_DISCRIMINANT,
   JUPITER_SHARED_ACCOUNTS_ROUTE_DISCRIMINANT
 } from './assertRelayAllowedInstructions'
+import { wasClaimableTokenAccountPreviouslyCreated } from './claimableTokenAccountHistory'
+
+vi.mock('../../redis', () => ({
+  rateLimitClaimableTokenAccountRecreation: vi.fn(),
+  rateLimitTokenAccountCreation: vi.fn(async () => {
+    throw new Error('Token account creation rate limit exceeded')
+  })
+}))
+
+vi.mock('./claimableTokenAccountHistory', () => ({
+  wasClaimableTokenAccountPreviouslyCreated: vi.fn()
+}))
 
 vi.mock('../../utils/connections', () => ({
   getConnection: () => ({
@@ -167,6 +180,15 @@ describe('Solana Relay', function () {
     })
   })
   beforeEach(() => {
+    vi.mocked(wasClaimableTokenAccountPreviouslyCreated).mockReset()
+    vi.mocked(wasClaimableTokenAccountPreviouslyCreated).mockResolvedValue(
+      false
+    )
+    vi.mocked(rateLimitClaimableTokenAccountRecreation).mockReset()
+    vi.mocked(rateLimitClaimableTokenAccountRecreation).mockResolvedValue(
+      undefined
+    )
+
     // Mock initializeDiscoveryDb to avoid real DB connection
     vi.mock('@pedalboard/basekit', () => ({
       initializeDiscoveryDb: vi.fn(() => ({
@@ -693,6 +715,84 @@ describe('Solana Relay', function () {
   })
 
   describe('Claimable Tokens Program', function () {
+    it('should not consume the recreation limit for first-time account creation', async function () {
+      const wallet = '0xe42b199d864489387bf64262874fc6472bcbc151'
+      const payer = getRandomPublicKey()
+      const mint = getRandomPublicKey()
+      const userBank = getRandomPublicKey()
+
+      await assertRelayAllowedInstructions([
+        ClaimableTokensProgram.createAccountInstruction({
+          ethAddress: wallet,
+          payer,
+          mint,
+          authority: audioClaimableTokenAuthority,
+          userBank,
+          programId: CLAIMABLE_TOKEN_PROGRAM_ID
+        })
+      ])
+
+      expect(wasClaimableTokenAccountPreviouslyCreated).toHaveBeenCalledWith(
+        userBank.toBase58()
+      )
+      expect(rateLimitClaimableTokenAccountRecreation).not.toHaveBeenCalled()
+    })
+
+    it('should consume the recreation limit for previously created accounts', async function () {
+      vi.mocked(wasClaimableTokenAccountPreviouslyCreated).mockResolvedValue(
+        true
+      )
+      const wallet = '0xe42b199d864489387bf64262874fc6472bcbc151'
+      const payer = getRandomPublicKey()
+      const mint = getRandomPublicKey()
+      const userBank = getRandomPublicKey()
+
+      await assertRelayAllowedInstructions([
+        ClaimableTokensProgram.createAccountInstruction({
+          ethAddress: wallet,
+          payer,
+          mint,
+          authority: audioClaimableTokenAuthority,
+          userBank,
+          programId: CLAIMABLE_TOKEN_PROGRAM_ID
+        })
+      ])
+
+      expect(rateLimitClaimableTokenAccountRecreation).toHaveBeenCalledWith(
+        userBank.toBase58()
+      )
+    })
+
+    it('should reject a recreation when the system limit is exhausted', async function () {
+      vi.mocked(wasClaimableTokenAccountPreviouslyCreated).mockResolvedValue(
+        true
+      )
+      vi.mocked(rateLimitClaimableTokenAccountRecreation).mockRejectedValue(
+        new Error(
+          'System has recreated too many claimable token accounts today'
+        )
+      )
+      const wallet = '0xe42b199d864489387bf64262874fc6472bcbc151'
+      const payer = getRandomPublicKey()
+      const mint = getRandomPublicKey()
+      const userBank = getRandomPublicKey()
+
+      await expect(
+        assertRelayAllowedInstructions([
+          ClaimableTokensProgram.createAccountInstruction({
+            ethAddress: wallet,
+            payer,
+            mint,
+            authority: audioClaimableTokenAuthority,
+            userBank,
+            programId: CLAIMABLE_TOKEN_PROGRAM_ID
+          })
+        ])
+      ).rejects.toThrow(
+        'System has recreated too many claimable token accounts today'
+      )
+    })
+
     it('should allow claimable token program instructions with valid authority', async function () {
       // Dummy eth address to make the encoder happy
       const wallet = '0xe42b199d864489387bf64262874fc6472bcbc151'

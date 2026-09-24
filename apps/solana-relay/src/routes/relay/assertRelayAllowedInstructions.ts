@@ -29,11 +29,15 @@ import {
 } from '@solana/web3.js'
 
 import { config } from '../../config'
-import { rateLimitTokenAccountCreation } from '../../redis'
+import {
+  rateLimitClaimableTokenAccountRecreation,
+  rateLimitTokenAccountCreation
+} from '../../redis'
 import { getConnection } from '../../utils/connections'
 
 import { InvalidRelayInstructionError } from './InvalidRelayInstructionError'
 import { isUserAbusive } from './antiAbuse'
+import { wasClaimableTokenAccountPreviouslyCreated } from './claimableTokenAccountHistory'
 import { getAllowedMints } from './getAllowedMints'
 
 const MEMO_PROGRAM_ID = 'Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo'
@@ -404,6 +408,23 @@ const assertAllowedClaimableTokenProgramInstruction = async (
       instructionIndex,
       `Invalid Claimable Token Authority: ${authority}`
     )
+  }
+
+  if (ClaimableTokensProgram.isCreateAccountInstruction(decodedInstruction)) {
+    const userBank = decodedInstruction.keys.userBank.pubkey.toBase58()
+    const wasPreviouslyCreated =
+      await wasClaimableTokenAccountPreviouslyCreated(userBank)
+
+    if (wasPreviouslyCreated) {
+      try {
+        await rateLimitClaimableTokenAccountRecreation(userBank)
+      } catch (e) {
+        throw new InvalidRelayInstructionError(
+          instructionIndex,
+          (e as Error).message
+        )
+      }
+    }
   }
 }
 

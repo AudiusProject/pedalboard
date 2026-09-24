@@ -79,6 +79,7 @@ export const getCachedContentNodes = async () => {
 const TOKEN_ACCOUNT_CREATION_USER_LIMIT = 2
 const TOKEN_ACCOUNT_CREATION_VERIFIED_USER_LIMIT = 5
 const TOKEN_ACCOUNT_CREATION_SYSTEM_LIMIT = 10
+export const CLAIMABLE_TOKEN_ACCOUNT_RECREATION_SYSTEM_LIMIT = 10
 
 export const rateLimitTokenAccountCreation = async (
   wallet: string,
@@ -133,5 +134,41 @@ export const rateLimitTokenAccountCreation = async (
       'System exceeded token account creation limit'
     )
     throw new Error('System has created too many token accounts')
+  }
+}
+
+/**
+ * Limits relay-funded recreations of previously created claimable token
+ * accounts across the entire system. First-time account creation uses a
+ * separate path and does not consume this bucket.
+ */
+export const rateLimitClaimableTokenAccountRecreation = async (
+  account: string
+) => {
+  const redis = await getRedisConnection()
+  const currentDate = new Date().toISOString().split('T')[0]
+  const key = `claimable-token-account-recreation-count:global:${currentDate}`
+
+  const [systemCount] = await redis
+    .multi()
+    .incr(key)
+    .expire(key, TWO_DAYS_IN_SECONDS)
+    .exec()
+
+  if (
+    typeof systemCount !== 'number' ||
+    systemCount > CLAIMABLE_TOKEN_ACCOUNT_RECREATION_SYSTEM_LIMIT
+  ) {
+    logger.error(
+      {
+        account,
+        systemCount,
+        systemLimit: CLAIMABLE_TOKEN_ACCOUNT_RECREATION_SYSTEM_LIMIT
+      },
+      'System exceeded claimable token account recreation limit'
+    )
+    throw new Error(
+      'System has recreated too many claimable token accounts today'
+    )
   }
 }
