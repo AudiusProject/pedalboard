@@ -277,18 +277,23 @@ export const composeTweet = (
   return '```\n' + `${title} (${week})` + newLine + rows + '```'
 }
 
-// Companion to the tweet block: the same winners with the track that actually
-// won and a clickable link, so artists with several trending tracks can be
-// told apart. Kept outside the code fence so Slack renders the links.
+// Slack mrkdwn requires &, < and > to be escaped in message text.
+const escapeSlack = (text: string): string =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+// Winners with their track title and link. Outside the code block so Slack
+// renders the links.
 export const composeTrackLinks = (
   title: string,
   entries: TrendingEntry[]
 ): string => {
   const lines = byRank(entries).map((entry) => {
     if (entry.url === undefined || entry.title === undefined) {
-      return `${entry.rank}. ${entry.handle} — _track link unavailable_`
+      return `${entry.rank}. ${entry.handle} - _track link unavailable_`
     }
-    return `${entry.rank}. ${entry.handle} — <${entry.url}|${entry.title}>`
+    return `${entry.rank}. ${entry.handle} - <${entry.url}|${escapeSlack(
+      entry.title
+    )}>`
   })
   return [`*${title}*`, ...lines].join('\n')
 }

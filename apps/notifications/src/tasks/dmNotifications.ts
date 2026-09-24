@@ -247,12 +247,9 @@ export async function getNewBlasts(
   }
 }
 
-// Chats the receiver has filed into their General inbox (chat.set_category)
-// are silent: the message still lands in the inbox and lights the General tab
-// dot in the clients, but no push or browser notification is sent. A chat with
-// no preference row (uncategorized) or filed as Priority notifies as normal.
-// The preference is per receiver, so the same chat can be silent for one
-// member and loud for the other.
+// Chats the receiver filed as General (chat.set_category) get no push or
+// browser notification. Uncategorized and Priority chats notify as usual.
+// The category is per receiver.
 export const generalInboxKey = (receiverUserId: number, chatId: string) =>
   `${receiverUserId}:${chatId}`
 

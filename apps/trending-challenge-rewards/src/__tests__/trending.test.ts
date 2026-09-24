@@ -135,7 +135,7 @@ describe('queryHandles', () => {
       twitter: '@third_prefixed',
       instagram: '@insta_prefixed'
     })
-    // users missing from discovery keep the synthetic fallback, no instagram
+    // users missing from discovery fall back to @/user-<id> with no instagram
     expect(handles.get(4)).toEqual({ twitter: '@/user-4' })
   })
 })
@@ -202,7 +202,7 @@ describe('queryTrackLinks', () => {
       title: 'First Track',
       url: 'https://audius.co/artistOne/first-track'
     })
-    // rows without a current route are skipped rather than linked to nowhere
+    // rows without a current route are skipped
     expect(links.get(11)).toBeUndefined()
   })
 
@@ -256,15 +256,29 @@ describe('composeTrackLinks', () => {
 
     expect(out).toContain('*Top 10 Trending Tracks 🔥*')
     expect(out).toContain(
-      '1. @first — <https://audius.co/a/track-one|Track One>'
+      '1. @first - <https://audius.co/a/track-one|Track One>'
     )
     expect(out.indexOf('Track One')).toBeLessThan(out.indexOf('Track Two'))
+  })
+
+  it('escapes slack control characters in track titles', () => {
+    const out = composeTrackLinks('Top 10 Trending Tracks 🔥', [
+      {
+        handle: '@first',
+        rank: 1,
+        title: 'Up > Down & <Left>',
+        url: 'https://audius.co/a/up-down'
+      }
+    ])
+    expect(out).toContain(
+      '<https://audius.co/a/up-down|Up &gt; Down &amp; &lt;Left&gt;>'
+    )
   })
 
   it('falls back to a placeholder when the track link is missing', () => {
     const out = composeTrackLinks('Top 10 Trending Underground 🎵', [
       { handle: '@first', rank: 1 }
     ])
-    expect(out).toContain('1. @first — _track link unavailable_')
+    expect(out).toContain('1. @first - _track link unavailable_')
   })
 })

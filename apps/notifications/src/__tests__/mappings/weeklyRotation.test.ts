@@ -81,7 +81,7 @@ describe('Weekly Rotation Notification', () => {
     )
   })
 
-  test('Does not push to a user with no devices', async () => {
+  test('Sends a browser push but no mobile push to a user with no devices', async () => {
     await createUsers(processor.discoveryDB, [{ user_id: 2 }])
 
     await insertNotifications(processor.discoveryDB, [
@@ -101,5 +101,12 @@ describe('Weekly Rotation Notification', () => {
     await processor.appNotificationsProcessor.process(pending.appNotifications)
 
     expect(sendPushNotificationSpy).not.toHaveBeenCalled()
+    expect(sendBrowserNotificationSpy).toHaveBeenCalledWith(
+      true,
+      expect.any(Object),
+      2,
+      weeklyRotationMessages.title,
+      weeklyRotationMessages.body
+    )
   })
 })

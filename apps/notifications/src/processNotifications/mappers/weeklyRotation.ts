@@ -16,20 +16,16 @@ type WeeklyRotationNotificationRow = Omit<NotificationRow, 'data'> & {
 
 export const weeklyRotationMessages = {
   title: '🎧 Your Weekly Rotation Is Ready',
-  body: 'A fresh mix of tracks picked just for you. Give it a spin before it rotates next Wednesday.'
+  body: 'A fresh mix of tracks picked just for you. Updates every Wednesday.'
 }
 
 /**
- * Announces the Wednesday Weekly Rotation rollover.
+ * Push for the Wednesday Weekly Rotation rollover. Rows are written once per
+ * listener per period by the api's WeeklyRotationNotificationsJob
+ * (group_id `weekly_rotation:<YYYY-WW>:<user>`).
  *
- * Rows are written once per listener per period by the api repo's
- * WeeklyRotationNotificationsJob (group_id `weekly_rotation:<YYYY-WW>:<user>`).
- * There is no entity to link: the push and the in-app tile both open the
- * listener's own mix, which the client fetches on demand.
- *
- * Deliberately no rich image. The og collage for a mix is rendered from the
- * mix itself, so attaching it would make every device that receives the push
- * compute its owner's rotation at once.
+ * No rich image: the og collage is rendered from the mix, so attaching it
+ * would compute a mix per recipient.
  */
 export class WeeklyRotation extends BaseNotification<WeeklyRotationNotificationRow> {
   receiverUserId: number
@@ -56,6 +52,14 @@ export class WeeklyRotation extends BaseNotification<WeeklyRotationNotificationR
 
     const { title, body } = weeklyRotationMessages
 
+    await sendBrowserNotification(
+      isBrowserPushEnabled,
+      userNotificationSettings,
+      this.receiverUserId,
+      title,
+      body
+    )
+
     if (
       !userNotificationSettings.shouldSendPushNotification({
         initiatorUserId: this.receiverUserId,
@@ -65,18 +69,9 @@ export class WeeklyRotation extends BaseNotification<WeeklyRotationNotificationR
       return
     }
 
-    await sendBrowserNotification(
-      isBrowserPushEnabled,
-      userNotificationSettings,
-      this.receiverUserId,
-      title,
-      body
-    )
-
     const devices: Device[] = userNotificationSettings.getDevices(
       this.receiverUserId
     )
-    if (devices.length === 0) return
 
     const pushes = await Promise.all(
       devices.map((device) =>
