@@ -255,14 +255,15 @@ const filterHighFollowerBlasts = async (
   ]
   if (artistIds.length === 0) return notifications
 
-  const userRows: { user_id: number; follower_count: number }[] = await dnDb
-    .select('user_id', 'follower_count')
-    .from('users')
-    .where('is_current', true)
-    .whereIn('user_id', artistIds)
+  const userRows: { user_id: number; follower_count: number | string }[] =
+    await dnDb
+      .select('user_id', 'follower_count')
+      .from('aggregate_user')
+      .whereIn('user_id', artistIds)
 
+  // follower_count is bigint, which pg returns as a string
   const followerCounts = new Map(
-    userRows.map((r) => [r.user_id, r.follower_count])
+    userRows.map((r) => [r.user_id, Number(r.follower_count)])
   )
 
   // Step 4: suppress emails for artists at or above the threshold.
