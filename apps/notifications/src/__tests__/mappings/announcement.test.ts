@@ -2,6 +2,7 @@ import { expect, jest, test } from '@jest/globals'
 import { Processor } from '../../main'
 import * as sns from '../../sns'
 import * as web from '../../web'
+import * as sendEmail from '../../email/notifications/sendEmail'
 
 import {
   createUsers,
@@ -9,7 +10,8 @@ import {
   insertMobileSettings,
   insertNotifications,
   setupTest,
-  resetTests
+  resetTests,
+  setUserEmailAndSettings
 } from '../../utils/populateDB'
 import {
   AnnouncementNotification,
@@ -27,6 +29,10 @@ describe('Announcement Notification', () => {
   const sendBrowserNotificationSpy = jest
     .spyOn(web, 'sendBrowserNotification')
     .mockImplementation(() => Promise.resolve(3))
+
+  const sendNotificationEmailSpy = jest
+    .spyOn(sendEmail, 'sendNotificationEmail')
+    .mockImplementation(() => Promise.resolve(true))
 
   beforeEach(async () => {
     const setup = await setupTest()
@@ -186,6 +192,45 @@ describe('Announcement Notification', () => {
           notification_campaign_id: campaignId
         })
       })
+    )
+  })
+
+  test('Only sends an immediate announcement email to live users', async () => {
+    await createUsers(processor.discoveryDB, [
+      { user_id: 1 },
+      { user_id: 2 },
+      { user_id: 3 },
+      { user_id: 4 }
+    ])
+    await setUserEmailAndSettings(processor.identityDB, 'live', 1)
+    await setUserEmailAndSettings(processor.identityDB, 'daily', 2)
+    await setUserEmailAndSettings(processor.identityDB, 'weekly', 3)
+    await setUserEmailAndSettings(processor.identityDB, 'off', 4)
+
+    await insertNotifications(processor.discoveryDB, [
+      {
+        specifier: '',
+        group_id: 'announcement:blocknumber:frequency',
+        type: 'announcement',
+        blocknumber: 2,
+        timestamp: new Date(Date.now()),
+        data: {
+          title: 'Frequency',
+          push_body: 'Body',
+          short_description: 'Body',
+          notification_channels: 'email'
+        },
+        user_ids: [1, 2, 3, 4]
+      }
+    ])
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    const pending = processor.listener.takePending()
+    expect(pending?.appNotifications).toHaveLength(1)
+    await processor.appNotificationsProcessor.process(pending.appNotifications)
+
+    expect(sendNotificationEmailSpy).toHaveBeenCalledTimes(1)
+    expect(sendNotificationEmailSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 1, frequency: 'live' })
     )
   })
 
