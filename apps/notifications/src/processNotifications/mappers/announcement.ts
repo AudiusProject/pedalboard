@@ -184,9 +184,11 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
     userId: number,
     userNotificationSettings: UserNotificationSettings
   ) {
+    // Daily and weekly users get announcements in their digest instead.
     if (
-      userNotificationSettings.shouldSendEmail({
-        receiverUserId: userId
+      userNotificationSettings.shouldSendEmailAtFrequency({
+        receiverUserId: userId,
+        frequency: 'live'
       })
     ) {
       const notification: AppEmailNotification = {

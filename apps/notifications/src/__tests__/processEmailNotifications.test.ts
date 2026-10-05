@@ -311,6 +311,68 @@ describe('Email Notifications', () => {
     })
   })
 
+  test('Daily digest includes announcements but skips push-only ones', async () => {
+    jest
+      .spyOn(mockRemoteConfig, 'getFeatureVariableEnabled')
+      .mockImplementation(() => true)
+    const user = 1
+    await createUsers(discoveryDB, [{ user_id: user }])
+    const { email } = await setUserEmailAndSettings(identityDB, 'daily', user)
+    await initNotificationSeenAt(
+      discoveryDB,
+      user,
+      moment.utc(Date.now()).subtract(2, 'days').toDate()
+    )
+    await insertNotifications(discoveryDB, [
+      {
+        specifier: '',
+        group_id: 'announcement:manual:both',
+        type: 'announcement',
+        timestamp: new Date(Date.now() - 1000),
+        data: {
+          title: 'Both',
+          short_description: 'Both',
+          notification_channels: 'both'
+        },
+        user_ids: [user]
+      },
+      {
+        specifier: '',
+        group_id: 'announcement:manual:push',
+        type: 'announcement',
+        timestamp: new Date(Date.now() - 1000),
+        data: {
+          title: 'Push only',
+          short_description: 'Push only',
+          notification_channels: 'push'
+        },
+        user_ids: [user]
+      }
+    ])
+
+    await processEmailNotifications(
+      discoveryDB,
+      identityDB,
+      'daily',
+      mockRemoteConfig
+    )
+    expect(sendNotificationEmailSpy).toHaveBeenCalledTimes(1)
+    expect(sendNotificationEmailSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: user,
+        email,
+        frequency: 'daily',
+        notifications: [
+          expect.objectContaining({
+            type: 'announcement',
+            group_id: 'announcement:manual:both',
+            receiver_user_id: user
+          })
+        ]
+      })
+    )
+  })
+
   test('Do not process message notifications before delay', async () => {
     // Setup users and settings
     const user1 = 1

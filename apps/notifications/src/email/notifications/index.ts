@@ -319,6 +319,14 @@ const getNotifications = async (
     return false
   })
 
+  // Push-only announcements should not show up in email digests.
+  appNotifications = appNotifications.filter(
+    (notification) =>
+      notification.type !== 'announcement' ||
+      (notification as AppEmailNotification).data?.notification_channels !==
+        'push'
+  )
+
   appNotifications = await filterHighFollowerBlasts(appNotifications, dnDb)
 
   const messageUserIds: string[] | number[] = userIds
