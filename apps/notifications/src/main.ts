@@ -18,6 +18,7 @@ import { enqueueNotificationSeenBadgeUpdate } from './utils/notificationSeenBadg
 import { AppNotificationsProcessor } from './processNotifications/indexAppNotifications'
 import { sendDMNotifications } from './tasks/dmNotifications'
 import { processEmailNotifications } from './email/notifications/index'
+import { claimScheduledEmailRun } from './email/notifications/schedule'
 import { sendAppNotifications } from './tasks/appNotifications'
 import {
   BrowserPluginMappings,
@@ -180,8 +181,6 @@ export type NotificationsAppData = {
   listenerPending: PendingUpdates
   /** IDs from pg NOTIFY; hydrated into listenerPending on each tick (one batch query). */
   listenerPendingNotificationIds: number[]
-  lastDailyEmailSent: moment.Moment | null
-  lastWeeklyEmailSent: moment.Moment | null
 }
 
 function getIsScheduledEmailEnabled(remoteConfig: RemoteConfig): boolean {
@@ -250,9 +249,7 @@ async function main() {
     remoteConfig,
     appNotificationsProcessor,
     listenerPending,
-    listenerPendingNotificationIds: [],
-    lastDailyEmailSent: null,
-    lastWeeklyEmailSent: null
+    listenerPendingNotificationIds: []
   }
 
   const server = new Server()
@@ -370,37 +367,29 @@ async function main() {
         logger.error({ err: e }, 'tick: sendDMNotifications threw unexpectedly')
       }
 
-      if (
-        getIsScheduledEmailEnabled(data.remoteConfig) &&
-        (!data.lastDailyEmailSent ||
-          data.lastDailyEmailSent < moment.utc().subtract(1, 'days'))
-      ) {
-        logger.info('Processing daily emails...')
-        void processEmailNotifications(
-          self.getDnDb(),
-          self.getIdDb(),
-          'daily',
-          data.remoteConfig
-        )
-        self.updateAppData((d) => ({ ...d, lastDailyEmailSent: moment.utc() }))
-      }
-
-      if (
-        getIsScheduledEmailEnabled(data.remoteConfig) &&
-        (!data.lastWeeklyEmailSent ||
-          data.lastWeeklyEmailSent < moment.utc().subtract(7, 'days'))
-      ) {
-        logger.info('Processing weekly emails')
-        void processEmailNotifications(
-          self.getDnDb(),
-          self.getIdDb(),
-          'weekly',
-          data.remoteConfig
-        )
-        self.updateAppData((d) => ({
-          ...d,
-          lastWeeklyEmailSent: moment.utc()
-        }))
+      if (getIsScheduledEmailEnabled(data.remoteConfig)) {
+        for (const frequency of ['daily', 'weekly'] as const) {
+          try {
+            if (!(await claimScheduledEmailRun(frequency))) continue
+          } catch (e) {
+            logger.error(
+              { err: e, frequency },
+              'tick: claimScheduledEmailRun threw unexpectedly'
+            )
+            continue
+          }
+          logger.info(
+            frequency === 'daily'
+              ? 'Processing daily emails...'
+              : 'Processing weekly emails'
+          )
+          void processEmailNotifications(
+            self.getDnDb(),
+            self.getIdDb(),
+            frequency,
+            data.remoteConfig
+          )
+        }
       }
     })
     .task(async () => {
