@@ -11,6 +11,13 @@ export class PendingUpdates {
   }
 }
 
+// notification.id is bigint, which pg returns as a string. NOTIFY payloads
+// carry numbers, so normalize here or id lookups never match.
+const withNumericId = (row: NotificationRow): NotificationRow => ({
+  ...row,
+  id: Number(row.id)
+})
+
 /** Fetch a notification row by id (for use in basekit listen callback). */
 export async function getNotificationById(
   db: Knex,
@@ -20,7 +27,7 @@ export async function getNotificationById(
     const row = await db<NotificationRow>('notification')
       .where('id', notificationId)
       .first()
-    return row ?? null
+    return row ? withNumericId(row) : null
   } catch (e) {
     logger.error(`could not get notification ${notificationId} ${e}`)
     return null
@@ -40,7 +47,7 @@ export async function fetchNotificationsByIds(
   for (let i = 0; i < unique.length; i += NOTIFICATION_ID_IN_CHUNK) {
     const slice = unique.slice(i, i + NOTIFICATION_ID_IN_CHUNK)
     const batch = await db<NotificationRow>('notification').whereIn('id', slice)
-    rows.push(...batch)
+    rows.push(...batch.map(withNumericId))
   }
   return rows
 }
