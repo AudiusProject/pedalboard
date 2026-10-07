@@ -8,6 +8,7 @@ import { BaseNotification } from './base'
 import { sendPushNotification } from '../../sns'
 import { ResourceIds, Resources } from '../../email/notifications/renderEmail'
 import { sendNotificationEmail } from '../../email/notifications/sendEmail'
+import { getRecentlyActiveUserIds } from '../../email/notifications/activeUsers'
 import {
   buildUserNotificationSettings,
   Device
@@ -191,6 +192,9 @@ export class Announcement extends BaseNotification<AnnouncementNotificationRow> 
         frequency: 'live'
       })
     ) {
+      const activeUserIds = await getRecentlyActiveUserIds(this.dnDB, [userId])
+      if (!activeUserIds.has(userId)) return
+
       const notification: AppEmailNotification = {
         receiver_user_id: userId,
         ...this.notification

@@ -154,7 +154,7 @@ export class UserNotificationSettings {
   getUserEmailFrequency(userId: number) {
     const emailSettings = this.email?.[userId]
     if (emailSettings === undefined) {
-      return 'daily'
+      return 'weekly'
     }
     return emailSettings.frequency
   }
