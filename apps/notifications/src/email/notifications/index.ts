@@ -11,6 +11,10 @@ import { DMEntityType } from './types'
 import { logger } from '../../logger'
 import { sendNotificationEmail } from './sendEmail'
 import {
+  EMAIL_ACTIVE_WITHIN_DAYS,
+  getRecentlyActiveUserIds
+} from './activeUsers'
+import {
   EmailFrequency,
   buildUserNotificationSettings
 } from '../../processNotifications/mappers/userNotificationSettings'
@@ -513,11 +517,28 @@ export async function processEmailNotifications(
 const processGroupOfEmails = async (
   dnDb: Knex,
   identityDb: Knex,
-  users: EmailUsers,
+  allUsers: EmailUsers,
   frequency: EmailFrequency,
   startOffset: Moment,
   remoteConfig: RemoteConfig
 ) => {
+  const activeUserIds = await getRecentlyActiveUserIds(
+    dnDb,
+    Object.keys(allUsers).map(Number)
+  )
+  const inactiveCount = Object.keys(allUsers).length - activeUserIds.size
+  if (inactiveCount > 0) {
+    logger.info(
+      `processEmailNotifications | skipping ${inactiveCount} users inactive for over ${EMAIL_ACTIVE_WITHIN_DAYS} days`
+    )
+  }
+  const users: EmailUsers = Object.fromEntries(
+    Object.entries(allUsers).filter(([userId]) =>
+      activeUserIds.has(Number(userId))
+    )
+  )
+  if (Object.keys(users).length === 0) return
+
   const userNotificationSettings = await buildUserNotificationSettings(
     identityDb,
     Object.keys(users).map(Number)
