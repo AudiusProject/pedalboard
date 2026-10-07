@@ -1,6 +1,6 @@
 import { Keypair } from '@solana/web3.js'
 import dotenv from 'dotenv'
-import { cleanEnv, str, num, json } from 'envalid'
+import { cleanEnv, str, num, json, url } from 'envalid'
 
 import { logger } from './logger'
 
@@ -42,6 +42,15 @@ type Config = {
   // - ephemeral launchpad keys (HKDF seed)
   // - reward pool authorities
   launchpadDeterministicSecret: string
+  // Content nodes to upload coin images to, tried in order
+  contentNodeUrls: string[]
+  // Base URL stored for uploaded coin images, independent of which node took
+  // the upload. Defaults to the first content node.
+  contentGatewayUrl: string
+  // Public API base the on-chain coin metadata `uri` points at. This is baked
+  // into the DBC pool at launch and can never be changed, so it must be a
+  // stable, externally routable host.
+  audiusApiUrl: string
 }
 
 let cachedConfig: Config | null = null
@@ -112,8 +121,20 @@ audius_solana_waudio_mint: str({
     }),
     audius_launchpad_deterministic_secret: str({
       default: ''
-    })
+    }),
+    // No defaults: a wrong value here is baked into launched coins, so the
+    // relay refuses to start without them.
+    audius_content_node_urls: str(),
+    audius_api_url: url(),
+    audius_content_gateway_url: str({ default: '' })
   })
+  const contentNodeUrls = env.audius_content_node_urls
+    .split(',')
+    .map((nodeUrl) => nodeUrl.trim().replace(/\/$/, ''))
+    .filter(Boolean)
+  if (contentNodeUrls.length === 0) {
+    throw new Error('audius_content_node_urls must list at least one node')
+  }
   const solanaFeePayerWalletsParsed = env.audius_solana_fee_payer_wallets
   let solanaFeePayerWallets: Keypair[] = []
   if (Array.isArray(solanaFeePayerWalletsParsed)) {
@@ -142,7 +163,11 @@ usdcMintAddress: env.audius_solana_usdc_mint,
     launchpadPartnerPublicKey: env.audius_launchpad_partner_public_key,
     launchpadPartnerSignerPrivateKey:
       env.audius_launchpad_partner_signer_private_key,
-    launchpadDeterministicSecret: env.audius_launchpad_deterministic_secret
+    launchpadDeterministicSecret: env.audius_launchpad_deterministic_secret,
+    contentNodeUrls,
+    contentGatewayUrl:
+      env.audius_content_gateway_url.replace(/\/$/, '') || contentNodeUrls[0],
+    audiusApiUrl: env.audius_api_url.replace(/\/$/, '')
   }
   return readConfig()
 }
