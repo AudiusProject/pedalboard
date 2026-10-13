@@ -279,6 +279,35 @@ describe('createStemsArchiveWorker parent-track handling', () => {
     )
   })
 
+  it('never logs the signed download URL credentials', async () => {
+    const services = createServices({
+      fetchBehavior: { unresolvableTrackIds: [PARENT_ID] }
+    })
+    const sdk = services.sdk as unknown as {
+      tracks: { getTrackDownloadUrl: ReturnType<typeof vi.fn> }
+    }
+    sdk.tracks.getTrackDownloadUrl.mockImplementation(
+      async ({ trackId }: { trackId: string }) =>
+        `https://api.test/v1/tracks/${trackId}/download?user_id=456&user_signature=SECRET_SIG&user_data=SECRET_DATA`
+    )
+    const { processJob } = createStemsArchiveWorker(services)
+
+    await processJob(createJob())
+
+    const logged = JSON.stringify([
+      mockLogger.debug.mock.calls,
+      mockLogger.info.mock.calls,
+      mockLogger.warn.mock.calls,
+      mockLogger.error.mock.calls
+    ])
+    // Both the per-stem info line and the parent's resolve-failure error
+    // line carry the URL; neither may carry the credentials.
+    expect(logged).toContain('Downloading stem file')
+    expect(logged).toContain('Redirect-resolve failed')
+    expect(logged).not.toContain('SECRET_SIG')
+    expect(logged).not.toContain('SECRET_DATA')
+  })
+
   it('still fails the job when a stem download fails', async () => {
     const { processJob } = createStemsArchiveWorker(
       createServices({ fetchBehavior: { brokenTrackIds: [STEM_IDS[0]] } })

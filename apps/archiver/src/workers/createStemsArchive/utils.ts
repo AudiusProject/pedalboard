@@ -1,4 +1,5 @@
 import { WorkerServices } from '../services'
+import { redactUrl } from '../../redact'
 import {
   ARCHIVE_FALLBACK_HOST,
   MIRROR_DOWNLOAD_TIMEOUT_MS,
@@ -219,7 +220,7 @@ export const createUtils = (services: WorkerServices) => {
           logger.warn(
             {
               jobId,
-              url,
+              url: redactUrl(url),
               filePath,
               attempt: attempt + 1,
               attemptsLeft,
@@ -272,7 +273,7 @@ export const createUtils = (services: WorkerServices) => {
         logger.warn(
           {
             jobId,
-            url,
+            url: redactUrl(url),
             filePath,
             status,
             statusText,
@@ -293,7 +294,7 @@ export const createUtils = (services: WorkerServices) => {
       }
 
       logger.error(
-        { jobId, url, filePath, status, statusText },
+        { jobId, url: redactUrl(url), filePath, status, statusText },
         'Redirect-resolve failed'
       )
       throw new Error(
@@ -440,7 +441,12 @@ export const createUtils = (services: WorkerServices) => {
     signal?: AbortSignal
   }): Promise<string> => {
     logger.info(
-      { jobId, url, filePath, mirrorCount: mirrors?.length ?? 0 },
+      {
+        jobId,
+        url: redactUrl(url),
+        filePath,
+        mirrorCount: mirrors?.length ?? 0
+      },
       'Downloading stem file'
     )
 
@@ -473,7 +479,7 @@ export const createUtils = (services: WorkerServices) => {
     }
 
     logger.error(
-      { jobId, url, filePath, attempted },
+      { jobId, url: redactUrl(url), filePath, attempted },
       'All mirrors failed for stem download'
     )
     throw new Error(
