@@ -76,8 +76,16 @@ describe('Trending Underground Notification', () => {
       },
       {
         title: "📈 You're Trending",
-        body: `track_title_10 is #3 on Underground Trending right now!`,
-        data: {},
+        body: `track_title_10 is #3 on Underground Trending right now! Share it`,
+        data: {
+          type: 'TrendingUnderground',
+          id: expect.stringContaining(
+            'group_id:trending_underground:time_range:week:genre:all:rank:3:track_id:10'
+          ),
+          entityId: 10,
+          rank: 3,
+          shareCard: true
+        },
         imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
     )

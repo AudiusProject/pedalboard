@@ -90,7 +90,7 @@ export class TrendingUnderground extends BaseNotification<TrendingUndergroundNot
     const title = "📈 You're Trending"
     const body = `${tracks[this.trackId]?.title} is #${
       this.rank
-    } on Underground Trending right now!`
+    } on Underground Trending right now! Share it`
 
     // Get track's cover art URL for rich notification (1000x1000 size)
     let imageUrl: string | undefined
@@ -131,7 +131,15 @@ export class TrendingUnderground extends BaseNotification<TrendingUndergroundNot
             {
               title,
               body,
-              data: {},
+              data: {
+                type: 'TrendingUnderground',
+                id: `timestamp:${this.getNotificationTimestamp()}:group_id:${
+                  this.notification.group_id
+                }`,
+                entityId: this.trackId,
+                rank: this.rank,
+                shareCard: true
+              },
               imageUrl
             }
           )

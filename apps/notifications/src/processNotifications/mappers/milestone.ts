@@ -50,11 +50,11 @@ export class Milestone extends BaseNotification<MilestoneRow> {
     if (this.type === MilestoneType.FOLLOWER_COUNT) {
       return `You have reached over ${this.threshold.toLocaleString()} Followers`
     } else if (this.type === MilestoneType.LISTEN_COUNT) {
-      return `Your track ${entityName} has reached over ${this.threshold.toLocaleString()} listens`
+      return `${entityName} just hit ${this.threshold.toLocaleString()} plays. Share it`
     } else if (this.type === MilestoneType.TRACK_REPOST_COUNT) {
-      return `Your track ${entityName} has reached over ${this.threshold.toLocaleString()} reposts`
+      return `${entityName} just hit ${this.threshold.toLocaleString()} reposts. Share it`
     } else if (this.type === MilestoneType.TRACK_SAVE_COUNT) {
-      return `Your track ${entityName} has reached over ${this.threshold.toLocaleString()} favorites`
+      return `${entityName} just hit ${this.threshold.toLocaleString()} favorites. Share it`
     } else if (this.type === MilestoneType.PLAYLIST_REPOST_COUNT) {
       return `Your ${
         isAlbum ? 'album' : 'playlist'
@@ -223,7 +223,9 @@ export class Milestone extends BaseNotification<MilestoneRow> {
         return {
           type: 'MilestoneListen',
           entityId: this.parseIdFromGroupId(),
-          actions: [{ actionEntityType: 'Track' }]
+          actions: [{ actionEntityType: 'Track' }],
+          shareCard: true,
+          threshold: this.threshold
         }
       case MilestoneType.PLAYLIST_REPOST_COUNT:
         return {
@@ -235,7 +237,9 @@ export class Milestone extends BaseNotification<MilestoneRow> {
         return {
           type: 'MilestoneRepost',
           entityId: this.parseIdFromGroupId(),
-          actions: [{ actionEntityType: 'Track' }]
+          actions: [{ actionEntityType: 'Track' }],
+          shareCard: true,
+          threshold: this.threshold
         }
       case MilestoneType.PLAYLIST_SAVE_COUNT:
         return {
@@ -247,7 +251,9 @@ export class Milestone extends BaseNotification<MilestoneRow> {
         return {
           type: 'MilestoneFavorite',
           entityId: this.parseIdFromGroupId(),
-          actions: [{ actionEntityType: 'Track' }]
+          actions: [{ actionEntityType: 'Track' }],
+          shareCard: true,
+          threshold: this.threshold
         }
     }
   }
