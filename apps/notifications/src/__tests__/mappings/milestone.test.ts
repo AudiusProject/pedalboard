@@ -162,7 +162,7 @@ describe('Milestone Notification', () => {
       },
       {
         title: 'Congratulations! 🎉',
-        body: 'Your track track_title_2 has reached over 10 reposts',
+        body: 'track_title_2 just hit 10 reposts. Share it',
         data: {
           actions: [
             {
@@ -171,7 +171,9 @@ describe('Milestone Notification', () => {
           ],
           entityId: '2',
           id: 'timestamp:1589373217:group_id:milestone:TRACK_REPOST_COUNT:id:2:threshold:10',
-          type: 'MilestoneRepost'
+          type: 'MilestoneRepost',
+          shareCard: true,
+          threshold: 10
         },
         imageUrl: 'https://api.audius.co/content/test-hash/150x150.jpg'
       }
@@ -357,7 +359,7 @@ describe('Milestone Notification', () => {
       },
       {
         title: 'Congratulations! 🎉',
-        body: 'Your track track_title_2 has reached over 10 favorites',
+        body: 'track_title_2 just hit 10 favorites. Share it',
         data: {
           actions: [
             {
@@ -366,7 +368,9 @@ describe('Milestone Notification', () => {
           ],
           entityId: '2',
           id: 'timestamp:1589373217:group_id:milestone:TRACK_SAVE_COUNT:id:2:threshold:10',
-          type: 'MilestoneFavorite'
+          type: 'MilestoneFavorite',
+          shareCard: true,
+          threshold: 10
         }
       }
     )
