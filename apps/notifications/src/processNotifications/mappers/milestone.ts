@@ -19,6 +19,12 @@ import { sendBrowserNotification } from '../../web'
 import { disableDeviceArns } from '../../utils/disableArnEndpoint'
 import { formatImageUrl } from '../../utils/format'
 
+// Play counts whose push opens the stat card. Keep in sync with
+// packages/common/src/store/ui/share-modal/milestones.ts in apps.
+export const SHARE_CARD_PLAY_THRESHOLDS = new Set([
+  1000, 5000, 10000, 50000, 100000, 500000, 1000000
+])
+
 type MilestoneRow = Omit<NotificationRow, 'data'> & {
   data:
     | FollowerMilestoneNotification
@@ -50,11 +56,13 @@ export class Milestone extends BaseNotification<MilestoneRow> {
     if (this.type === MilestoneType.FOLLOWER_COUNT) {
       return `You have reached over ${this.threshold.toLocaleString()} Followers`
     } else if (this.type === MilestoneType.LISTEN_COUNT) {
-      return `${entityName} just hit ${this.threshold.toLocaleString()} plays. Share it`
+      return SHARE_CARD_PLAY_THRESHOLDS.has(this.threshold)
+        ? `${entityName} just hit ${this.threshold.toLocaleString()} plays. Share it`
+        : `Your track ${entityName} has reached over ${this.threshold.toLocaleString()} listens`
     } else if (this.type === MilestoneType.TRACK_REPOST_COUNT) {
-      return `${entityName} just hit ${this.threshold.toLocaleString()} reposts. Share it`
+      return `Your track ${entityName} has reached over ${this.threshold.toLocaleString()} reposts`
     } else if (this.type === MilestoneType.TRACK_SAVE_COUNT) {
-      return `${entityName} just hit ${this.threshold.toLocaleString()} favorites. Share it`
+      return `Your track ${entityName} has reached over ${this.threshold.toLocaleString()} favorites`
     } else if (this.type === MilestoneType.PLAYLIST_REPOST_COUNT) {
       return `Your ${
         isAlbum ? 'album' : 'playlist'
@@ -224,8 +232,9 @@ export class Milestone extends BaseNotification<MilestoneRow> {
           type: 'MilestoneListen',
           entityId: this.parseIdFromGroupId(),
           actions: [{ actionEntityType: 'Track' }],
-          shareCard: true,
-          threshold: this.threshold
+          ...(SHARE_CARD_PLAY_THRESHOLDS.has(this.threshold)
+            ? { shareCard: true, threshold: this.threshold }
+            : {})
         }
       case MilestoneType.PLAYLIST_REPOST_COUNT:
         return {
@@ -237,9 +246,7 @@ export class Milestone extends BaseNotification<MilestoneRow> {
         return {
           type: 'MilestoneRepost',
           entityId: this.parseIdFromGroupId(),
-          actions: [{ actionEntityType: 'Track' }],
-          shareCard: true,
-          threshold: this.threshold
+          actions: [{ actionEntityType: 'Track' }]
         }
       case MilestoneType.PLAYLIST_SAVE_COUNT:
         return {
@@ -251,9 +258,7 @@ export class Milestone extends BaseNotification<MilestoneRow> {
         return {
           type: 'MilestoneFavorite',
           entityId: this.parseIdFromGroupId(),
-          actions: [{ actionEntityType: 'Track' }],
-          shareCard: true,
-          threshold: this.threshold
+          actions: [{ actionEntityType: 'Track' }]
         }
     }
   }
