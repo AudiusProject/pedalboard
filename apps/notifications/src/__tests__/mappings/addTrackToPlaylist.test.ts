@@ -85,6 +85,60 @@ describe('Add track to playlist notification', () => {
     )
   })
 
+  test.each([
+    [4281, 'Hot & New'],
+    [1795117483, 'All Things Bass']
+  ])(
+    'Process share card push for editorial playlist %i',
+    async (playlistId, name) => {
+      await createUsers(processor.discoveryDB, [
+        { user_id: 1 },
+        { user_id: 2, name: 'user_2' }
+      ])
+      await createTracks(processor.discoveryDB, [
+        { track_id: 10, owner_id: 1, title: 'title_track' }
+      ])
+      const createdAt = new Date()
+      const trackAddedTime = Math.floor(
+        new Date(createdAt.getTime() + 60 * 1000).getTime() / 1000
+      )
+      await createBlocks(processor.discoveryDB, [{ number: 1 }])
+      await createPlaylists(processor.discoveryDB, [
+        {
+          blocknumber: 1,
+          playlist_owner_id: 2,
+          playlist_name: 'title_of_playlist',
+          created_at: createdAt,
+          playlist_id: playlistId,
+          playlist_contents: {
+            track_ids: [{ time: trackAddedTime, track: 10 }]
+          }
+        }
+      ])
+      await insertMobileSettings(processor.identityDB, [{ userId: 1 }])
+      await insertMobileDevices(processor.identityDB, [{ userId: 1 }])
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      const pending = processor.listener.takePending()
+      await processor.appNotificationsProcessor.process(
+        pending.appNotifications
+      )
+
+      expect(sendPushNotificationSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          title: `You made ${name}! 🔥`,
+          body: `title_track is on ${name}. Share it`,
+          data: expect.objectContaining({
+            type: 'AddTrackToPlaylist',
+            playlistId,
+            trackId: 10,
+            shareCard: true
+          })
+        })
+      )
+    }
+  )
+
   test('Render a single Add Track To Playlist email', async () => {
     await createUsers(processor.discoveryDB, [
       { user_id: 1 },

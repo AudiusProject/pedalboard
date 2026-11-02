@@ -12,6 +12,14 @@ import { sendBrowserNotification } from '../../web'
 import { disableDeviceArns } from '../../utils/disableArnEndpoint'
 import { formatImageUrl } from '../../utils/format'
 
+// Editorial playlists whose push opens the stat card, by production playlist
+// id. Keep in sync with packages/common/src/store/ui/share-modal/milestones.ts
+// in apps.
+export const FEATURED_PLAYLIST_NAMES: Record<number, string> = {
+  4281: 'Hot & New',
+  1795117483: 'All Things Bass'
+}
+
 type AddTrackToPlaylistNotificationRow = Omit<NotificationRow, 'data'> & {
   data: AddTrackToPlaylistNotification
 }
@@ -95,8 +103,13 @@ export class AddTrackToPlaylist extends BaseNotification<AddTrackToPlaylistNotif
     const trackTitle = track.title
     const playlistName = playlist.playlist_name
 
-    const title = 'Your track got on a playlist! 💿'
-    const body = `${playlistOwnerName} added ${trackTitle} to their playlist ${playlistName}`
+    const featuredName = FEATURED_PLAYLIST_NAMES[this.playlistId]
+    const title = featuredName
+      ? `You made ${featuredName}! 🔥`
+      : 'Your track got on a playlist! 💿'
+    const body = featuredName
+      ? `${trackTitle} is on ${featuredName}. Share it`
+      : `${playlistOwnerName} added ${trackTitle} to their playlist ${playlistName}`
 
     // Get playlist's image URL for rich notification (1000x1000 size)
     let imageUrl: string | undefined
@@ -138,7 +151,10 @@ export class AddTrackToPlaylist extends BaseNotification<AddTrackToPlaylistNotif
                 id: `timestamp:${this.getNotificationTimestamp()}:group_id:${
                   this.notification.group_id
                 }`,
-                playlistId: this.playlistId
+                playlistId: this.playlistId,
+                ...(featuredName
+                  ? { trackId: this.trackId, shareCard: true }
+                  : {})
               },
               imageUrl
             }
