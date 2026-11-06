@@ -165,8 +165,10 @@ describe('getUnreadMessages', () => {
 
     await getUnreadMessages(db, minTimestamp, maxTimestamp)
 
-    expect(db.queries).toHaveLength(1)
-    const q = db.queries[0]
+    // one query plus the raw is_group select
+    const tables = db.queries.filter((query) => query.table())
+    expect(tables).toHaveLength(1)
+    const q = tables[0]
     expect(q.table()).toBe('chat_message')
     // blast messages are excluded from the regular DM query
     expect(q.callsOf('where')[0]).toEqual(['chat_message.blast_id', null])
@@ -190,6 +192,32 @@ describe('getUnreadMessages', () => {
     expect(andWhereRawSqls).toContain(
       'chat_message.user_id != chat_member.user_id'
     )
+  })
+
+  test('flags group chats and skips members who blocked the sender', async () => {
+    const db = createMockDb(() => [])
+
+    await getUnreadMessages(db, minTimestamp, maxTimestamp)
+
+    const q = db.queries.find((query) => query.table() === 'chat_message')!
+    expect(q.callsOf('innerJoin')).toContainEqual([
+      'chat',
+      'chat.chat_id',
+      'chat_message.chat_id'
+    ])
+    const isGroupSelect = db.queries.find((query) =>
+      query.rawSql()?.includes('is_group')
+    )
+    expect(isGroupSelect).toBeDefined()
+    const andWhereRawSqls = q.callsOf('andWhereRaw').map((args) => args[0])
+    expect(
+      andWhereRawSqls.some(
+        (sql) =>
+          sql.includes('chat_blocked_users') &&
+          sql.includes('blocker_user_id = chat_member.user_id') &&
+          sql.includes('blockee_user_id = chat_message.user_id')
+      )
+    ).toBe(true)
   })
 
   test('returns empty array when there are no unread messages', async () => {
@@ -231,8 +259,9 @@ describe('getUnreadReactions', () => {
 
     await getUnreadReactions(db, minTimestamp, maxTimestamp)
 
-    expect(db.queries).toHaveLength(1)
-    const q = db.queries[0]
+    const tables = db.queries.filter((query) => query.table())
+    expect(tables).toHaveLength(1)
+    const q = tables[0]
     expect(q.table()).toBe('chat_message_reactions')
     // aliases updated_at so downstream mappers read notification.timestamp
     expect(q.callsOf('select')[0]).toContain(
@@ -249,6 +278,24 @@ describe('getUnreadReactions', () => {
     expect(andWhereRawSqls).toContain(
       'chat_message_reactions.user_id != chat_member.user_id'
     )
+  })
+
+  test('skips receivers who blocked the reactor', async () => {
+    const db = createMockDb(() => [])
+
+    await getUnreadReactions(db, minTimestamp, maxTimestamp)
+
+    const q = db.queries.find(
+      (query) => query.table() === 'chat_message_reactions'
+    )!
+    const andWhereRawSqls = q.callsOf('andWhereRaw').map((args) => args[0])
+    expect(
+      andWhereRawSqls.some(
+        (sql) =>
+          sql.includes('chat_blocked_users') &&
+          sql.includes('blockee_user_id = chat_message_reactions.user_id')
+      )
+    ).toBe(true)
   })
 
   test('returns empty array when there are no unread reactions', async () => {
