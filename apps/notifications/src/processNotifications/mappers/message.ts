@@ -52,8 +52,11 @@ export class Message extends BaseNotification<DMNotification> {
       [this.receiverUserId, this.senderUserId]
     )
 
-    const title = 'Message'
-    const body = `New message from ${users[this.senderUserId].name}`
+    const senderName = users[this.senderUserId].name
+    const title = this.notification.is_group ? 'Group Message' : 'Message'
+    const body = this.notification.is_group
+      ? `New message from ${senderName} in a group chat`
+      : `New message from ${senderName}`
 
     if (
       userNotificationSettings.isNotificationTypeBrowserEnabled(
