@@ -352,6 +352,18 @@ export type WeeklyRotationNotification = {
   week: number
 }
 
+/**
+ * How many listeners' Weekly Rotations included an artist's tracks in the
+ * (year, week) period that just closed. track_id is the most-featured track.
+ */
+export type WeeklyRotationFeaturedNotification = {
+  year: number
+  week: number
+  track_id: number
+  track_count: number
+  rotation_count: number
+}
+
 export type ArtistRemixContestEndedNotification = {
   entity_id: number
 }
@@ -443,6 +455,7 @@ export type NotificationData =
   | CommentReactionNotification
   | ListenStreakReminderNotification
   | WeeklyRotationNotification
+  | WeeklyRotationFeaturedNotification
   | ArtistRemixContestEndedNotification
   | FanRemixContestEndedNotification
   | FanRemixContestEndingSoonNotification
