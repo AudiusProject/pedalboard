@@ -67,7 +67,7 @@ describe('Weekly Rotation Featured Notification', () => {
     await processFeatured({ track_id: 10, track_count: 1, rotation_count: 12 })
 
     const body =
-      'Your track_title_10 was featured in 12 Weekly Rotations this week'
+      'Your track_title_10 was featured in 12 Weekly Rotations last week'
     expect(
       weeklyRotationFeaturedMessages.body({
         trackTitle: 'track_title_10',
@@ -110,7 +110,7 @@ describe('Weekly Rotation Featured Notification', () => {
         trackCount: 1,
         rotationCount: 1
       })
-    ).toBe('Your Song was featured in 1 Weekly Rotation this week')
+    ).toBe('Your Song was featured in 1 Weekly Rotation last week')
   })
 
   test('Several tracks: aggregates and opens the profile', async () => {
@@ -124,7 +124,7 @@ describe('Weekly Rotation Featured Notification', () => {
 
     await processFeatured({ track_id: 10, track_count: 2, rotation_count: 30 })
 
-    const body = 'Your tracks were featured in 30 Weekly Rotations this week'
+    const body = 'Your tracks were featured in 30 Weekly Rotations last week'
     expect(sendPushNotificationSpy).toHaveBeenCalledWith(
       {
         type: 'ios',

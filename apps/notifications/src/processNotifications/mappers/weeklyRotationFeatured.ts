@@ -33,10 +33,10 @@ export const weeklyRotationFeaturedMessages = {
     trackCount > 1 || !trackTitle
       ? `Your tracks were featured in ${pluralizeRotations(
           rotationCount
-        )} this week`
+        )} last week`
       : `Your ${trackTitle} was featured in ${pluralizeRotations(
           rotationCount
-        )} this week`
+        )} last week`
 }
 
 /**
