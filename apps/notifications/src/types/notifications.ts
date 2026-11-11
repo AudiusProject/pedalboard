@@ -380,6 +380,17 @@ export type WeeklyArtistRecapNotification = {
   top_city?: string
 }
 
+/**
+ * A track in the top 10 of its genre's weekly trending chart, snapshotted on
+ * Friday. week is that Friday's date (YYYY-MM-DD).
+ */
+export type TrendingGenreNotification = {
+  track_id: number
+  genre: string
+  rank: number
+  week: string
+}
+
 export type ArtistRemixContestEndedNotification = {
   entity_id: number
 }
@@ -473,6 +484,7 @@ export type NotificationData =
   | WeeklyRotationNotification
   | WeeklyRotationFeaturedNotification
   | WeeklyArtistRecapNotification
+  | TrendingGenreNotification
   | ArtistRemixContestEndedNotification
   | FanRemixContestEndedNotification
   | FanRemixContestEndingSoonNotification
