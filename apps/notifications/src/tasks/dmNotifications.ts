@@ -68,6 +68,14 @@ async function getCursors(redis: RedisClientType): Promise<{
   }
 }
 
+// Read through jsonb so this works before the api migration that adds
+// chat.is_group has run.
+const IS_GROUP_SELECT = `coalesce((to_jsonb(chat) ->> 'is_group')::boolean, false) as is_group`
+
+// Excludes rows where the receiving member blocked the sender.
+const BLOCKED_SENDER_SQL = (senderColumn: string) =>
+  `not exists (select 1 from chat_blocked_users where blocker_user_id = chat_member.user_id and blockee_user_id = ${senderColumn})`
+
 export async function getUnreadMessages(
   discoveryDB: Knex,
   minTimestamp: Date,
@@ -78,10 +86,12 @@ export async function getUnreadMessages(
       'chat_member.chat_id as chat_id',
       'chat_message.user_id as sender_user_id',
       'chat_member.user_id as receiver_user_id',
-      'chat_message.created_at as timestamp'
+      'chat_message.created_at as timestamp',
+      discoveryDB.raw(IS_GROUP_SELECT)
     )
     .from('chat_message')
     .innerJoin('chat_member', 'chat_message.chat_id', 'chat_member.chat_id')
+    .innerJoin('chat', 'chat.chat_id', 'chat_message.chat_id')
     .where('chat_message.blast_id', null)
     // Javascript dates are limited to 3 decimal places (milliseconds). Move
     // truncation to the bounds so chat_message.created_at remains indexable.
@@ -98,6 +108,8 @@ export async function getUnreadMessages(
       [minTimestamp.toISOString()]
     )
     .andWhereRaw('chat_message.user_id != chat_member.user_id')
+    // group members can still post after being blocked; skip the blocker
+    .andWhereRaw(BLOCKED_SENDER_SQL('chat_message.user_id'))
 }
 
 export async function getUnreadReactions(
@@ -112,7 +124,8 @@ export async function getUnreadReactions(
       'chat_message_reactions.user_id as sender_user_id',
       'chat_message.user_id as receiver_user_id',
       'chat_message_reactions.reaction as reaction',
-      'chat_message_reactions.updated_at as timestamp'
+      'chat_message_reactions.updated_at as timestamp',
+      discoveryDB.raw(IS_GROUP_SELECT)
     )
     .from('chat_message_reactions')
     .innerJoin(
@@ -120,6 +133,7 @@ export async function getUnreadReactions(
       'chat_message.message_id',
       'chat_message_reactions.message_id'
     )
+    .innerJoin('chat', 'chat.chat_id', 'chat_message.chat_id')
     .joinRaw(
       'join chat_member on chat_member.chat_id = chat_message.chat_id and chat_member.user_id = chat_message.user_id'
     )
@@ -139,6 +153,7 @@ export async function getUnreadReactions(
       [minTimestamp.toISOString()]
     )
     .andWhereRaw('chat_message_reactions.user_id != chat_member.user_id')
+    .andWhereRaw(BLOCKED_SENDER_SQL('chat_message_reactions.user_id'))
 }
 
 // We use the last indexed blast_id and user_id to get the next batch of blasts.

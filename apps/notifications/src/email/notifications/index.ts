@@ -133,6 +133,7 @@ SELECT
 FROM chat_message
 JOIN members_can_notify ON chat_message.chat_id = members_can_notify.chat_id
 WHERE chat_message.created_at > :start_offset AND chat_message.created_at <= :end_offset AND chat_message.user_id != members_can_notify.user_id
+AND NOT EXISTS (SELECT 1 FROM chat_blocked_users WHERE blocker_user_id = members_can_notify.user_id AND blockee_user_id = chat_message.user_id)
 `
 const reactionNotificationsSql = `
 WITH members_can_notify AS (
@@ -149,6 +150,7 @@ FROM chat_message_reactions
 JOIN chat_message ON chat_message.message_id = chat_message_reactions.message_id
 JOIN members_can_notify on members_can_notify.chat_id = chat_message.chat_id AND members_can_notify.user_id = chat_message.user_id
 WHERE chat_message_reactions.updated_at > :start_offset AND chat_message_reactions.updated_at <= :end_offset AND chat_message_reactions.user_id != members_can_notify.user_id
+AND NOT EXISTS (SELECT 1 FROM chat_blocked_users WHERE blocker_user_id = members_can_notify.user_id AND blockee_user_id = chat_message_reactions.user_id)
 `
 
 

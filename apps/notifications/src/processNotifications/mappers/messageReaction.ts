@@ -59,7 +59,7 @@ export class MessageReaction extends BaseNotification<DMReactionNotification> {
     const title = 'Reaction'
     const body = `${users[this.senderUserId].name} reacted ${
       this.notification.reaction
-    }`
+    }${this.notification.is_group ? ' in a group chat' : ''}`
 
     if (
       userNotificationSettings.isNotificationTypeBrowserEnabled(

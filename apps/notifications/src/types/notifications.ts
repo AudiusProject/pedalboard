@@ -10,6 +10,7 @@ export type DMNotification = {
   sender_user_id: number
   receiver_user_id: number
   timestamp: Date
+  is_group?: boolean
 }
 
 export type DMReactionNotification = {
@@ -19,6 +20,7 @@ export type DMReactionNotification = {
   receiver_user_id: number
   reaction: string
   timestamp: Date
+  is_group?: boolean
 }
 
 export type DMEmailNotification = {
