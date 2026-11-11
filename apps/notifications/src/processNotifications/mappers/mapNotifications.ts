@@ -46,6 +46,7 @@ import {
   ListenStreakReminderNotification,
   WeeklyRotationNotification,
   WeeklyRotationFeaturedNotification,
+  WeeklyArtistRecapNotification,
   ArtistRemixContestEndedNotification,
   FanRemixContestEndedNotification,
   FanRemixContestEndingSoonNotification,
@@ -97,6 +98,7 @@ import { CommentReaction } from './commentReaction'
 import { ListenStreakReminder } from './listenStreakReminder'
 import { WeeklyRotation } from './weeklyRotation'
 import { WeeklyRotationFeatured } from './weeklyRotationFeatured'
+import { WeeklyArtistRecap } from './weeklyArtistRecap'
 import { ArtistRemixContestEnded } from './artistRemixContestEnded'
 import { FanRemixContestEnded } from './fanRemixContestEnded'
 import { FanRemixContestEndingSoon } from './fanRemixContestEndingSoon'
@@ -373,6 +375,15 @@ const mapNotification = (
       dnDb,
       identityDb,
       weeklyRotationFeaturedNotification
+    )
+  } else if (notification.type == 'weekly_artist_recap') {
+    const weeklyArtistRecapNotification = notification as NotificationRow & {
+      data: WeeklyArtistRecapNotification
+    }
+    return new WeeklyArtistRecap(
+      dnDb,
+      identityDb,
+      weeklyArtistRecapNotification
     )
   } else if (notification.type == 'artist_remix_contest_ended') {
     const artistRemixContestEndedNotification =
