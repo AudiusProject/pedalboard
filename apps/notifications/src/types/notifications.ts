@@ -364,6 +364,20 @@ export type WeeklyRotationFeaturedNotification = {
   rotation_count: number
 }
 
+/**
+ * An artist's recap of the (year, week) period that just closed. top_city is
+ * missing when no play that week had a city.
+ */
+export type WeeklyArtistRecapNotification = {
+  year: number
+  week: number
+  play_count: number
+  follower_count: number
+  save_count: number
+  rotation_save_count: number
+  top_city?: string
+}
+
 export type ArtistRemixContestEndedNotification = {
   entity_id: number
 }
@@ -456,6 +470,7 @@ export type NotificationData =
   | ListenStreakReminderNotification
   | WeeklyRotationNotification
   | WeeklyRotationFeaturedNotification
+  | WeeklyArtistRecapNotification
   | ArtistRemixContestEndedNotification
   | FanRemixContestEndedNotification
   | FanRemixContestEndingSoonNotification
