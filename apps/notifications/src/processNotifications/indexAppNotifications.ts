@@ -102,6 +102,7 @@ export const notificationTypeMapping = {
   weekly_rotation: MappingVariable.PushWeeklyRotation,
   weekly_rotation_featured: MappingVariable.PushWeeklyRotationFeatured,
   weekly_artist_recap: MappingVariable.PushWeeklyArtistRecap,
+  trending_genre: MappingVariable.PushTrendingGenre,
   artist_remix_contest_ended: MappingVariable.PushArtistRemixContestEnded,
   fan_remix_contest_ended: MappingVariable.PushFanRemixContestEnded,
   fan_remix_contest_ending_soon: MappingVariable.PushFanRemixContestEndingSoon,

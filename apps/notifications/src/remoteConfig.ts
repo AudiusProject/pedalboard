@@ -46,6 +46,7 @@ export enum MappingVariable {
   PushWeeklyRotation = 'push_weekly_rotation',
   PushWeeklyRotationFeatured = 'push_weekly_rotation_featured',
   PushWeeklyArtistRecap = 'push_weekly_artist_recap',
+  PushTrendingGenre = 'push_trending_genre',
   PushArtistRemixContestEnded = 'push_artist_remix_contest_ended',
   PushFanRemixContestEnded = 'push_fan_remix_contest_ended',
   PushFanRemixContestEndingSoon = 'push_fan_remix_contest_ending_soon',
