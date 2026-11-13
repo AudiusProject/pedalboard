@@ -1,4 +1,5 @@
 import { renderEmail } from './renderEmail'
+import { isRetiredRewardNotification } from '../../types/retiredRewards'
 
 import { EmailNotification } from '../../types/notifications'
 import { logger } from '../../logger'
@@ -56,7 +57,9 @@ export const sendNotificationEmail = async ({
   try {
     logger.debug(`SendNotificationEmail | ${userId}, ${email}, ${frequency}`)
     const validNotifications = notifications.filter(
-      (n) => !notificationsWithoutEmail.has(n.type)
+      (n) =>
+        !notificationsWithoutEmail.has(n.type) &&
+        !isRetiredRewardNotification(n)
     )
     const notificationCount = validNotifications.length
     let emailSubject = `${notificationCount} unread notification${
