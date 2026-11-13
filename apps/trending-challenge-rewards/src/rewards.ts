@@ -4,29 +4,16 @@ import { Ok, Err, Result } from 'ts-results'
 import { SharedData } from './config'
 import {
   getChallengesDisbursementsUserbanksFriendlyEnsureSlots,
+  getChallengesDisbursementsUserbanksFriendly,
   getTrendingChallenges,
-  getTrendingChallengesByDate
+  getTrendingAwardsForWeek
 } from './queries'
 import { WebClient } from '@slack/web-api'
 import { formatDisbursementTable } from './slack'
 import { discoveryDb } from './utils'
-import { ChallengeId } from '@audius/sdk'
-import axios from 'axios'
+import { ChallengeId, Id } from '@audius/sdk'
 import moment from 'moment'
-
-type Challenge = {
-  challenge_id: string
-  user_id: string
-  specifier: string
-  amount: string
-  completed_blocknumber: number
-  handle: string
-  wallet: string
-}
-
-const TRENDING_ID = 'tt'
-const UNDERGROUND_TRENDING_ID = 'tut'
-const TRENDING_REWARD_IDS = [TRENDING_ID, UNDERGROUND_TRENDING_ID]
+import { buildTrendingBatch } from './batch'
 
 // TODO: move something like this into App so results are commonplace for handlers
 export const disburseTrendingRewards = async (
@@ -50,130 +37,56 @@ export const onDisburse = async (
 
   console.log(`doing ${dryRun ? 'a dry run' : 'a live run'}`)
 
-  const { sdk, apiEndpoint } = app.viewAppData()
-
-  let completedBlock, specifier
-  if (!targetSpecifier) {
-    const completedBlockRes = await findStartingBlock(db)
-    if (completedBlockRes.err) return completedBlockRes
-    const [startingBlock, startBlockSpecifier] = completedBlockRes.unwrap()
-    specifier = startBlockSpecifier
-    completedBlock = startingBlock
-  } else {
-    const response = await getTrendingChallengesByDate(db, targetSpecifier)
-    const challenge = response[0]
-    if (challenge === undefined)
-      return new Err(`no challenges found for ${targetSpecifier}`)
-    if (challenge.completed_blocknumber === null)
-      return new Err(`completed block number is null ${challenge}`)
-    specifier = challenge.specifier
-    completedBlock = challenge.completed_blocknumber - 1
-  }
-  console.log(
-    'completed blockNumber = ',
-    completedBlock,
-    'specifier = ',
-    specifier
+  const { sdk } = app.viewAppData()
+  // Scheduled runs only pay today's Friday batch. Historical retries require
+  // the existing explicit /disburse YYYY-MM-DD command.
+  const week = targetSpecifier ?? moment().format('YYYY-MM-DD')
+  const batch = buildTrendingBatch(
+    week,
+    await getTrendingAwardsForWeek(db, week)
   )
+  console.log('Trending payout budget', {
+    week,
+    totalAudio: batch.totalAudio,
+    remainingAudio: batch.remainingAudio,
+    unpaidAwards: batch.unpaid.length
+  })
 
-  let endpointRetries = 10
-  while (endpointRetries > 0) {
-    let failedAnAttestation = false
-
-    // Pick an endpoint and collect all undisbursed challenges from that endpoint
-    console.log('endpoint = ', apiEndpoint)
-    const toDisburse: Challenge[] = []
-    for (const challengeId of TRENDING_REWARD_IDS) {
-      const url = `${apiEndpoint}/v1/challenges/undisbursed?challenge_id=${challengeId}&completed_blocknumber=${completedBlock}&limit=500`
-      console.log('fetching undisbursed challenges from url = ', url)
-      // Fetch all undisbursed challenges
-      const res = await axios.get(url)
-      toDisburse.push(...res.data.data)
+  for (const challenge of batch.unpaid) {
+    if (dryRun) {
+      console.log('Dry run, would claim', challenge)
+      continue
     }
-
-    // Claim all undisbursed challenges
-    for (const challenge of toDisburse) {
-      const challengeId = Object.values(ChallengeId).find(
-        (id) => id === challenge.challenge_id
-      )!
-      console.log('Claimable challengeId = ', challenge)
-      const totalRetries = 10
-      let res
-      let retries = totalRetries
-      while (retries > 0) {
-        try {
-          if (dryRun) {
-            // Dry run: log what would have been claimed and move on without
-            // hitting the SDK or retrying.
-            console.log(
-              'Dry run, would claim reward for challengeId = ',
-              challengeId,
-              'specifier = ',
-              challenge.specifier,
-              'amount = ',
-              challenge.amount
-            )
-            break
-          }
-          console.log(
-            'Claiming reward for challengeId = ',
-            challengeId,
-            'specifier = ',
-            challenge.specifier,
-            'amount = ',
-            challenge.amount
-          )
-          res = await sdk.rewards.claimRewards({
-            reward: {
-              challengeId,
-              userId: challenge.user_id,
-              specifier: challenge.specifier
-            }
-          })
-          if (res?.data?.[0]?.error) {
-            if (
-              res.data[0].error.includes('failed to get oracle attestation')
-            ) {
-              // If the error is because the attestation failed, break
-              break
-            }
-            throw new Error(res.data[0].error)
-          }
-          console.log('res = ', res)
-          break // Success - exit retry loop
-        } catch (e) {
-          console.error(
-            `Error claiming reward, challengeId = ${challengeId}, attempt ${totalRetries - retries + 1} of ${totalRetries}, error = `,
-            e
-          )
-          retries -= 1
-          if (retries === 0) {
-            console.error(
-              `Failed to claim reward after ${totalRetries} attempts for challengeId = ${challengeId}`
-            )
-            failedAnAttestation = true
-          }
-        }
+    const response = await sdk.rewards.claimRewards({
+      reward: {
+        challengeId: challenge.challenge_id as ChallengeId,
+        userId: Id.parse(challenge.user_id),
+        specifier: challenge.specifier
       }
+    })
+    const results = response?.data
+    const result = results?.[0]
+    if (
+      results?.length !== 1 ||
+      !result ||
+      result.error ||
+      result.challengeId !== challenge.challenge_id ||
+      result.specifier !== challenge.specifier ||
+      Number(result.amount) !== Number(challenge.amount) ||
+      !result.signatures?.length
+    ) {
+      return new Err(
+        `Claim failed or returned an unexpected result for ${challenge.challenge_id}:${challenge.specifier}; reconcile before retrying`
+      )
     }
-
-    // If we found no errors, continue on to confirm
-    if (!failedAnAttestation) {
-      break
-    }
-    endpointRetries -= 1
-    console.error(
-      `Error finding all attestations, ${endpointRetries} remaining`
-    )
   }
 
   // Look at database to see if all challenges have been disbursed
-  const trimmedSpecifier = specifier.split(':')[0]
+  const trimmedSpecifier = week
   console.log('trimmedSpecifier = ', trimmedSpecifier)
-  const friendly = await getChallengesDisbursementsUserbanksFriendlyEnsureSlots(
-    db,
-    trimmedSpecifier
-  )
+  const friendly = await (dryRun
+    ? getChallengesDisbursementsUserbanksFriendly
+    : getChallengesDisbursementsUserbanksFriendlyEnsureSlots)(db, trimmedSpecifier)
 
   // Format the results for Slack
   const formattedResults = formatDisbursementTable(friendly, trimmedSpecifier)
@@ -185,6 +98,11 @@ export const onDisburse = async (
     text: '```' + formattedResults + '```'
   })
 
+  if (!dryRun && friendly.some((row) => row.slot === null)) {
+    return new Err(
+      `Some awards for ${week} are still unconfirmed; reconcile before retrying`
+    )
+  }
   return new Ok(undefined)
 }
 

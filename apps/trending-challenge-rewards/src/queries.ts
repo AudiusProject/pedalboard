@@ -1,3 +1,4 @@
+import { TrendingAward } from './batch'
 import { Knex } from 'knex'
 import { Table, UserChallenges } from '@pedalboard/storage'
 
@@ -156,3 +157,36 @@ export const getTrendingChallengesByDate = async (
     .whereNotNull('completed_blocknumber')
     .orderBy('specifier', 'asc')
     .limit(100)
+
+// Select exactly one week, including paid rows so retries retain the same budget.
+export const getTrendingAwardsForWeek = async (
+  db: Knex,
+  week: string
+): Promise<TrendingAward[]> =>
+  db('user_challenges as u')
+    .select(
+      'u.challenge_id',
+      'u.user_id',
+      'u.specifier',
+      'u.amount',
+      'users.handle',
+      'users.wallet',
+      'd.amount as paid_amount'
+    )
+    .join('challenges as c', 'c.id', 'u.challenge_id')
+    .join('users', 'users.user_id', 'u.user_id')
+    .leftJoin('sol_reward_disbursements as d', function () {
+      this.on('d.challenge_id', '=', 'u.challenge_id').andOn(
+        'd.specifier',
+        '=',
+        'u.specifier'
+      )
+    })
+    .whereIn('u.challenge_id', TRENDING_REWARD_IDS)
+    .where('u.is_complete', true)
+    .where('c.active', true)
+    .where('users.is_current', true)
+    .where('users.is_deactivated', false)
+    .whereRaw("split_part(u.specifier, ':', 1) = ?", [week])
+    .orderBy('u.challenge_id')
+    .orderBy('u.specifier')
