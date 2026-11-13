@@ -24,6 +24,7 @@ import * as secp256k1 from 'secp256k1'
 import { useEmail, userFingerprints } from './identity'
 import { cors } from 'hono/cors'
 import { getAudiusSdk } from './sdk'
+import { parseTrendingClaim } from './trendingClaim'
 
 const WAUDIO_DECIMALS = 8
 
@@ -60,32 +61,6 @@ if (!AAO_AUTH_PASSWORD) {
     AAO_AUTH_PASSWORD
   )
 }
-
-const openRewards = [
-  'dvl', // daily volume rewards
-  't', // tastemaker
-  'tt', // trending
-  'tut', // trending underground
-  'b', // audio match buy (from verified user)
-  'rd', // referred (by verified user)
-  'w', // remix contest winner (from verified user)
-  'cs' // cosign (from verified user)
-]
-
-const verifiedRewards = [
-  'u', // uploads
-  's', // audio match sell
-  'r', // referral
-  'c', // first comment
-  'cp', // comment pin
-  'e', // listen streak
-  'fp', // first playlist
-  'm', // mobile install
-  'p', // profile completion
-  'p1', // 250 plays
-  'p2', // 1000 plays
-  'p3' // 10000 plays
-]
 
 const sdk = getAudiusSdk()
 
@@ -224,29 +199,52 @@ app.post(
 
 app.post('/attestation/:handle', async (c) => {
   const handle = c.req.param('handle').toLowerCase()
-  const { challengeId, challengeSpecifier, amount } = await c.req.json()
+  const claim = parseTrendingClaim(await c.req.json())
+  if (!claim)
+    return c.json({ error: 'unsupported or invalid trending claim' }, 400)
+  const { challengeId, challengeSpecifier, amount, week, rank } = claim
 
   const { data: user } = await sdk.users.getUserByHandle({ handle })
   if (!user) {
     return c.json({ error: `handle not found: ${handle}` }, 404)
   }
-  if (verifiedRewards.includes(challengeId)) {
-    if (!user.isVerified) {
-      return c.json({ error: 'denied' }, 400)
-    }
-  }
-  if (openRewards.includes(challengeId)) {
-    const userScore = await getUserNormalizedScore(
-      HashId.parse(user.id),
-      user.wallet
-    )
-    if (userScore.overallScore < -1000) {
-      return c.json({ error: 'denied' }, 400)
-    }
+  if (!/^0x[0-9a-fA-F]{40}$/.test(user.wallet)) {
+    return c.json({ error: 'invalid recipient wallet' }, 400)
   }
 
+  // Require the exact completed award and its independently recorded winner.
+  // The public request never establishes eligibility or chooses the amount.
+  const winners = await sql`
+    SELECT uc.user_id
+    FROM user_challenges uc
+    JOIN challenges ch ON ch.id = uc.challenge_id AND ch.active
+    JOIN users u ON u.user_id = uc.user_id AND u.is_current
+      AND NOT u.is_deactivated
+    JOIN trending_results tr ON tr.user_id = uc.user_id
+      AND tr.week::date = ${week}::date AND tr.rank = ${rank}
+      AND tr.type = ${challengeId === 'tt' ? 'TRACKS' : 'UNDERGROUND_TRACKS'}
+    WHERE uc.challenge_id = ${challengeId}
+      AND uc.specifier = ${challengeSpecifier}
+      AND uc.user_id = ${HashId.parse(user.id)}
+      AND LOWER(u.wallet) = ${user.wallet.toLowerCase()}
+      AND uc.is_complete AND uc.amount = ${amount}
+      AND NOT EXISTS (
+        SELECT 1 FROM sol_reward_disbursements d
+        WHERE d.challenge_id = uc.challenge_id AND d.specifier = uc.specifier
+      )
+    LIMIT 1
+  `
+  if (winners.length !== 1)
+    return c.json({ error: 'trending award not claimable' }, 400)
+
+  const userScore = await getUserNormalizedScore(
+    HashId.parse(user.id),
+    user.wallet
+  )
+  if (userScore.overallScore < -1000) return c.json({ error: 'denied' }, 400)
+
   try {
-    const amountWaudio = BigInt(Math.round(amount * 10 ** WAUDIO_DECIMALS))
+    const amountWaudio = BigInt(amount) * BigInt(10 ** WAUDIO_DECIMALS)
     const disbursementId = `${challengeId}:${challengeSpecifier}`
     const messageBytes = RewardManagerProgram.encodeAttestation({
       recipientEthAddress: user.wallet,
