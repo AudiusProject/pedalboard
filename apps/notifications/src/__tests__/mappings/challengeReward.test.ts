@@ -1,151 +1,68 @@
-import { expect, jest, test } from '@jest/globals'
+import { describe, expect, test, jest } from '@jest/globals'
+import { Knex } from 'knex'
+import { mapNotifications } from '../../processNotifications/mappers/mapNotifications'
+import { NotificationRow } from '../../types/dn'
+import { sendNotificationEmail } from '../../email/notifications/sendEmail'
 import { renderEmail } from '../../email/notifications/renderEmail'
-import { Processor } from '../../main'
-import * as sns from '../../sns'
-import {
-  AppEmailNotification,
-  ChallengeRewardNotification
-} from '../../types/notifications'
+import { getSendgrid } from '../../sendgrid'
 
-import {
-  createUsers,
-  insertMobileDevices,
-  insertMobileSettings,
-  createChallengeReward,
-  createRewardManagerTx,
-  setupTest,
-  resetTests
-} from '../../utils/populateDB'
+jest.mock('../../email/notifications/renderEmail')
+jest.mock('../../sendgrid')
 
-describe('Challenge Reward Notification', () => {
-  let processor: Processor
+const row = (type: string): NotificationRow =>
+  ({
+    type,
+    data: { challenge_id: 'tt', amount: '100000000000' },
+    user_ids: [1],
+    timestamp: new Date(),
+    group_id: type,
+    specifier: '1',
+    blocknumber: 1
+  } as NotificationRow)
 
-  const sendPushNotificationSpy = jest
-    .spyOn(sns, 'sendPushNotification')
-    .mockImplementation(() => Promise.resolve({ endpointDisabled: false }))
+// No database or delivery service should be accessed for retired prompts.
+const noDB = undefined as unknown as Knex
 
-  beforeEach(async () => {
-    const setup = await setupTest()
-    processor = setup.processor
+describe('retired challenge notifications', () => {
+  test.each([
+    'challenge_reward',
+    'claimable_reward',
+    'reward_in_cooldown',
+    'listen_streak_reminder'
+  ])('drops %s from push and digest mapping', (type) => {
+    expect(mapNotifications([row(type)], noDB, noDB)).toEqual([])
   })
-
-  afterEach(async () => {
-    await resetTests(processor)
-  })
-
-  test('Process push notification for challenge reward rank up', async () => {
-    await createUsers(processor.discoveryDB, [{ user_id: 1 }, { user_id: 2 }])
-    await createRewardManagerTx(processor.discoveryDB, [
-      { slot: 1, signature: '0x1' }
-    ])
-    await createChallengeReward(processor.discoveryDB, [
-      {
-        challenge_id: 'p',
-        user_id: 1,
-        specifier: '1',
-        amount: '100000000',
-        created_at: new Date(1589373217)
-      }
-    ])
-    await insertMobileSettings(processor.identityDB, [{ userId: 1 }])
-    await insertMobileDevices(processor.identityDB, [{ userId: 1 }])
-    await new Promise((resolve) => setTimeout(resolve, 10))
-    const pending = processor.listener.takePending()
-    const reactionNotifications = pending?.appNotifications.filter(
-      (n) => n.type === 'challenge_reward'
+  test('preserves unrelated and trending announcements in a mixed batch', () => {
+    const mapped = mapNotifications(
+      [
+        row('follow'),
+        row('claimable_reward'),
+        row('trending'),
+        row('trending_underground')
+      ],
+      noDB,
+      noDB
     )
-
-    expect(reactionNotifications).toHaveLength(1)
-    // Assert single pending
-    await processor.appNotificationsProcessor.process(reactionNotifications)
-
-    expect(sendPushNotificationSpy).toHaveBeenCalledWith(
-      {
-        type: 'ios',
-        targetARN: 'arn:1',
-        badgeCount: 1
-      },
-      {
-        title: `✅️ Complete your Profile`,
-        body: `You’ve earned 1 $AUDIO for completing this challenge!`,
-        data: {
-          id: 'timestamp:1589373:group_id:challenge_reward:1:challenge:p:specifier:1',
-          type: 'ChallengeReward'
-        }
-      }
-    )
-  })
-
-  test('Process push notification for Spend to Earn (b) interpolates amount from payload', async () => {
-    await createUsers(processor.discoveryDB, [{ user_id: 1 }])
-    await createRewardManagerTx(processor.discoveryDB, [
-      { slot: 2, signature: '0x2' }
+    expect(mapped.map((m) => m!.notification.type)).toEqual([
+      'follow',
+      'trending',
+      'trending_underground'
     ])
-    await createChallengeReward(processor.discoveryDB, [
-      {
-        challenge_id: 'b',
-        user_id: 1,
-        specifier: '1',
-        amount: '500000000',
-        created_at: new Date(1589373217)
-      }
-    ])
-    await insertMobileSettings(processor.identityDB, [{ userId: 1 }])
-    await insertMobileDevices(processor.identityDB, [{ userId: 1 }])
-    await new Promise((resolve) => setTimeout(resolve, 10))
-    const pending = processor.listener.takePending()
-    const challengeNotifications = pending?.appNotifications.filter(
-      (n) => n.type === 'challenge_reward'
-    )
-
-    expect(challengeNotifications).toHaveLength(1)
-    await processor.appNotificationsProcessor.process(challengeNotifications)
-
-    expect(sendPushNotificationSpy).toHaveBeenCalledWith(
-      {
-        type: 'ios',
-        targetARN: 'arn:1',
-        badgeCount: 1
-      },
-      {
-        title: `🛒 Spend to Earn`,
-        body: `You’ve earned 5 $AUDIO for completing this challenge!`,
-        data: {
-          id: 'timestamp:1589373:group_id:challenge_reward:1:challenge:b:specifier:1',
-          type: 'ChallengeReward'
-        }
-      }
-    )
   })
+})
 
-  test('Render a single challenge reward email', async () => {
-    await createUsers(processor.discoveryDB, [{ user_id: 1 }, { user_id: 2 }])
-
-    const data: ChallengeRewardNotification = {
-      amount: 100000000,
-      specifier: '1=>2',
-      challenge_id: 'r'
-    }
-
-    const notifications: AppEmailNotification[] = [
-      {
-        type: 'challenge_reward',
-        timestamp: new Date(),
-        specifier: '1',
-        group_id: 'challenge_reward:2:challenge:r:specifier:1=>2',
-        data,
-        user_ids: [1],
-        receiver_user_id: 1
-      }
-    ]
-    const notifHtml = await renderEmail({
-      userId: 1,
-      email: 'joey@audius.co',
-      frequency: 'daily',
-      notifications,
-      dnDb: processor.discoveryDB,
-      identityDb: processor.identityDB
-    })
-    expect(notifHtml).toMatchSnapshot()
+test('skips a digest containing only retired rewards before rendering or delivery', async () => {
+  const sent = await sendNotificationEmail({
+    userId: 1,
+    email: 'test@example.com',
+    frequency: 'daily',
+    notifications: [row('claimable_reward'), row('challenge_reward')].map(
+      (notification) => ({ ...notification, receiver_user_id: 1 })
+    ),
+    dnDb: noDB,
+    identityDb: noDB
   })
+  expect(sent).toBe(false)
+  expect(renderEmail).not.toHaveBeenCalled()
+  expect(getSendgrid).not.toHaveBeenCalled()
 })

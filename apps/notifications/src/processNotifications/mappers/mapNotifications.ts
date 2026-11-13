@@ -1,4 +1,5 @@
 import { Knex } from 'knex'
+import { isRetiredRewardNotification } from '../../types/retiredRewards'
 
 import { logger } from '../../logger'
 import { NotificationRow } from '../../types/dn'
@@ -117,7 +118,9 @@ export const mapNotifications = (
   dnDb: Knex,
   identityDb: Knex
 ) => {
+  // Filter fresh, retried, and digest rows; trending announcements stay enabled.
   return notifications
+    .filter((notification) => !isRetiredRewardNotification(notification))
     .map((notification) => mapNotification(notification, dnDb, identityDb))
     .filter(Boolean)
 }
@@ -296,18 +299,20 @@ const mapNotification = (
       approveManagerNotification
     )
   } else if (notification.type === 'track_collaborator_invite') {
-    const trackCollaboratorInviteNotification = notification as NotificationRow & {
-      data: TrackCollaboratorInviteNotification
-    }
+    const trackCollaboratorInviteNotification =
+      notification as NotificationRow & {
+        data: TrackCollaboratorInviteNotification
+      }
     return new TrackCollaboratorInvite(
       dnDb,
       identityDb,
       trackCollaboratorInviteNotification
     )
   } else if (notification.type === 'track_collaborator_accept') {
-    const trackCollaboratorAcceptNotification = notification as NotificationRow & {
-      data: TrackCollaboratorAcceptNotification
-    }
+    const trackCollaboratorAcceptNotification =
+      notification as NotificationRow & {
+        data: TrackCollaboratorAcceptNotification
+      }
     return new TrackCollaboratorAccept(
       dnDb,
       identityDb,
