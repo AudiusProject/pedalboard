@@ -4,8 +4,8 @@ vi.mock('@hono/node-server', () => ({
   serve: vi.fn()
 }))
 
-const sqlMock = vi.fn(
-  (_strings: readonly string[], ..._values: unknown[]) => Promise.resolve([])
+const sqlMock = vi.fn((_strings: readonly string[], ..._values: unknown[]) =>
+  Promise.resolve([])
 ) as unknown as (
   strings: readonly string[],
   ...values: unknown[]
@@ -44,7 +44,7 @@ vi.mock('../sdk', () => ({
           data: {
             id: 'aE07A',
             handle,
-            wallet: '0xabc',
+            wallet: '0x' + 'ab'.repeat(20),
             isVerified: false
           }
         }
@@ -132,7 +132,7 @@ describe('server', () => {
     it('returns "blocked" when overall score is negative', async () => {
       const sqlAsMock = sqlMock as unknown as ReturnType<typeof vi.fn>
       sqlAsMock.mockImplementationOnce(() =>
-        Promise.resolve([{ user_id: 1, wallet: '0xabc' }])
+        Promise.resolve([{ user_id: 1, wallet: '0x' + 'ab'.repeat(20) }])
       )
       getUserNormalizedScoreMock.mockResolvedValueOnce({ overallScore: -50 })
 
@@ -140,13 +140,16 @@ describe('server', () => {
       const res = await app.request('/attestation/check?wallet=0xABC')
       expect(res.status).toBe(400)
       expect(await res.json()).toEqual({ data: 'blocked' })
-      expect(getUserNormalizedScoreMock).toHaveBeenCalledWith(1, '0xabc')
+      expect(getUserNormalizedScoreMock).toHaveBeenCalledWith(
+        1,
+        '0x' + 'ab'.repeat(20)
+      )
     })
 
     it('returns "allowed" when overall score is non-negative', async () => {
       const sqlAsMock = sqlMock as unknown as ReturnType<typeof vi.fn>
       sqlAsMock.mockImplementationOnce(() =>
-        Promise.resolve([{ user_id: 2, wallet: '0xabc' }])
+        Promise.resolve([{ user_id: 2, wallet: '0x' + 'ab'.repeat(20) }])
       )
       getUserNormalizedScoreMock.mockResolvedValueOnce({ overallScore: 42 })
 
@@ -161,7 +164,9 @@ describe('server', () => {
       sqlSpy.mockImplementationOnce(
         (_strings: readonly string[], ...values: unknown[]) => {
           expect(values).toEqual(['0xabc'])
-          return Promise.resolve([{ user_id: 3, wallet: '0xabc' }])
+          return Promise.resolve([
+            { user_id: 3, wallet: '0x' + 'ab'.repeat(20) }
+          ])
         }
       )
       getUserNormalizedScoreMock.mockResolvedValueOnce({ overallScore: 1 })
@@ -211,41 +216,72 @@ describe('server', () => {
         body: new URLSearchParams({ handle: 'Spammer' })
       })
       expect(res.status).toBe(302)
-      expect(res.headers.get('location')).toBe(
-        '/attestation/ui/user?q=Spammer'
-      )
+      expect(res.headers.get('location')).toBe('/attestation/ui/user?q=Spammer')
     })
   })
 
   describe('POST /attestation/:handle', () => {
-    it('returns 404 when the handle is not found in the SDK', async () => {
+    const request = async (body: unknown, handle = 'winner') => {
       const { app } = await import('../server')
-      const res = await app.request('/attestation/unknown', {
+      return app.request(`/attestation/${handle}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          challengeId: 'dvl',
-          challengeSpecifier: 'spec',
-          amount: 1
-        })
+        body: JSON.stringify(body)
       })
-      expect(res.status).toBe(404)
-      expect(await res.json()).toEqual({ error: 'handle not found: unknown' })
-    })
+    }
+    const claim = {
+      challengeId: 'tt',
+      challengeSpecifier: '2026-11-13:1',
+      amount: '1000'
+    }
 
-    it('denies a verified-only reward when the user is not verified', async () => {
+    it('rejects retired and unknown rewards before signing', async () => {
+      const { ecdsaSign } = await import('secp256k1')
+      vi.mocked(ecdsaSign).mockClear()
+      for (const challengeId of ['u', 'dvl', 'tp', 'rbig1', 'unknown']) {
+        expect((await request({ ...claim, challengeId })).status).toBe(400)
+      }
+      expect(ecdsaSign).not.toHaveBeenCalled()
+    })
+    it('rejects a user who has no matching unpaid trending award', async () => {
       const { app } = await import('../server')
-      const res = await app.request('/attestation/anyone', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          challengeId: 'u',
-          challengeSpecifier: 'spec',
-          amount: 1
-        })
-      })
-      expect(res.status).toBe(400)
-      expect(await res.json()).toEqual({ error: 'denied' })
+      void app
+      vi.mocked(sqlMock).mockResolvedValue([])
+      const { ecdsaSign } = await import('secp256k1')
+      vi.mocked(ecdsaSign).mockClear()
+      expect((await request(claim)).status).toBe(400)
+      expect(ecdsaSign).not.toHaveBeenCalled()
+    })
+    it('returns 404 for an unknown handle', async () => {
+      expect((await request(claim, 'unknown')).status).toBe(404)
+    })
+    it.each(['tt', 'tut'])(
+      'signs an eligible %s winner with the canonical amount',
+      async (challengeId) => {
+        const { app } = await import('../server')
+        void app
+        vi.mocked(sqlMock).mockResolvedValue([{ user_id: 1 }])
+        getUserNormalizedScoreMock.mockResolvedValue({ overallScore: 0 })
+        const { RewardManagerProgram } = await import('@audius/spl')
+        const response = await request({ ...claim, challengeId })
+        expect(response.status).toBe(200)
+        expect(RewardManagerProgram.encodeAttestation).toHaveBeenLastCalledWith(
+          {
+            recipientEthAddress: '0x' + 'ab'.repeat(20),
+            amount: BigInt(100000000000),
+            disbursementId: `${challengeId}:2026-11-13:1`
+          }
+        )
+        expect((await response.json()).result).toHaveLength(130)
+      }
+    )
+    it('retains abuse-score denial for eligible winners', async () => {
+      vi.mocked(sqlMock).mockResolvedValue([{ user_id: 1 }])
+      getUserNormalizedScoreMock.mockResolvedValue({ overallScore: -1001 })
+      const { ecdsaSign } = await import('secp256k1')
+      vi.mocked(ecdsaSign).mockClear()
+      expect((await request(claim)).status).toBe(400)
+      expect(ecdsaSign).not.toHaveBeenCalled()
     })
   })
 })
